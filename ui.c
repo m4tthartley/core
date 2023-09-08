@@ -3,9 +3,9 @@
 #ifdef _UI_HEADER
 #undef _UI_HEADER
 
-#include "w:/math.c"
+#include "./math.c"
 
-typedef char byte;
+typedef unsigned char byte;
 typedef unsigned __int32 u32;
 typedef u32 b32;
 
@@ -20,14 +20,14 @@ typedef struct ll_node {
 	struct ll_node* next;
 	struct ll_node* prev;
 } ll_node;
-inline void addToList(ll_node** head, ll_node* item) {
+void addToList(ll_node** head, ll_node* item) {
 	item->next = *head;
 	if(*head) {
 		(*head)->prev = item;
 	}
 	*head = item;
 }
-inline void addToListBack(ll_node** head, ll_node* item) {
+void addToListBack(ll_node** head, ll_node* item) {
 	item->next = 0;
 	if(*head) {
 		ll_node* w = *head;
@@ -40,7 +40,7 @@ inline void addToListBack(ll_node** head, ll_node* item) {
 		*head = item;
 	}
 }
-inline void removeFromList(ll_node **head, ll_node* item) {
+void removeFromList(ll_node **head, ll_node* item) {
 	if(item->next) {
 		item->next->prev = item->prev;
 	}
@@ -621,7 +621,7 @@ void uiRender(game_state* game, float dt) {
 		gfx_uf2("world_position", pos.x, pos.y);
 		if(w->state) {
 			gfx_ui1("hot", w->flags&UI_FLAG_CLICKABLE && w->state->hot ? 1 : 0);
-			gfx_ui1("active", w->state->active ? 1 : 0);
+			gfx_ui1("widgetActive", w->state->active ? 1 : 0);
 		}
 		gfx_ui1("bevel", w->flags&UI_FLAG_BEVEL ? 1 : 0);
 		gfx_ui1("border", w->flags&UI_FLAG_BORDER ? 1 : 0);

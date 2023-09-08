@@ -1,5 +1,7 @@
 
-typedef char byte;
+#define COREAPI
+
+typedef unsigned char byte;
 
 typedef struct {
 	void* address;
@@ -16,14 +18,14 @@ typedef struct {
 
 #define assert(exp) (exp ? (exp) : (*(int*)0 = 0))
 
-inline void zeroMemory(byte* address, int size) {
+COREAPI void zeroMemory(byte* address, int size) {
 	byte* end = address+size;
 	while(address<end){
 		*address++ = 0;
 	}
 }
 
-inline void copyMemory(byte* dest, byte* src, int size) {
+COREAPI void copyMemory(byte* dest, byte* src, int size) {
 	byte* end = dest+size;
 	while(dest<end){
 		*dest++ = *src++;
@@ -31,7 +33,7 @@ inline void copyMemory(byte* dest, byte* src, int size) {
 }
 
 // arenas
-inline void* pushMemory(memory_arena* arena, int size) {
+COREAPI void* pushMemory(memory_arena* arena, int size) {
 	assert(arena->stack + size <= arena->size);
 	if(arena->stack + size <= arena->size) {
 		void* result = (byte*)arena->address+arena->stack;
@@ -40,7 +42,7 @@ inline void* pushMemory(memory_arena* arena, int size) {
 	}
 	return 0;
 }
-inline void* pushRollingMemory(memory_arena* arena, int size) {
+COREAPI void* pushRollingMemory(memory_arena* arena, int size) {
 	if(arena->stack+size > arena->size) {
 		arena->stack = 0;
 	}
@@ -53,14 +55,14 @@ inline void* pushRollingMemory(memory_arena* arena, int size) {
 	return 0;
 }
 
-inline void* pushAndCopyMemory(memory_arena* arena, byte* src, int size) {
+COREAPI void* pushAndCopyMemory(memory_arena* arena, byte* src, int size) {
 	void* result = pushMemory(arena, size);
 	if(result) {
 		copyMemory(result, src, size);
 	}
 	return result;
 }
-inline void* pushAndCopyRollingMemory(memory_arena* arena, byte* src, int size) {
+COREAPI void* pushAndCopyRollingMemory(memory_arena* arena, byte* src, int size) {
 	void* result = pushRollingMemory(arena, size);
 	if(result) {
 		copyMemory(result, src, size);
@@ -68,12 +70,12 @@ inline void* pushAndCopyRollingMemory(memory_arena* arena, byte* src, int size) 
 	return result;
 }
 
-inline void popMemory(memory_arena* arena, int size) {
+COREAPI void popMemory(memory_arena* arena, int size) {
 	zeroMemory((byte*)arena->address + arena->stack - size, size);
 	arena->stack -= size;
 }
 
-inline void clearMemoryArena(memory_arena* arena) {
+COREAPI void clearMemoryArena(memory_arena* arena) {
 	zeroMemory(arena->address, arena->stack);
 	arena->stack = 0;
 }

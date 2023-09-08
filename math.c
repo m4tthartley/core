@@ -175,7 +175,7 @@ float fbm (vec2 st);*/
 //#ifndef _MATH_DECLARATIONS
 //#undef  _MATH_DECLARATIONS
 
-#define math_inline inline
+#define math_inline 
 
 // CONSTRUCTORS
 math_inline int2 _int2(int x, int y) {
