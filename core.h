@@ -1,6 +1,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 // #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 typedef __int64  i64;
@@ -130,27 +131,7 @@ void list_remove(list* list, list_node* item) {
 // TODO pools
 // TODO freelist
 // TODO dynamic arrays
-// TODO string pools
-// TODO string functions
-/*
-	sintern()
-	ssize() probably a header structure
-	sformat(char*fmt, ...)
-	sreplace()
-	sreplaceSingle()
-	ssplit()
-	sappend()
-	sprepend()
-	sinsert()
-	scopy()
-	sfind()
-	scompare()
 
-	toLowerCase()
-	toUpperCase()
-
-	delete()
-*/
 typedef enum {
 	ARENA_STATIC = 1,
 	ARENA_DYNAMIC = 1<<1,
@@ -228,6 +209,11 @@ void m_reserve(memory_arena* arena, size_t size, size_t pagesToCommit) {
 	VirtualAlloc(arena->address, arena->commit, MEM_COMMIT, PAGE_READWRITE);
 	arena->stack = 0;
 	arena->flags |= ARENA_RESERVE;
+
+	if(arena->flags & ARENA_FREELIST) {
+		((memory_block*)arena->address)->size = arena->commit;
+		list_add(&arena->free, arena->address);
+	}
 }
 
 void zeroMemory(byte* address, int size) {
@@ -271,24 +257,60 @@ void* m_push(memory_arena* arena, int size) {
 	}
 }
 
-void* m_alloc(memory_arena* arena, size_t size) {
-	assert(arena->address);
+void* _m_alloc_into_free(memory_arena* arena, memory_block* free, size_t size) {
+	if(free->size > size) {
+		memory_block* newFree = (u8*)free + size;
+		newFree->size = free->size - size;
+		list_add(&arena->free, newFree);
+	}
+	list_remove(&arena->free, free);
+	free->size = size;
+	list_add(&arena->blocks, free);
+	return free+1;
+}
+
+void*_m_alloc_into_virtual(memory_arena* arena, size_t size) {
 	memory_block* free = arena->free.first;
 	while(free) {
 		if(free->size >= size) {
-			printf("Found free block %d \n", free->size);
-			if(free->size > size) {
-				memory_block* newFree = (u8*)free + size;
-				newFree->size = free->size - size;
-				list_add(&arena->free, newFree);
-			}
-			list_remove(&arena->free, free);
-			free->size = size;
-			list_add(&arena->blocks, free);
+			return _m_alloc_into_free(arena, free, size);
 		}
 		free = ((list_node*)free)->next;
 	}
+
+	u64 commit = align64(size, PAGE_SIZE);
+	memory_block* newMemory = VirtualAlloc((u8*)arena->address+arena->commit, commit, MEM_COMMIT, PAGE_READWRITE);
+	arena->commit += commit;
+	newMemory->size = commit;
+	list_add(&arena->free, newMemory);
+	return _m_alloc_into_free(arena, newMemory, size);
 }
+
+void* m_alloc(memory_arena* arena, size_t size) {
+	assert(arena->address);
+	size += sizeof(memory_block);
+	if(arena->flags & ARENA_RESERVE) {
+		return _m_alloc_into_virtual(arena, size);
+	} else {
+		memory_block* free = arena->free.first;
+		while(free) {
+			if(free->size >= size) {
+				return _m_alloc_into_free(arena, free, size);
+			}
+			free = ((list_node*)free)->next;
+		}
+	}
+	return 0;
+}
+
+void m_free(memory_arena* arena, u8* block) {
+	assert(block >= arena->address && block < arena->address+arena->size);
+	block -= sizeof(memory_block);
+	list_remove(&arena->blocks, block);
+	list_add(&arena->free, block);
+}
+
+// TODO m_defrag
 
 void* pushRollingMemory(memory_arena* arena, int size) {
 	if(arena->stack+size > arena->size) {
@@ -333,6 +355,34 @@ void clearMemoryArena(memory_arena* arena) {
 
 
 // STRINGS
+// TODO string pools
+// TODO string functions
+/*
+	s_intern()
+	s_size() probably a header structure
+	s_format(char*fmt, ...)
+	s_replace()
+	s_replaceSingle()
+	s_split()
+	s_append()
+	s_prepend()
+	s_insert()
+	s_copy()
+	s_find()
+	s_compare()
+	s_copy()
+	s_trim() ?
+
+	toLowerCase()
+	toUpperCase()
+
+	delete()
+*/
+// typedef struct {
+// 	char* str;
+// 	u32 len;
+// } string;
+typedef char* string;
 typedef struct {
 	u8 buffer[1024*1024];
 } string_pool;
