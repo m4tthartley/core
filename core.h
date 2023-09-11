@@ -34,6 +34,22 @@ typedef u64 size_t;
 #define PAGE_SIZE 4096
 
 
+// BACKWARDS COMPATIBILITY
+#define pushMemory m_push
+#define slen s_len
+
+
+// MISC
+// Power of 2 align
+u64 align64(u64 size, u64 align) {
+	if(!(size & (align-1))) {
+		return size;
+	} else {
+		return (size & ~(align-1)) + align;
+	}
+}
+
+
 // LINKED LISTS
 typedef struct list_node list_node;
 struct list_node {
@@ -162,15 +178,6 @@ typedef struct {
 // 	assert(!(flags&ARENA_STACK && flags&ARENA_FREELIST));
 // }
 
-// Power of 2 align
-u64 align64(u64 size, u64 align) {
-	if(!(size & (align-1))) {
-		return size;
-	} else {
-		return (size & ~(align-1)) + align;
-	}
-}
-
 void m_stack(memory_arena* arena, u8* buffer, size_t size) {
 	*arena = (memory_arena){};
 	arena->address = buffer;
@@ -242,7 +249,6 @@ void* m_push_into_reserve(memory_arena* arena, size_t size) {
 	return (u8*)arena->address + arena->stack - size;
 }
 
-#define pushMemory m_push
 void* m_push(memory_arena* arena, int size) {
 	if(arena->flags & ARENA_RESERVE) {
 		return m_push_into_reserve(arena, size);
@@ -383,14 +389,45 @@ void clearMemoryArena(memory_arena* arena) {
 // 	u32 len;
 // } string;
 typedef char* string;
-typedef struct {
-	u8 buffer[1024*1024];
-} string_pool;
+// typedef struct {
+// 	u8 buffer[1024*1024];
+// } string_pool;
+typedef memory_arena string_pool;
+string_pool* _s_active_pool = NULL;
 
-u32 slen(char* str) {
+void s_create_pool(string_pool* pool, u8* buffer, u64 size) {
+	m_freelist(pool, buffer, size);
+}
+
+void s_pool(string_pool* pool) {
+	_s_active_pool = pool;
+}
+
+u32 s_len(char* str) {
 	u32 len = 0;
 	while(*str++) ++len;
 	return len;
+}
+
+string s_create(char* str) {
+	assert(_s_active_pool);
+	u64 len = s_len(str);
+	char* result = m_alloc(_s_active_pool, align64(len+1, 64));
+	memcpy(result, str, len+1);
+	return result;
+}
+
+void s_append(string* str, char* append) {
+	u64 len = s_len(*str);
+	u64 len2 = s_len(append);
+	u64 alen = align64(len+1, 64);
+	if(len + 1 + len2 > alen) {
+		string new = m_alloc(_s_active_pool, align64(len + len2 + 1, 64));
+		memcpy(new, *str, len);
+		m_free(_s_active_pool, *str);
+		*str = new;
+	}
+	memcpy(*str + len, append, len2+1);
 }
 
 b32 scompare(char* a, char* b) {
