@@ -239,7 +239,6 @@ void copyMemory(byte* dest, byte* src, int size) {
 
 void* m_push_into_reserve(memory_arena* arena, size_t size) {
 	assert(arena->flags & ARENA_RESERVE);
-	assert(arena->stack + size <= arena->size);
 	if(arena->stack+size > arena->commit) {
 		size_t pagesToCommit = align64(arena->stack+size - arena->commit, PAGE_SIZE);
 		VirtualAlloc((u8*)arena->address+arena->commit, pagesToCommit, MEM_COMMIT, PAGE_READWRITE);
@@ -250,6 +249,7 @@ void* m_push_into_reserve(memory_arena* arena, size_t size) {
 }
 
 void* m_push(memory_arena* arena, int size) {
+	assert(arena->stack + size <= arena->size);
 	if(arena->flags & ARENA_RESERVE) {
 		return m_push_into_reserve(arena, size);
 	} else {
@@ -294,6 +294,7 @@ void*_m_alloc_into_virtual(memory_arena* arena, size_t size) {
 
 void* m_alloc(memory_arena* arena, size_t size) {
 	assert(arena->address);
+	assert(arena->stack + size <= arena->size);
 	size += sizeof(memory_block);
 	if(arena->flags & ARENA_RESERVE) {
 		return _m_alloc_into_virtual(arena, size);
@@ -364,25 +365,24 @@ void clearMemoryArena(memory_arena* arena) {
 // TODO string pools
 // TODO string functions
 /*
+	s_format(char*fmt, ...)	    DONE
+	s_copy()					DONE
+	s_find()					DONE
+	s_compare()					DONE
+	s_append()					DONE
+	s_prepend()					DONE
+	s_insert()					DONE
+	s_split()
+	s_trim()
+	s_replace()					DONE
+	s_replaceSingle()			DONE
+	s_lower()					DONE
+	s_upper()					DONE
+
 	s_intern()
 	s_size() probably a header structure
-	s_format(char*fmt, ...)
-	s_replace()
-	s_replaceSingle()
-	s_split()
-	s_append()
-	s_prepend()
-	s_insert()
-	s_copy()
-	s_find()
-	s_compare()
-	s_copy()
-	s_trim() ?
-
-	toLowerCase()
-	toUpperCase()
-
-	delete()
+	s_delete()
+	s_slice()
 */
 // typedef struct {
 // 	char* str;
@@ -417,35 +417,173 @@ string s_create(char* str) {
 	return result;
 }
 
-void s_append(string* str, char* append) {
-	u64 len = s_len(*str);
-	u64 len2 = s_len(append);
-	u64 alen = align64(len+1, 64);
-	if(len + 1 + len2 > alen) {
-		string new = m_alloc(_s_active_pool, align64(len + len2 + 1, 64));
-		memcpy(new, *str, len);
-		m_free(_s_active_pool, *str);
-		*str = new;
-	}
-	memcpy(*str + len, append, len2+1);
+char* s_format(char* fmt, ...) {
+	va_list args;
+	va_start(args, fmt);
+	int len = vsnprintf(0, 0, fmt, args) + 1;
+	char* result = m_alloc(_s_active_pool, align64(len+1, 64));
+	vsnprintf(result, len, fmt, args);
+	return result;
 }
 
-b32 scompare(char* a, char* b) {
+char* s_copy(char* str) {
+	return s_create(str);
+}
+
+b32 s_compare(char* a, char* b) {
+	if(s_len(a) != s_len(b)) return FALSE;
 	while(*a==*b) {
 		if(*a==0) return TRUE;
 		++a;
 		++b;
 	}
+	if(*a==0 || *b==0) return TRUE;
 	return FALSE;
 }
 
-b32 sfind(char* str, char* find) {
+b32 s_ncompare(char* a, char* b, u64 n) {
+	for(int i=0; i<n; ++i) {
+		if(a[i] != b[i]) return FALSE;
+	}
+	return TRUE;
+}
+
+b32 s_find(char* str, char* find, char** out) {
 	int len = slen(str);
 	int findLen = slen(find);
 	for(int i=0; i<len-findLen+1; ++i) {
-		if(scompare(str+i, find)) return TRUE;
+		if(s_ncompare(str+i, find, findLen)) {
+			if(out) *out = str+i;
+			return TRUE;
+		}
 	}
 	return FALSE;
+}
+
+int s_findn(string str, char* find) {
+	int result = 0;
+	int len = slen(str);
+	int findLen = slen(find);
+	for(int i=0; i<len-findLen+1; ++i) {
+		if(s_compare(str+i, find)) {
+			++result;
+		}
+	}
+	return result;
+}
+
+void s_append(string* str, char* append) {
+	u64 len = s_len(*str);
+	u64 len2 = s_len(append);
+	u64 alen = align64(len+1, 64);
+	if(len + 1 + len2 > alen) {
+		string newStr = m_alloc(_s_active_pool, align64(len + len2 + 1, 64));
+		memcpy(newStr, *str, len);
+		m_free(_s_active_pool, *str);
+		*str = newStr;
+	}
+	memcpy(*str + len, append, len2+1);
+}
+
+void s_prepend(string* str, char* prepend) {
+	u64 len = s_len(*str);
+	u64 len2 = s_len(prepend);
+	memory_block* block = (memory_block*)*str - 1;
+	u64 newLen = len + len2 + 1;
+	if(newLen > block->size) {
+		string newStr = m_alloc(_s_active_pool, align64(newLen, 64));
+		memcpy(newStr+len2, *str, len+1);
+		m_free(_s_active_pool, *str);
+		*str = newStr;
+	} else {
+		memcpy(*str+len2, *str, len+1);
+	}
+	memcpy(*str, prepend, len2);
+}
+
+void s_insert(string* str, u64 index, char* insert) {
+	u64 len = s_len(*str);
+	assert(index < len);
+	u64 len2 = s_len(insert);
+	memory_block* block = (memory_block*)*str - 1;
+	u64 newLen = len + len2 + 1;
+	if(newLen > block->size) {
+		string newStr = m_alloc(_s_active_pool, align64(newLen, 64));
+		memcpy(newStr+index+len2, *str+index, len+1);
+		m_free(_s_active_pool, *str);
+		*str = newStr;
+	} else {
+		memcpy(*str+index+len2, *str+index, len+1);
+	}
+	memcpy(*str+index, insert, len2);
+}
+// s_split()
+// s_trim()
+void s_replace(string* str, char* find, char* replace) {
+	memory_block* block = (memory_block*)*str - 1;
+	int num = s_findn(*str, find);
+	int flen = s_len(find);
+	int rlen = s_len(replace);
+	u64 newSize = s_len(*str) + num*(rlen-s_len(find)) + 1;
+	string newStr = m_alloc(_s_active_pool, align64(newSize, 64));
+	char* s = *str;
+	char* o = newStr;
+	while(*s) {
+		if(s_ncompare(s, find, flen)) {
+			memcpy(o, replace, rlen);
+			o += rlen;
+			s += flen;
+		} else {
+			*o = *s;
+			++o;
+			++s;
+		}
+	}
+	m_free(_s_active_pool, *str);
+	*str = newStr;
+}
+
+void s_replace_single(string* str, char* find, char* replace) {
+	memory_block* block = (memory_block*)*str - 1;
+	// int num = s_findn(*str, find);
+	int flen = s_len(find);
+	int rlen = s_len(replace);
+	u64 newSize = s_len(*str) + (rlen-s_len(find)) + 1;
+	string newStr = m_alloc(_s_active_pool, align64(newSize, 64));
+	char* s = *str;
+	char* o = newStr;
+	while(*s) {
+		if(s_ncompare(s, find, flen)) {
+			memcpy(newStr, *str, s-*str);
+			memcpy(o, replace, rlen);
+			memcpy(o+rlen, s+flen, s_len(*str)-((s+flen)-*str));
+			break;
+		}
+		++s;
+		++o;
+	}
+	m_free(_s_active_pool, *str);
+	*str = newStr;
+}
+
+void s_lower(string* str) {
+	char* s = *str;
+	while(*s) {
+		if(*s >= 'A' && *s <= 'Z') {
+			*s += 32;
+		}
+		++s;
+	}
+}
+
+void s_upper(string* str) {
+	char* s = *str;
+	while(*s) {
+		if(*s >= 'a' && *s <= 'z') {
+			*s -= 32;
+		}
+		++s;
+	}
 }
 
 
