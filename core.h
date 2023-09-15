@@ -264,6 +264,7 @@ void* m_push(memory_arena* arena, int size) {
 }
 
 void* _m_alloc_into_free(memory_arena* arena, memory_block* free, size_t size) {
+	arena->stack += size;
 	if(free->size > size) {
 		memory_block* newFree = (u8*)free + size;
 		newFree->size = free->size - size;
@@ -292,6 +293,7 @@ void*_m_alloc_into_virtual(memory_arena* arena, size_t size) {
 	return _m_alloc_into_free(arena, newMemory, size);
 }
 
+// TODO maybe always use ->commit for size and rename ->size
 void* m_alloc(memory_arena* arena, size_t size) {
 	assert(arena->address);
 	assert(arena->stack + size <= arena->size);
@@ -313,6 +315,7 @@ void* m_alloc(memory_arena* arena, size_t size) {
 void m_free(memory_arena* arena, u8* block) {
 	assert(block >= arena->address && block < arena->address+arena->size);
 	block -= sizeof(memory_block);
+	arena->stack -= ((memory_block*)block)->size;
 	list_remove(&arena->blocks, block);
 	list_add(&arena->free, block);
 }
@@ -365,6 +368,7 @@ void clearMemoryArena(memory_arena* arena) {
 // TODO string pools
 // TODO string functions
 /*
+	s_len()						DONE
 	s_format(char*fmt, ...)	    DONE
 	s_copy()					DONE
 	s_find()					DONE
@@ -380,8 +384,8 @@ void clearMemoryArena(memory_arena* arena) {
 	s_upper()					DONE
 
 	s_intern()
-	s_size() probably a header structure
-	s_delete()
+	s_size()					X
+	s_free()					DONE
 	s_slice()
 */
 // typedef struct {
@@ -415,6 +419,10 @@ string s_create(char* str) {
 	char* result = m_alloc(_s_active_pool, align64(len+1, 64));
 	memcpy(result, str, len+1);
 	return result;
+}
+
+void s_free(string str) {
+	m_free(_s_active_pool, str);
 }
 
 char* s_format(char* fmt, ...) {
@@ -465,13 +473,15 @@ int s_findn(string str, char* find) {
 	int len = slen(str);
 	int findLen = slen(find);
 	for(int i=0; i<len-findLen+1; ++i) {
-		if(s_compare(str+i, find)) {
+		if(s_ncompare(str+i, find, findLen)) {
 			++result;
 		}
 	}
 	return result;
 }
 
+// TODO in string functions that create new allocations,
+// 		first check str is actually allocated in the current pool
 void s_append(string* str, char* append) {
 	u64 len = s_len(*str);
 	u64 len2 = s_len(append);
@@ -539,6 +549,7 @@ void s_replace(string* str, char* find, char* replace) {
 			++s;
 		}
 	}
+	*o = 0;
 	m_free(_s_active_pool, *str);
 	*str = newStr;
 }
@@ -546,21 +557,28 @@ void s_replace(string* str, char* find, char* replace) {
 void s_replace_single(string* str, char* find, char* replace) {
 	memory_block* block = (memory_block*)*str - 1;
 	// int num = s_findn(*str, find);
+	int len = s_len(*str);
 	int flen = s_len(find);
 	int rlen = s_len(replace);
 	u64 newSize = s_len(*str) + (rlen-s_len(find)) + 1;
 	string newStr = m_alloc(_s_active_pool, align64(newSize, 64));
 	char* s = *str;
 	char* o = newStr;
+	int i = 0;
 	while(*s) {
 		if(s_ncompare(s, find, flen)) {
-			memcpy(newStr, *str, s-*str);
+			memcpy(newStr, *str, i);
 			memcpy(o, replace, rlen);
-			memcpy(o+rlen, s+flen, s_len(*str)-((s+flen)-*str));
+			s += flen;
+			o += rlen;
+			i += flen;
+			memcpy(o, s, len-i+1);
+			// newStr[newSize-1] = '|';
 			break;
 		}
 		++s;
 		++o;
+		++i;
 	}
 	m_free(_s_active_pool, *str);
 	*str = newStr;
