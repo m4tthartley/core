@@ -8,6 +8,9 @@
 #define double __DONT_USE_DOUBLE__
 #define float __DONT_USE_FLOAT__
 
+int _window_width;
+int _window_height;
+
 // void core_fatal_error
 void core_error(char* err) {
 	print(REDF "%s\n" RESET, err);
@@ -60,6 +63,8 @@ typedef struct {
 typedef struct {
 	HWND hwnd;
 	HDC hdc;
+	int width;
+	int height;
 	b32 quit;
 	core_button_t keyboard[256];
 	core_mouse_t mouse;
@@ -173,6 +178,8 @@ void core_window(core_window_t* window, char* title, int width, int height, int 
 	UpdateWindow(window->hwnd);
 	window->hwnd = hwnd;
 	window->hdc = GetDC(window->hwnd);
+	window->width = width;
+	window->height = height;
 
 	RAWINPUTDEVICE mouse_raw_input;
 	mouse_raw_input.usUsagePage = 1;
@@ -232,8 +239,12 @@ LRESULT CALLBACK _core_wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
 		}
 		case WM_SIZE: {
 			if (window) {
-				// RECT rect;
+				RECT rect;
 				// GetWindowRect(hwnd, &rect);
+				GetClientRect(hwnd, &rect);
+				printf("%i %i \n", rect.right - rect.left, rect.bottom - rect.top);
+				window->width = rect.right - rect.left;
+				window->height = rect.bottom - rect.top;
 
 				// RECT windowRect;
 				// windowRect.left = 0;
@@ -353,6 +364,9 @@ void core_opengl(core_window_t* window) {
 }
 
 void core_window_update(core_window_t* window) {
+	_window_width = window->width;
+	_window_height = window->height;
+
 	// memset(&os->input.
 	//os->input.keysLast[Message.wParam] = os->input.keys[Message.wParam];
 	//memcpy(rain->input.keys_last, rain->input.keys, sizeof(rain->input.keys));
