@@ -83,3 +83,11 @@
 void escape_code(char* code) {
 	printf(code);
 }
+
+int print(char* str, ...) {
+	va_list args;
+	va_start(args, str);
+	int result = vprintf(str, args);
+	va_end(args);
+	return result;
+}

@@ -12,6 +12,33 @@
 #define PI 3.14159265359f
 #define PI2 (PI*2.0f)
 
+#ifdef GFX_VEC_CLASSIC_NAMES
+#	define vec2_create vec2
+#	define vec3_create vec3
+#	define vec4_create vec4
+#else
+#	define vec2_create vec2_create
+#	define vec3_create vec3_create
+#	define vec4_create vec4_create
+#	define vec2_t vec2
+#	define vec3_t vec3
+#	define vec4_t vec4
+#endif
+// #	define GFX_VEC2_STRUCT_NAME vec2_t
+// #	define GFX_VEC3_STRUCT_NAME vec3_t
+// #	define GFX_VEC4_STRUCT_NAME vec4_t
+// #	define GFX_VEC2_CREATE_NAME vec2
+/* #	define GFX_VEC3_CREATE_NAME vec3
+#	define GFX_VEC4_CREATE_NAME vec4
+#else
+#	define GFX_VEC2_STRUCT_NAME vec2
+#	define GFX_VEC3_STRUCT_NAME vec3
+#	define GFX_VEC4_STRUCT_NAME vec4
+#	define GFX_VEC2_CREATE_NAME vec2_create
+#	define GFX_VEC3_CREATE_NAME vec3_create
+#	define GFX_VEC4_CREATE_NAME vec4_create
+#endif */
+
 typedef union {
 	struct {
 		int x;
@@ -52,7 +79,7 @@ typedef union {
 		float v;
 	};
 	float f[2];
-} vec2;
+} vec2_t;
 
 typedef union {
 	struct {
@@ -65,9 +92,9 @@ typedef union {
 		float g;
 		float b;
 	};
-	vec2 xy;
+	vec2_t xy;
 	float f[3];
-} vec3;
+} vec3_t;
 
 typedef union {
 	struct {
@@ -82,18 +109,18 @@ typedef union {
 		float b;
 		float a;
 	};
-	vec3 xyz;
-	vec2 xy;
+	vec3_t xyz;
+	vec2_t xy;
 	float f[4];
-} vec4;
-typedef vec4 quaternion;
+} vec4_t;
+typedef vec4_t quaternion;
 typedef quaternion quat;
 
-/*typedef struct vec2 {
+/*typedef struct vec2_t {
 	float x;
 	float y;
 } vec2;
-typedef struct vec3 {
+typedef struct vec3_t {
 	float x;
 	float y;
 	float z;
@@ -126,26 +153,26 @@ int iRoundUp(int n, int stride);
 int iRoundDown(int n, int stride);
 
 point _point(int x, int y);
-vec2 _vec2(float x, float y);
-vec2 add2(vec2 a, vec2 b);
-vec2 mul2(vec2 a, vec2 b);
-vec2 sub2(vec2 a, vec2 b);
-vec2 normalize2(vec2 v);
-float len2(vec2 a);
-vec2 floor2(vec2 a);
-vec2 fract2(vec2 a);
-float dot2(vec2 a, vec2 b);
+vec2_t vec2_create(float x, float y);
+vec2_t add2(vec2_t a, vec2_t b);
+vec2_t mul2(vec2_t a, vec2_t b);
+vec2_t sub2(vec2_t a, vec2_t b);
+vec2_t normalize2(vec2_t v);
+float len2(vec2_t a);
+vec2_t floor2(vec2_t a);
+vec2_t fract2(vec2_t a);
+float dot2(vec2_t a, vec2_t b);
 
-vec3 _vec3(float x, float y, float z);
-vec3 mix3(vec3 a, vec3 b, float t);
-vec3 add3(vec3 a, vec3 b);
-vec3 sub3(vec3 a, vec3 b);
-vec3 mul3(vec3 a, vec3 b);
-vec3 div3(vec3 a, vec3 b);
+vec3_t vec3_create(float x, float y, float z);
+vec3_t mix3(vec3_t a, vec3_t b, float t);
+vec3_t add3(vec3_t a, vec3_t b);
+vec3_t sub3(vec3_t a, vec3_t b);
+vec3_t mul3(vec3_t a, vec3_t b);
+vec3_t div3(vec3_t a, vec3_t b);
 
-vec3 diff3(vec3 a, vec3 b);
-vec3 normalize3(vec3 v);
-vec3 cross3(vec3 a, vec3 b);
+vec3_t diff3(vec3_t a, vec3_t b);
+vec3_t normalize3(vec3_t v);
+vec3_t cross3(vec3_t a, vec3_t b);
 
 int ipow(int num, int e);
 float randf();
@@ -166,11 +193,11 @@ mat4 perspective_matrix(float fov, float aspect, float near, float far);
 
 quaternion qidentity();
 quaternion qmul(quaternion q1, quaternion q2);
-void qrotate(quaternion *q, vec3 axis, float angle);
+void qrotate(quaternion *q, vec3_t axis, float angle);
 
-float rand2d(vec2 st);
-float noise (vec2 st);
-float fbm (vec2 st);*/
+float rand2d(vec2_t st);
+float noise (vec2_t st);
+float fbm (vec2_t st);*/
 
 //#ifndef _MATH_DECLARATIONS
 //#undef  _MATH_DECLARATIONS
@@ -190,157 +217,157 @@ math_inline int3 _int3(int x, int y, int z) {
 	int3 p = {x, y, z};
 	return p;
 }
-math_inline vec2 _vec2(float x, float y) {
-	vec2 a = {x, y};
+math_inline vec2_t vec2_create(float x, float y) {
+	vec2_t a = {x, y};
 	return a;
 }
-math_inline vec2 _pointToVec2(point p) {
-	vec2 a = {p.x, p.y};
+math_inline vec2_t _pointToVec2(point p) {
+	vec2_t a = {p.x, p.y};
 	return a;
 }
-math_inline vec3 _vec3(float x, float y, float z) {
-	vec3 a = {x, y, z};
+math_inline vec3_t vec3_create(float x, float y, float z) {
+	vec3_t a = {x, y, z};
 	return a;
 }
-math_inline vec3 _vec2to3(vec2 v, float z) {
-	vec3 a = {v.x, v.y, z};
+math_inline vec3_t vec2_createto3(vec2_t v, float z) {
+	vec3_t a = {v.x, v.y, z};
 	return a;
 }
-math_inline vec4 _vec4(float x, float y, float z, float w) {
-	vec4 a = {x, y, z, w};
+math_inline vec4_t vec4_create(float x, float y, float z, float w) {
+	vec4_t a = {x, y, z, w};
 	return a;
 }
-math_inline vec4 _vec3to4(vec3 v, float w) {
-	vec4 a = {v.x, v.y, v.z, w};
+math_inline vec4_t vec3_createto4(vec3_t v, float w) {
+	vec4_t a = {v.x, v.y, v.z, w};
 	return a;
 }
 
 // OPERATIONS
-math_inline vec2 add2(vec2 a, vec2 b) {
-	return _vec2(a.x+b.x, a.y+b.y); // todo: make sure these get inlined
+math_inline vec2_t add2(vec2_t a, vec2_t b) {
+	return vec2_create(a.x+b.x, a.y+b.y); // todo: make sure these get inlined
 }
-math_inline vec2 add2f(vec2 a, float b) {
-	return _vec2(a.x+b, a.y+b);
+math_inline vec2_t add2f(vec2_t a, float b) {
+	return vec2_create(a.x+b, a.y+b);
 }
-math_inline vec3 add3(vec3 a, vec3 b) {
-	vec3 result = _vec3(a.x+b.x, a.y+b.y, a.z+b.z);
+math_inline vec3_t add3(vec3_t a, vec3_t b) {
+	vec3_t result = vec3_create(a.x+b.x, a.y+b.y, a.z+b.z);
 	return result;
 }
-math_inline vec3 add3f(vec3 a, float b) {
-	vec3 result = _vec3(a.x+b, a.y+b, a.z+b);
-	return result;
-}
-
-math_inline vec2 sub2(vec2 a, vec2 b) {
-	return _vec2(a.x-b.x, a.y-b.y);
-}
-math_inline vec2 sub2f(vec2 a, float b) {
-	return _vec2(a.x-b, a.y-b);
-}
-math_inline vec3 sub3(vec3 a, vec3 b) {
-	vec3 result = _vec3(a.x-b.x, a.y-b.y, a.z-b.z);
-	return result;
-}
-math_inline vec3 sub3f(vec3 a, float b) {
-	vec3 result = _vec3(a.x-b, a.y-b, a.z-b);
+math_inline vec3_t add3f(vec3_t a, float b) {
+	vec3_t result = vec3_create(a.x+b, a.y+b, a.z+b);
 	return result;
 }
 
-math_inline vec2 mul2(vec2 a, vec2 b) {
-	return _vec2(a.x*b.x, a.y*b.y);
+math_inline vec2_t sub2(vec2_t a, vec2_t b) {
+	return vec2_create(a.x-b.x, a.y-b.y);
 }
-math_inline vec2 mul2f(vec2 a, float b) {
-	return _vec2(a.x*b, a.y*b);
+math_inline vec2_t sub2f(vec2_t a, float b) {
+	return vec2_create(a.x-b, a.y-b);
 }
-math_inline vec3 mul3(vec3 a, vec3 b) {
-	vec3 result = _vec3(a.x*b.x, a.y*b.y, a.z*b.z);
+math_inline vec3_t sub3(vec3_t a, vec3_t b) {
+	vec3_t result = vec3_create(a.x-b.x, a.y-b.y, a.z-b.z);
 	return result;
 }
-math_inline vec3 mul3f(vec3 a, float b) {
-	vec3 result = _vec3(a.x*b, a.y*b, a.z*b);
-	return result;
-}
-
-math_inline vec2 div2(vec2 a, vec2 b) {
-	return _vec2(a.x/b.x, a.y/b.y);
-}
-math_inline vec2 div2f(vec2 a, float b) {
-	return _vec2(a.x/b, a.y/b);
-}
-math_inline vec3 div3(vec3 a, vec3 b) {
-	vec3 result = _vec3(a.x/b.x, a.y/b.y, a.z/b.z);
-	return result;
-}
-math_inline vec3 div3f(vec3 a, float b) {
-	vec3 result = _vec3(a.x/b, a.y/b, a.z/b);
+math_inline vec3_t sub3f(vec3_t a, float b) {
+	vec3_t result = vec3_create(a.x-b, a.y-b, a.z-b);
 	return result;
 }
 
-math_inline float len2(vec2 a) {
+math_inline vec2_t mul2(vec2_t a, vec2_t b) {
+	return vec2_create(a.x*b.x, a.y*b.y);
+}
+math_inline vec2_t mul2f(vec2_t a, float b) {
+	return vec2_create(a.x*b, a.y*b);
+}
+math_inline vec3_t mul3(vec3_t a, vec3_t b) {
+	vec3_t result = vec3_create(a.x*b.x, a.y*b.y, a.z*b.z);
+	return result;
+}
+math_inline vec3_t mul3f(vec3_t a, float b) {
+	vec3_t result = vec3_create(a.x*b, a.y*b, a.z*b);
+	return result;
+}
+
+math_inline vec2_t div2(vec2_t a, vec2_t b) {
+	return vec2_create(a.x/b.x, a.y/b.y);
+}
+math_inline vec2_t div2f(vec2_t a, float b) {
+	return vec2_create(a.x/b, a.y/b);
+}
+math_inline vec3_t div3(vec3_t a, vec3_t b) {
+	vec3_t result = vec3_create(a.x/b.x, a.y/b.y, a.z/b.z);
+	return result;
+}
+math_inline vec3_t div3f(vec3_t a, float b) {
+	vec3_t result = vec3_create(a.x/b, a.y/b, a.z/b);
+	return result;
+}
+
+math_inline float len2(vec2_t a) {
 	return (float)sqrt(a.x*a.x + a.y*a.y);
 }
-math_inline float len3(vec3 a) {
+math_inline float len3(vec3_t a) {
 	return (float)sqrt(a.x*a.x + a.y*a.y + a.z*a.z);
 }
-math_inline float len4(vec4 a) {
+math_inline float len4(vec4_t a) {
 	return (float)sqrt(a.x*a.x + a.y*a.y + a.z*a.z + a.w*a.w);
 }
 
-math_inline vec2 normalize2(vec2 v) {
+math_inline vec2_t normalize2(vec2_t v) {
 	float l = len2(v);
-	return _vec2(v.x/l, v.y/l);
+	return vec2_create(v.x/l, v.y/l);
 }
-math_inline vec3 normalize3(vec3 v) {
+math_inline vec3_t normalize3(vec3_t v) {
 	float len = len3(v);
-	return _vec3(v.x/len, v.y/len, v.z/len);
+	return vec3_create(v.x/len, v.y/len, v.z/len);
 }
-math_inline vec4 normalize4(vec4 v) {
+math_inline vec4_t normalize4(vec4_t v) {
 	float len = len4(v);
-	return _vec4(v.x/len, v.y/len, v.z/len, v.w/len);
+	return vec4_create(v.x/len, v.y/len, v.z/len, v.w/len);
 }
 
-math_inline vec2 floor2(vec2 a) {
-	return _vec2(floorf(a.x), floorf(a.y));
+math_inline vec2_t floor2(vec2_t a) {
+	return vec2_create(floorf(a.x), floorf(a.y));
 }
-math_inline vec3 floor3(vec3 a) {
-	return _vec3(floorf(a.x), floorf(a.y), floorf(a.z));
+math_inline vec3_t floor3(vec3_t a) {
+	return vec3_create(floorf(a.x), floorf(a.y), floorf(a.z));
 }
 
 math_inline float fract(float a) {
 	return a-floor(a);
 }
-math_inline vec2 fract2(vec2 a) {
-	vec2 f = {a.x-floorf(a.x), a.y-floorf(a.y)};
+math_inline vec2_t fract2(vec2_t a) {
+	vec2_t f = {a.x-floorf(a.x), a.y-floorf(a.y)};
 	return f;
 }
-math_inline vec3 fract3(vec3 a) {
-	vec3 f = {a.x-floorf(a.x), a.y-floorf(a.y), a.z-floorf(a.z)};
+math_inline vec3_t fract3(vec3_t a) {
+	vec3_t f = {a.x-floorf(a.x), a.y-floorf(a.y), a.z-floorf(a.z)};
 	return f;
 }
 
 math_inline float diff(float a, float b) {
 	return (float)fabs(a-b);
 }
-math_inline vec2 diff2(vec2 a, vec2 b) {
-	return _vec2(b.x-a.x, b.y-a.y);
+math_inline vec2_t diff2(vec2_t a, vec2_t b) {
+	return vec2_create(b.x-a.x, b.y-a.y);
 }
-math_inline vec3 diff3(vec3 a, vec3 b) {
-	vec3 result = {b.x-a.x, b.y-a.y, b.z-a.z};
+math_inline vec3_t diff3(vec3_t a, vec3_t b) {
+	vec3_t result = {b.x-a.x, b.y-a.y, b.z-a.z};
 	return result;
 }
 
-math_inline float dot2(vec2 a, vec2 b) {
+math_inline float dot2(vec2_t a, vec2_t b) {
 	return a.x*b.x + a.y*b.y;
 }
-math_inline float dot3(vec3 a, vec3 b) {
+math_inline float dot3(vec3_t a, vec3_t b) {
 	return a.x*b.x + a.y*b.y + a.z*b.z;
 }
-math_inline float dot4(vec4 a, vec4 b) {
+math_inline float dot4(vec4_t a, vec4_t b) {
 	return a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w;
 }
 
-math_inline vec3 cross3(vec3 a, vec3 b) {
-	vec3 result;
+math_inline vec3_t cross3(vec3_t a, vec3_t b) {
+	vec3_t result;
 	result.x = a.y*b.z - a.z*b.y;
 	result.y = a.z*b.x - a.x*b.z;
 	result.z = a.x*b.y - a.y*b.x;
@@ -348,8 +375,8 @@ math_inline vec3 cross3(vec3 a, vec3 b) {
 }
 
 /*
-vec3 mix3(vec3 a, vec3 b, float t) {
-	vec3 result = _vec3(a.x + (b.x-a.x)*t, a.y + (b.y-a.y)*t, a.z + (b.z-a.z)*t);
+vec3_t mix3(vec3_t a, vec3_t b, float t) {
+	vec3_t result = vec3_create(a.x + (b.x-a.x)*t, a.y + (b.y-a.y)*t, a.z + (b.z-a.z)*t);
 	return result;
 }*/
 
@@ -359,17 +386,17 @@ math_inline float mix(float a, float b, float t) {
 math_inline float lerp(float a, float b, float t) {
 	return a + (b-a)*t;
 }
-math_inline vec2 lerp2(vec2 a, vec2 b, float t) {
-	return _vec2(lerp(a.x, b.x, t),
+math_inline vec2_t lerp2(vec2_t a, vec2_t b, float t) {
+	return vec2_create(lerp(a.x, b.x, t),
 				 lerp(a.y, b.y, t));
 }
-math_inline vec3 lerp3(vec3 a, vec3 b, float t) {
-	return _vec3(lerp(a.x, b.x, t),
+math_inline vec3_t lerp3(vec3_t a, vec3_t b, float t) {
+	return vec3_create(lerp(a.x, b.x, t),
 				 lerp(a.y, b.y, t),
 				 lerp(a.z, b.z, t));
 }
-math_inline vec4 lerp4(vec4 a, vec4 b, float t) {
-	return _vec4(lerp(a.x, b.x, t),
+math_inline vec4_t lerp4(vec4_t a, vec4_t b, float t) {
+	return vec4_create(lerp(a.x, b.x, t),
 				 lerp(a.y, b.y, t),
 				 lerp(a.z, b.z, t),
 				 lerp(a.w, b.w, t));
@@ -384,24 +411,24 @@ math_inline int ipow(int num, int e) {
 math_inline float min(float a, float b) {
 	return a<b ? a : b;
 }
-math_inline vec2 min2(vec2 a, vec2 b) {
-	return _vec2(a.x<b.x ? a.x : b.x,
+math_inline vec2_t min2(vec2_t a, vec2_t b) {
+	return vec2_create(a.x<b.x ? a.x : b.x,
 				 a.y<b.y ? a.y : b.y);
 }
-math_inline vec3 min3(vec3 a, vec3 b) {
-	return _vec3(a.x<b.x ? a.x : b.x,
+math_inline vec3_t min3(vec3_t a, vec3_t b) {
+	return vec3_create(a.x<b.x ? a.x : b.x,
 				 a.y<b.y ? a.y : b.y,
 				 a.z<b.z ? a.z : b.z);
 }
 math_inline float max(float a, float b) {
 	return a>b ? a : b;
 }
-math_inline vec2 max2(vec2 a, vec2 b) {
-	return _vec2(a.x>b.x ? a.x : b.x,
+math_inline vec2_t max2(vec2_t a, vec2_t b) {
+	return vec2_create(a.x>b.x ? a.x : b.x,
 				 a.y>b.y ? a.y : b.y);
 }
-math_inline vec3 max3(vec3 a, vec3 b) {
-	return _vec3(a.x>b.x ? a.x : b.x,
+math_inline vec3_t max3(vec3_t a, vec3_t b) {
+	return vec3_create(a.x>b.x ? a.x : b.x,
 				 a.y>b.y ? a.y : b.y,
 				 a.z>b.z ? a.z : b.z);
 }
@@ -463,7 +490,7 @@ math_inline mat4 mat4_mul(mat4 m1, mat4 m2) {
 	
 	return out;
 }
-math_inline void mat4_translate(mat4 *m, vec3 pos) {
+math_inline void mat4_translate(mat4 *m, vec3_t pos) {
 	mat4 result = {
 		1, 0, 0, 0,
 		0, 1, 0, 0,
@@ -473,7 +500,7 @@ math_inline void mat4_translate(mat4 *m, vec3 pos) {
 	*m = mat4_mul(*m, result);
 }
 
-math_inline mat4 mat4_translation(vec3 pos) {
+math_inline mat4 mat4_translation(vec3_t pos) {
 	mat4 result = {
 		1, 0, 0, 0,
 		0, 1, 0, 0,
@@ -520,12 +547,12 @@ math_inline mat4 perspective_matrix(float fov, float aspect, float near, float f
 	};
 	return mat;
 }
-math_inline mat4 mat4_camera(vec3 position, vec3 direction, vec3 up) {
-	vec3 x = {0};
-	vec3 y = {0};
-	vec3 z = {0};
+math_inline mat4 mat4_camera(vec3_t position, vec3_t direction, vec3_t up) {
+	vec3_t x = {0};
+	vec3_t y = {0};
+	vec3_t z = {0};
 	
-	vec3 d = sub3(direction, position);
+	vec3_t d = sub3(direction, position);
 	
 	z = (normalize3(d));
 	y = up;
@@ -543,8 +570,8 @@ math_inline mat4 mat4_camera(vec3 position, vec3 direction, vec3 up) {
 	
 	return result;
 }
-vec4 vec4_mul_mat4(vec4 in, mat4 mat) {
-	vec4 result = {0};
+vec4_t vec4_mul_mat4(vec4_t in, mat4 mat) {
+	vec4_t result = {0};
 	for (int col = 0; col < 4; ++col) {
 		for (int i = 0; i < 4; ++i) {
 			result.f[col] += in.f[i] * mat.f[i*4 + col];
@@ -585,7 +612,7 @@ math_inline quaternion qinverse(quaternion q) {
 	result.w = q.w;
 	return qdiv(result, qdot(q,q));
 }
-math_inline void qrotate(quaternion *q, vec3 axis, float angle) {
+math_inline void qrotate(quaternion *q, vec3_t axis, float angle) {
 	quaternion local;
 	local.w = cosf(angle/2.0f);
 	local.x = axis.x * sinf(angle/2.0f);
@@ -595,10 +622,10 @@ math_inline void qrotate(quaternion *q, vec3 axis, float angle) {
 	*q = qmul(local, *q);
 	*q = normalize4(*q); // todo: check if it needs this first
 }
-math_inline void qrotate_vec3(vec3* v, quaternion q) {
+math_inline void qrotatevec3_create(vec3_t* v, quaternion q) {
 	quaternion qp = {v->x, v->y, v->z, 0};
 	quaternion temp = qmul(q, qp);
-	q = qmul(temp, _vec4(-q.x, -q.y, -q.z, q.w));
+	q = qmul(temp, vec4_create(-q.x, -q.y, -q.z, q.w));
 	*v = q.xyz;
 }
 math_inline quaternion qnlerp(quaternion a, quaternion b, float t) {
@@ -653,27 +680,27 @@ math_inline float randf() {
 math_inline float randfr(float min, float max) {
 	return min + randf()*(max-min);
 }
-math_inline float rand2d(vec2 st) {
-    return fract((float)sin(dot2(st, _vec2(12.9898f,78.233f)))*43758.5453123f);
+math_inline float rand2d(vec2_t st) {
+    return fract((float)sin(dot2(st, vec2_create(12.9898f,78.233f)))*43758.5453123f);
 }
-math_inline float noise (vec2 st) {
-    vec2 i = floor2(st);
-    vec2 f = fract2(st);
+math_inline float noise (vec2_t st) {
+    vec2_t i = floor2(st);
+    vec2_t f = fract2(st);
 	
     // Four corners in 2D of a tile
     float a = rand2d(i);
-    float b = rand2d(add2(i, _vec2(1.0, 0.0)));
-    float c = rand2d(add2(i, _vec2(0.0, 1.0)));
-    float d = rand2d(add2(i, _vec2(1.0, 1.0)));
+    float b = rand2d(add2(i, vec2_create(1.0, 0.0)));
+    float c = rand2d(add2(i, vec2_create(0.0, 1.0)));
+    float d = rand2d(add2(i, vec2_create(1.0, 1.0)));
 	
-    //vec2 u = vec2Mul(f, vec2Mul(f, (vec2Sub(_vec2(3.0,3.0), vec2Mul(_vec2(2.0,2.0), f)))));
-	vec2 u = f;
+    //vec2_t u = vec2Mul(f, vec2Mul(f, (vec2Sub(vec2_create(3.0,3.0), vec2Mul(vec2_create(2.0,2.0), f)))));
+	vec2_t u = f;
 	//return a;
 	
     //return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
 	return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
 }
-math_inline float fbm (vec2 st) {
+math_inline float fbm (vec2_t st) {
     float value = 0.0;
     float amplitude = .5;
     float frequency = 0.;
@@ -682,12 +709,12 @@ math_inline float fbm (vec2 st) {
 #define OCTAVES 6
     {for (o=0; o<OCTAVES; o++) {
         value += amplitude * noise(st);
-        st = mul2(st, _vec2(2,2));
+        st = mul2(st, vec2_create(2,2));
         amplitude *= .5;
     }}
 
     return value;
-	// return rand2d(_vec2(-1.5, -1.0));
+	// return rand2d(vec2_create(-1.5, -1.0));
 	// return noise(st);
 }
 

@@ -13,6 +13,9 @@ typedef unsigned __int16  u16;
 typedef __int8  i8;
 typedef unsigned __int8  u8;
 
+typedef float f32;
+typedef double f64;
+
 typedef u32 b32;
 typedef u8 byte;
 typedef u64 size_t;
