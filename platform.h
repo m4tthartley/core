@@ -5,6 +5,8 @@
 #define GFX_VEC_CLASSIC_NAMES
 #include "math.c"
 
+#include "audio.h"
+
 // #define double __DONT_USE_DOUBLE__
 // #define float __DONT_USE_FLOAT__
 
@@ -55,6 +57,17 @@ char* _win32_error() {
 		NULL,
 		error,
 		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPWSTR)_win32_error_buffer,
+		sizeof(_win32_error_buffer),
+		NULL);
+	return _win32_error_buffer;
+}
+char* _win32_hresult_string(HRESULT hresult) {
+	FormatMessage(
+		/*FORMAT_MESSAGE_ALLOCATE_BUFFER |*/ FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+		NULL,
+		hresult,
+		0,
 		(LPWSTR)_win32_error_buffer,
 		sizeof(_win32_error_buffer),
 		NULL);
@@ -235,6 +248,7 @@ void core_window(core_window_t* window, char* title, int width, int height, int 
 	SetFocus(hwnd);
 
 	core_time_init();
+	wasapi_init_audio();
 
 	return;
 }
