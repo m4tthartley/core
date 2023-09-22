@@ -1,4 +1,8 @@
 
+// #include <windows.h>
+// #include <gl/gl.h>
+#include <file.h>
+
 // typedef GLuint glh_t;
 
 typedef struct {
@@ -6,11 +10,17 @@ typedef struct {
 	f32 width;
 	f32 height;
 } gfx_texture_t;
+
+// typedef struct {
+// 	gfx_texture_t texture;
+// 	vec2_t uv;
+// 	vec2_t uv2;
+// } gfx_sprite_t;
+
 typedef struct {
-	gfx_texture_t texture;
-	vec2_t uv;
-	vec2_t uv2;
-	// vec2_t pixelSize;
+	gfx_texture_t* texture;
+	int tile_size;
+	int scale;
 } gfx_sprite_t;
 
 gfx_texture_t _gfx_active_texture = {};
@@ -32,6 +42,8 @@ void gfx_coord_system(f32 width, f32 height) {
 }
 
 void gfx_quad(vec3_t pos, vec2_t size) {
+	glDisable(GL_TEXTURE_2D);
+
 	vec2_t s = {
 		size.x/2.0f,
 		size.y/2.0f,
@@ -69,7 +81,20 @@ void gfx_sprite(vec2_t pos, int px, int py, int pxs, int pys, int scale) {
 
 }
 
+void gfx_sprite_tile(gfx_sprite_t sprite, vec2_t pos, int tile) {
+	gfx_texture(sprite.texture);
+	int tiles_per_row = sprite.texture->width / sprite.tile_size;
+	int tiles_per_column = sprite.texture->height / sprite.tile_size;
+	tile %= (tiles_per_row * tiles_per_column);
+	gfx_sprite(pos,
+			(tile%tiles_per_row)*sprite.tile_size,
+			(tile/tiles_per_row)*sprite.tile_size,
+			sprite.tile_size, sprite.tile_size, sprite.scale);
+}
+
 void gfx_circle(vec3_t pos, f32 size, int segments) {
+	glDisable(GL_TEXTURE_2D);
+
 	vec2_t s = {
 		size/2.0f,
 		size/2.0f,
@@ -87,17 +112,26 @@ void gfx_circle(vec3_t pos, f32 size, int segments) {
 	glEnd();
 }
 
-// r_texture gfx_create_texture(bmp image) {
-// 	r_texture result;
-// 	result.width = image.header->bitmapWidth;
-// 	result.height = image.header->bitmapHeight;
-// 	glGenTextures(1, &result.handle);
-// 	glBindTexture(GL_TEXTURE_2D, result.handle);
-// 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.header->bitmapWidth, image.header->bitmapHeight, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, image.data);
-// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-// 	return result;
-// }
+void gfx_line(vec2_t start, vec2_t end) {
+	glDisable(GL_TEXTURE_2D);
+
+	glBegin(GL_LINES);
+	glVertex2f(start.x * _gfx_coord_system.x, start.y * _gfx_coord_system.y);
+	glVertex2f(end.x * _gfx_coord_system.x, end.y * _gfx_coord_system.y);
+	glEnd();
+}
+
+gfx_texture_t gfx_create_texture(bitmap_t* image) {
+	gfx_texture_t result;
+	result.width = image->width;
+	result.height = image->height;
+	glGenTextures(1, &result.handle);
+	glBindTexture(GL_TEXTURE_2D, result.handle);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image->width, image->height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, image->data);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	return result;
+}
 
 gfx_texture_t gfx_create_null_texture(int width, int height) {
 	// r_texture result;

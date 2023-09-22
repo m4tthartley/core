@@ -52,6 +52,15 @@ u64 align64(u64 size, u64 align) {
 	}
 }
 
+f32 r_float() {
+	f32 result = (f32)rand() / (f32)RAND_MAX;
+	return result;
+}
+int r_int_range(int min, int max) {
+	int result = rand() % (max-min);
+	return min + result;
+}
+
 
 // LINKED LISTS
 typedef struct list_node list_node;
@@ -151,6 +160,9 @@ void list_remove(list* list, list_node* item) {
 // TODO freelist
 // TODO dynamic arrays
 
+#define m_arena memory_arena
+#define m_block memory_block
+
 typedef enum {
 	ARENA_STATIC = 1,
 	ARENA_DYNAMIC = 1<<1,
@@ -168,7 +180,7 @@ typedef struct {
 typedef struct {
 	u8* address;
 	u64 size;
-	u64 stack;
+	u64 stack; // TODO some of this can be unionized
 	u64 commit;
 	// todo: linked lists | what does that mean?
 	u64 flags;
@@ -213,6 +225,7 @@ void m_freelist(memory_arena* arena, u8* buffer, size_t size) {
 }
 
 void m_reserve(memory_arena* arena, size_t size, size_t pagesToCommit) {
+	assert(!(arena->flags & ARENA_STATIC));
 	arena->size = align64(size, PAGE_SIZE);
 	arena->address = VirtualAlloc(0, arena->size, MEM_RESERVE, PAGE_READWRITE);
 	arena->commit = align64(pagesToCommit, PAGE_SIZE);
@@ -251,7 +264,7 @@ void* m_push_into_reserve(memory_arena* arena, size_t size) {
 	return (u8*)arena->address + arena->stack - size;
 }
 
-void* m_push(memory_arena* arena, int size) {
+void* m_push(memory_arena* arena, size_t size) {
 	assert(arena->stack + size <= arena->size);
 	if(arena->flags & ARENA_RESERVE) {
 		return m_push_into_reserve(arena, size);
@@ -264,6 +277,16 @@ void* m_push(memory_arena* arena, int size) {
 		}
 		return 0;
 	}
+}
+
+void m_pop(m_arena* arena, size_t size) {
+	zeroMemory(arena->address + arena->stack - size, size);
+	arena->stack -= size;
+}
+
+void m_pop_and_shift(m_arena* arena, size_t offset, size_t size) {
+	assert(arena->stack >= offset + size);
+	memcpy(arena->address + offset, arena->address + offset + size, arena->stack - (offset+size));
 }
 
 void* _m_alloc_into_free(memory_arena* arena, memory_block* free, size_t size) {
@@ -365,6 +388,52 @@ void clearMemoryArena(memory_arena* arena) {
 
 #define pushStruct(arena, a)\
     pushAndCopyMemory(arena, &a, sizeof(a))
+
+
+// DYNAMIC ARRAY
+typedef struct {
+	m_arena arena;
+	int stride;
+	int max;
+	int count;
+} dynarr_t;
+
+dynarr_t m_dynarr_static(u8* buffer, size_t size, int stride) {
+	dynarr_t result;
+	m_stack(&result.arena, buffer, size);
+	result.stride = stride;
+	result.max = size / stride;
+	result.count = 0;
+	return result;
+}
+
+dynarr_t dynarr_reserve(size_t size, size_t pages_to_commit, int stride) {
+	dynarr_t result;
+	m_stack(&result.arena, 0, 0);
+	m_reserve(&result.arena, size, pages_to_commit);
+	result.stride = stride;
+	result.max = size / stride;
+	result.count = 0;
+	return result;
+}
+
+dynarr_t dynarr(int stride) {
+	return dynarr_reserve(GB(1), PAGE_SIZE, stride);
+}
+
+void dynarr_push(dynarr_t* arr, void* item) {
+	void* result = m_push(&arr->arena, arr->stride);
+	memcpy(result, item, arr->stride);
+	++arr->count;
+}
+
+void dynarr_pop(dynarr_t* arr, int index) {
+	m_pop_and_shift(&arr->arena, index*arr->stride, arr->stride);
+}
+
+void* dynarr_get(dynarr_t* arr, int index) {
+	return arr->arena.address + (arr->stride * index);
+}
 
 
 // STRINGS

@@ -5,8 +5,33 @@
 #define GFX_VEC_CLASSIC_NAMES
 #include "math.c"
 
-#define double __DONT_USE_DOUBLE__
-#define float __DONT_USE_FLOAT__
+// #define double __DONT_USE_DOUBLE__
+// #define float __DONT_USE_FLOAT__
+
+#define KEY_F1 0x70
+#define KEY_F2 0x71
+#define KEY_F3 0x72
+#define KEY_F4 0x73
+#define KEY_F5 0x74
+#define KEY_F6 0x75
+#define KEY_F7 0x76
+#define KEY_F8 0x77
+#define KEY_F9 0x78
+#define KEY_F10 0x79
+#define KEY_F11 0x7A
+#define KEY_F12 0x7B
+#define KEY_LEFT 0x25
+#define KEY_UP 0x26
+#define KEY_RIGHT 0x27
+#define KEY_DOWN 0x28
+#define KEY_BACK 0x08
+#define KEY_TAB 0x09
+#define KEY_RETURN 0x0D
+#define KEY_SHIFT 0x10
+#define KEY_CONTROL 0x11
+#define KEY_MENU 0x12
+#define KEY_ESC 0x1B
+#define KEY_SPACE 0x20
 
 int _window_width;
 int _window_height;
@@ -68,6 +93,7 @@ typedef struct {
 	b32 quit;
 	core_button_t keyboard[256];
 	core_mouse_t mouse;
+	f32 last_frame_time;
 	f32 dt;
 } core_window_t;
 
@@ -75,7 +101,9 @@ LRESULT CALLBACK _core_wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
 
 u64 _performance_freq;
 u64 _start_time;
-u64 _last_poll_time;
+u64 _last_frame_time;
+u64 _last_second_time;
+int _frames_since_last_second;
 void core_time_init() {
 	LARGE_INTEGER freq;
 	QueryPerformanceFrequency(&freq);
@@ -83,6 +111,8 @@ void core_time_init() {
 	LARGE_INTEGER start;
 	QueryPerformanceCounter(&start);
 	_start_time = start.QuadPart;
+	_last_second_time = _start_time;
+	_frames_since_last_second = 0;
 }
 
 f64 core_time() { // Milliseconds
@@ -100,8 +130,16 @@ f64 core_time_seconds() { // Seconds
 void core_time_update(core_window_t* window) {
 	LARGE_INTEGER counter;
 	QueryPerformanceCounter(&counter);
-	window->dt = (f64)(counter.QuadPart-_last_poll_time) / (f64)_performance_freq;
-	_last_poll_time = counter.QuadPart;
+	window->dt = (f64)(counter.QuadPart-_last_frame_time) / (f64)_performance_freq / 1000.0;
+	_last_frame_time = counter.QuadPart;
+
+	++_frames_since_last_second;
+	f32 seconds = (f64)(counter.QuadPart-_last_second_time) / (f64)_performance_freq / 1000.0;
+	if(seconds > 1.0f) {
+		printf("fps %i \n", _frames_since_last_second);
+		_last_second_time = counter.QuadPart;
+		_frames_since_last_second = 0;
+	}
 }
 
 void _core_update_button(core_button_t *button, b32 new_state) {
@@ -180,6 +218,7 @@ void core_window(core_window_t* window, char* title, int width, int height, int 
 	window->hdc = GetDC(window->hwnd);
 	window->width = width;
 	window->height = height;
+	ZeroMemory(&window->keyboard, sizeof(window->keyboard));
 
 	RAWINPUTDEVICE mouse_raw_input;
 	mouse_raw_input.usUsagePage = 1;
@@ -193,6 +232,7 @@ void core_window(core_window_t* window, char* title, int width, int height, int 
 
 	window->quit = FALSE;
 	SetWindowLongPtrA(hwnd, GWLP_USERDATA, (LONG_PTR)window);
+	SetFocus(hwnd);
 
 	core_time_init();
 
@@ -364,6 +404,10 @@ void core_opengl(core_window_t* window) {
 }
 
 void core_window_update(core_window_t* window) {
+	// f32 time = core_time();
+	// window->dt = (time - window->last_frame_time) * 1000.0f;
+	// window->last_frame_time = time;
+
 	_window_width = window->width;
 	_window_height = window->height;
 
