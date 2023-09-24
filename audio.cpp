@@ -7,6 +7,9 @@
 #include <audioclient.h>
 
 // #include "core.h"
+// extern "C" {
+// #include "audio.h"
+// }
 
 typedef __int64  i64;
 typedef unsigned __int64  u64;
@@ -20,16 +23,39 @@ typedef unsigned __int8  u8;
 typedef float f32;
 typedef double f64;
 
+#define CORE_AUDIO_SAMPLES_PER_SECOND 48000
+
+typedef struct {
+	union {
+		i16 channels[2];
+		struct {
+			i16 left;
+			i16 right;
+		};
+	};
+} audio_sample_t;
+typedef void (*CORE_AUDIO_MIXER_PROC)(audio_sample_t* output, size_t sample_count, void* userp);
+
+
 // void _mix_samples_proc(i16* output, u32 num_samples);
 
 extern "C" char* _win32_hresult_string(HRESULT hresult);
+
+// typedef struct {
+// 	i16 s[2];
+// } sample_t;
+// sample_t* buffer;
+
+CORE_AUDIO_MIXER_PROC _audio_mixer_proc = NULL;
 
 IAudioClient* audio_client;
 IAudioRenderClient* audio_render_client;
 
 float tick = 0;
+float mod = 0;
 
 DWORD wasapi_audio_thread(void* arg) {
+	// TODO sort out the error handling dude
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 	HANDLE ready_event = CreateEvent(0, 0, 0, 0);
 	audio_client->SetEventHandle(ready_event);
@@ -38,16 +64,22 @@ DWORD wasapi_audio_thread(void* arg) {
 	u32 buffer_size = buffer_frames * 4;
 	audio_client->Start();
 
+	audio_sample_t* buffer;
+#if 0
+	HRESULT hresult = audio_render_client->GetBuffer(buffer_frames, (BYTE**)&buffer);
+	for(int i=0; i<buffer_frames; ++i) {
+		buffer[i].s[0] = 0;
+		buffer[i].s[1] = 0;
+	}
+	audio_render_client->ReleaseBuffer(buffer_frames, 0);
+#endif
+	
 	for(;;) {
 		DWORD wait = WaitForSingleObject(ready_event, INFINITE);
 		if(wait != WAIT_OBJECT_0) {
 			printf("WAIT OBJECT %i \n", wait);
 			exit(1);
 		}
-		typedef struct {
-			i16 s[2];
-		} sample_t;
-		sample_t* buffer;
 		u32 buffer_padding;
 		HRESULT hr = audio_client->GetCurrentPadding(&buffer_padding);
 		if(!SUCCEEDED(hr)) {
@@ -61,11 +93,15 @@ DWORD wasapi_audio_thread(void* arg) {
 		HRESULT hresult = audio_render_client->GetBuffer(frames_to_fill, (BYTE**)&buffer);
 		if(SUCCEEDED(hresult)) {
 			
-			for(int i=0; i<buffer_frames; ++i) {
-				buffer[i].s[0] = sinf(tick * 0.1f) * 255.0f * 4.0f;
-				buffer[i].s[1] = 0;
-				++tick;
-			}
+			// for(int i=0; i<frames_to_fill; ++i) {
+			// 	float sample = sinf(tick * 0.1f) * 255.0f * 4.0f;
+			// 	buffer[i].s[0] = sample;
+			// 	buffer[i].s[1] = sample;
+			// 	mod += 0.00001f;
+			// 	tick += 1 + mod;
+			// }
+			_audio_mixer_proc(buffer, frames_to_fill, NULL);
+
 		} else {
 			printf("GetBuffer failed (%s) \n", _win32_hresult_string(hresult));
 		}
@@ -106,10 +142,10 @@ void cpp_wasapi_init_audio() {
 	WAVEFORMATEX format = {0};
 	format.wFormatTag = WAVE_FORMAT_PCM;
 	format.nChannels = 2;
-	format.nSamplesPerSec = 48000;
+	format.nSamplesPerSec = CORE_AUDIO_SAMPLES_PER_SECOND;
 	format.wBitsPerSample = 16;
 	format.nBlockAlign = 4;
-	format.nAvgBytesPerSec = 48000 * format.nBlockAlign;
+	format.nAvgBytesPerSec = CORE_AUDIO_SAMPLES_PER_SECOND * format.nBlockAlign;
 
 	hresult = audio_client->Initialize(
 			AUDCLNT_SHAREMODE_SHARED,
@@ -131,7 +167,8 @@ void cpp_wasapi_init_audio() {
 }
 
 extern "C" {
-	void wasapi_init_audio() {
+	void wasapi_init_audio(CORE_AUDIO_MIXER_PROC mixer_proc) {
+		_audio_mixer_proc = mixer_proc;
 		cpp_wasapi_init_audio();
 	}
 }

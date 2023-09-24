@@ -1,3 +1,6 @@
+#include <stdarg.h>
+#include <stdio.h>
+#include <winuser.h>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <gl/gl.h>
@@ -39,15 +42,23 @@ int _window_width;
 int _window_height;
 
 // void core_fatal_error
-void core_error(char* err) {
-	print(REDF "%s\n" RESET, err);
-	MessageBox(NULL, err, NULL, MB_OK);
+void core_error(char* err, ...) {
+	char str[1024];
+	va_list va;
+	va_start(va, err);
+	vsnprintf(str, 1024, err, va);
+	print(REDF "%s\n" RESET, str);
+	MessageBox(NULL, str, NULL, MB_OK);
+	va_end(va);
 }
 
-void core_error_exit(char* err) {
-	core_error(err);
+// void core_error_exit(char* err) {
+// 	core_error(err);
+// 	exit(1);
+// }
+#define core_error_exit(...)\
+	core_error(__VA_ARGS__);\
 	exit(1);
-}
 
 char _win32_error_buffer[1024];
 char* _win32_error() {
@@ -248,7 +259,6 @@ void core_window(core_window_t* window, char* title, int width, int height, int 
 	SetFocus(hwnd);
 
 	core_time_init();
-	wasapi_init_audio();
 
 	return;
 }
@@ -464,3 +474,5 @@ void core_window_update(core_window_t* window) {
 void core_opengl_swap(core_window_t* window) {
 	SwapBuffers(window->hdc);
 }
+
+

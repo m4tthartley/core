@@ -23,10 +23,6 @@ typedef u64 size_t;
 #define TRUE 1
 #define FALSE 0
 
-// #define assert(exp) ((exp) ? (exp) : (*(int*)0 = 0))
-#define assert(exp) if(!(exp)) { printf("Assertion failed (" #exp ") in function \"%s\" \n", __FUNCTION__); fflush(stdout); (*(int*)0 = 0); } //(*(int*)0 = 0);
-#define array_size(a) (sizeof(a)/sizeof(a[0]))
-
 #define KILOBYTES(n) (n*1024)
 #define MEGABYTES(n) (n*1024*1024)
 #define GIGABYTES(n) (n*1024*1024*1024)
@@ -35,6 +31,14 @@ typedef u64 size_t;
 #define GB GIGABYTES
 
 #define PAGE_SIZE 4096
+
+// #define assert(exp) ((exp) ? (exp) : (*(int*)0 = 0))
+#define assert(exp) if(!(exp)) { printf("Assertion failed (" #exp ") in function \"%s\" \n", __FUNCTION__); fflush(stdout); (*(int*)0 = 0); } //(*(int*)0 = 0);
+#define array_size(a) (sizeof(a)/sizeof(a[0]))
+
+#define FOR(index, count) for(int index=0; index<count; ++index)
+#define FORSTATIC(index, arr) for(int index=0; index<(sizeof(arr)/sizeof(arr[0])); ++index)
+#define FORDYNARR(index, arr) for(int index=0; index<arr.count; ++index)
 
 
 // BACKWARDS COMPATIBILITY
@@ -724,3 +728,49 @@ u32 murmur3(u8* key) {
 	hash ^= hash >> 16;
 	return hash;
 }
+
+
+// THREADS AND ATOMICS
+// TODO TryEnterCriticalSection 
+typedef struct {
+	CRITICAL_SECTION win32_section;
+} core_critical_section_t;
+
+void core_init_critical_section(core_critical_section_t* section) {
+	InitializeCriticalSection(&section->win32_section);
+}
+
+// TODO maybe core_atomic_section, enter_atomic_section, exit_atomic_section, atomic_lock
+void core_enter_critical_section(core_critical_section_t* section) {
+	// if (!) {
+		// TODO I assume this is unsafe as you could have a 
+		// race condition on the initialization?
+		// InitializeCriticalSection(&section->win32_section);
+	// }
+	EnterCriticalSection(&section->win32_section);
+}
+
+void core_exit_critical_section(core_critical_section_t* section) {
+	LeaveCriticalSection(&section->win32_section);
+}
+
+int atomic_swap32(void *ptr, int swap) {
+	return _InterlockedExchange((long volatile*)ptr, swap);
+}
+
+b32 atomic_compare_swap32(void *ptr, int cmp, int swap) {
+	return _InterlockedCompareExchange((long volatile*)ptr, swap, cmp) == cmp;
+}
+
+int atomic_add32(void *ptr, int value) {
+	return _InterlockedExchangeAdd((long volatile*)ptr, value);
+}
+
+int atomic_sub32(void *ptr, int value) {
+	return _InterlockedExchangeAdd((long volatile*)ptr, -value);
+}
+
+int atomic_read32(void *ptr) {
+	return _InterlockedExchangeAdd((long volatile*)ptr, 0);
+}
+
