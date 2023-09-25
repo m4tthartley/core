@@ -46,6 +46,35 @@ typedef u64 size_t;
 #define slen s_len
 
 
+// STRUCTURES
+typedef struct {
+	u32 size;
+	u32 width;
+	u32 height;
+	u32 data[];
+} bitmap_t;
+
+typedef struct {
+	union {
+		i16 channels[2];
+		struct {
+			i16 left;
+			i16 right;
+		};
+	};
+} audio_sample_t;
+
+typedef struct {
+	int channels;
+	int samples_per_second;
+	int bytes_per_sample;
+	size_t sample_count;
+	// size_t num_bytes;
+	audio_sample_t data[];
+} audio_buffer_t;
+typedef audio_buffer_t wave_t;
+
+
 // MISC
 // Power of 2 align
 u64 align64(u64 size, u64 align) {

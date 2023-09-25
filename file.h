@@ -33,13 +33,6 @@ typedef struct {
 	bmp_header* header;
 } bmp;
 
-typedef struct {
-	u32 size;
-	u32 width;
-	u32 height;
-	u32 data[];
-} bitmap_t;
-
 bitmap_t* f_load_bitmap(memory_arena* arena, char* filename) {
 	// TODO replace with platform functions
 	FILE* fontFile;

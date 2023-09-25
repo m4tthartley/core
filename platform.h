@@ -8,7 +8,7 @@
 #define GFX_VEC_CLASSIC_NAMES
 #include "math.c"
 
-#include "audio.h"
+// #include "audio.h"
 
 // #define double __DONT_USE_DOUBLE__
 // #define float __DONT_USE_FLOAT__
@@ -136,6 +136,7 @@ void core_time_init() {
 	QueryPerformanceCounter(&start);
 	_start_time = start.QuadPart;
 	_last_second_time = _start_time;
+	_last_frame_time = _start_time;
 	_frames_since_last_second = 0;
 }
 

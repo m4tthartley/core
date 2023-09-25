@@ -6,26 +6,6 @@
 void _mix_samples_proc(i16* output, u32 num_samples);
 
 typedef struct {
-	union {
-		i16 channels[2];
-		struct {
-			i16 left;
-			i16 right;
-		};
-	};
-} audio_sample_t;
-
-typedef struct {
-	int channels;
-	int samples_per_second;
-	int bytes_per_sample;
-	size_t sample_count;
-	// size_t num_bytes;
-	audio_sample_t data[];
-} audio_buffer_t;
-typedef audio_buffer_t wave_t;
-
-typedef struct {
 	audio_buffer_t* buffer;
 	// Cursor relative to the buffer's samples
 	f32 cursor;
