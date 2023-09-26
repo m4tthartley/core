@@ -24,7 +24,7 @@ typedef struct {
 } gfx_sprite_t;
 
 gfx_texture_t* _gfx_active_texture = NULL;
-vec2_t _gfx_coord_system = {};
+vec2_t _gfx_coord_system = {1.0f, 1.0f};
 
 #define gfx_color(c) glColor4f(c.r, c.g, c.b, c.a)
 
@@ -101,8 +101,8 @@ void gfx_quad(vec3_t pos, vec2_t size) {
 	glEnd();
 }
 
-void gfx_sprite(vec2_t pos, int px, int py, int pxs, int pys, int scale) {
-	vec2_t pixel_size = vec2(1.0f/(_window_width/pxs), 1.0f/(_window_height/pys));
+void gfx_sprite(core_window_t* window, vec2_t pos, int px, int py, int pxs, int pys, int scale) {
+	vec2_t pixel_size = vec2(1.0f/(window->width/pxs), 1.0f/(window->height/pys));
 	vec2_t s = {
 		(pixel_size.x/_gfx_coord_system.x)/2.0f * (f32)scale,
 		(pixel_size.y/_gfx_coord_system.y)/2.0f * (f32)scale,
@@ -126,12 +126,12 @@ void gfx_sprite(vec2_t pos, int px, int py, int pxs, int pys, int scale) {
 
 }
 
-void gfx_sprite_tile(gfx_sprite_t sprite, vec2_t pos, int tile) {
+void gfx_sprite_tile(core_window_t* window, gfx_sprite_t sprite, vec2_t pos, int tile) {
 	gfx_texture(sprite.texture);
 	int tiles_per_row = sprite.texture->width / sprite.tile_size;
 	int tiles_per_column = sprite.texture->height / sprite.tile_size;
 	tile %= (tiles_per_row * tiles_per_column);
-	gfx_sprite(pos,
+	gfx_sprite(window, pos,
 			(tile%tiles_per_row)*sprite.tile_size,
 			(tile/tiles_per_row)*sprite.tile_size,
 			sprite.tile_size, sprite.tile_size, sprite.scale);

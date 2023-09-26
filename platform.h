@@ -38,8 +38,8 @@
 #define KEY_ESC 0x1B
 #define KEY_SPACE 0x20
 
-int _window_width;
-int _window_height;
+typedef BOOL (*wglSwapIntervalEXT_proc)(int interval);
+typedef int (*wglGetSwapIntervalEXT_proc)(void);
 
 // void core_fatal_error
 void core_error(char* err, ...) {
@@ -117,53 +117,67 @@ typedef struct {
 	b32 quit;
 	core_button_t keyboard[256];
 	core_mouse_t mouse;
-	f32 last_frame_time;
+	// f32 last_frame_time;
+
+	// TODO separate into timer structure
 	f32 dt;
+	u64 performance_freq;
+	u64 start_time;
+	u64 last_frame_time;
+	u64 last_second_time;
+	int frame_counter;
+
+	// GL
+	wglSwapIntervalEXT_proc wglSwapIntervalEXT;
+	wglGetSwapIntervalEXT_proc wglGetSwapIntervalEXT;
 } core_window_t;
 
 LRESULT CALLBACK _core_wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
 
-u64 _performance_freq;
-u64 _start_time;
-u64 _last_frame_time;
-u64 _last_second_time;
-int _frames_since_last_second;
-void core_time_init() {
+void core_time_init(core_window_t* timer) {
 	LARGE_INTEGER freq;
 	QueryPerformanceFrequency(&freq);
-	_performance_freq = freq.QuadPart/1000;
+	timer->performance_freq = freq.QuadPart/1000;
 	LARGE_INTEGER start;
 	QueryPerformanceCounter(&start);
-	_start_time = start.QuadPart;
-	_last_second_time = _start_time;
-	_last_frame_time = _start_time;
-	_frames_since_last_second = 0;
+	timer->start_time = start.QuadPart;
+	timer->last_second_time = timer->start_time;
+	timer->last_frame_time = timer->start_time;
+	timer->frame_counter = 0;
 }
 
-f64 core_time() { // Milliseconds
+f64 core_time(core_window_t* timer) { // Milliseconds
 	LARGE_INTEGER counter;
 	QueryPerformanceCounter(&counter);
-	return (f64)(counter.QuadPart-_start_time) / (f64)_performance_freq;
+	return (f64)(counter.QuadPart-timer->start_time) / (f64)timer->performance_freq;
 }
 
-f64 core_time_seconds() { // Seconds
+f64 core_time_seconds(core_window_t* timer) { // Seconds
 	LARGE_INTEGER counter;
 	QueryPerformanceCounter(&counter);
-	return (f64)(counter.QuadPart-_start_time) / (f64)_performance_freq / 1000.0;
+	return (f64)(counter.QuadPart-timer->start_time) / (f64)timer->performance_freq / 1000.0;
+}
+
+u64 core_time_raw(core_window_t* timer) {
+	LARGE_INTEGER counter;
+	QueryPerformanceCounter(&counter);
+	return counter.QuadPart;
 }
 
 void core_time_update(core_window_t* window) {
 	LARGE_INTEGER counter;
 	QueryPerformanceCounter(&counter);
-	window->dt = (f64)(counter.QuadPart-_last_frame_time) / (f64)_performance_freq / 1000.0;
-	_last_frame_time = counter.QuadPart;
+	window->dt = (f64)(counter.QuadPart - window->last_frame_time) /
+			(f64)window->performance_freq / 1000.0;
+	window->dt = min(window->dt, 0.1f);
+	window->last_frame_time = counter.QuadPart;
 
-	++_frames_since_last_second;
-	f32 seconds = (f64)(counter.QuadPart-_last_second_time) / (f64)_performance_freq / 1000.0;
+	++window->frame_counter;
+	f32 seconds = (f64)(counter.QuadPart-window->last_second_time) / (f64)window->performance_freq / 1000.0;
 	if(seconds > 1.0f) {
-		printf("fps %i \n", _frames_since_last_second);
-		_last_second_time = counter.QuadPart;
-		_frames_since_last_second = 0;
+		// printf("fps %i, dt %f \n", window->frame_counter, window->dt);
+		window->last_second_time = counter.QuadPart;
+		window->frame_counter = 0;
 	}
 }
 
@@ -244,6 +258,7 @@ void core_window(core_window_t* window, char* title, int width, int height, int 
 	window->width = width;
 	window->height = height;
 	ZeroMemory(&window->keyboard, sizeof(window->keyboard));
+	printf("hwnd %#08x hdc %#08x \n", window->hwnd, window->hdc);
 
 	RAWINPUTDEVICE mouse_raw_input;
 	mouse_raw_input.usUsagePage = 1;
@@ -259,7 +274,7 @@ void core_window(core_window_t* window, char* title, int width, int height, int 
 	SetWindowLongPtrA(hwnd, GWLP_USERDATA, (LONG_PTR)window);
 	SetFocus(hwnd);
 
-	core_time_init();
+	core_time_init(window);
 
 	return;
 }
@@ -310,6 +325,9 @@ LRESULT CALLBACK _core_wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
 				printf("%i %i \n", rect.right - rect.left, rect.bottom - rect.top);
 				window->width = rect.right - rect.left;
 				window->height = rect.bottom - rect.top;
+
+				// TODO doesn't seem to run during resize
+				// _last_frame_time = core_time_raw();
 
 				// RECT windowRect;
 				// windowRect.left = 0;
@@ -426,6 +444,15 @@ void core_opengl(core_window_t* window) {
 	};
 	HGLRC context = wglCreateContextAttribsARB(hdc, 0, attribs);
 	wglMakeCurrent(hdc, context);
+
+	char* gl_extensions = glGetString(GL_EXTENSIONS);
+	// printf(gl_extensions);
+	window->wglSwapIntervalEXT = (wglSwapIntervalEXT_proc)wglGetProcAddress("wglSwapIntervalEXT");
+	window->wglGetSwapIntervalEXT = (wglGetSwapIntervalEXT_proc)wglGetProcAddress("wglGetSwapIntervalEXT");
+
+	if (window->wglSwapIntervalEXT) {
+		window->wglSwapIntervalEXT(1);
+	}
 }
 
 void core_window_update(core_window_t* window) {
@@ -433,8 +460,8 @@ void core_window_update(core_window_t* window) {
 	// window->dt = (time - window->last_frame_time) * 1000.0f;
 	// window->last_frame_time = time;
 
-	_window_width = window->width;
-	_window_height = window->height;
+	// _window_width = window->width;
+	// _window_height = window->height;
 
 	// memset(&os->input.
 	//os->input.keysLast[Message.wParam] = os->input.keys[Message.wParam];
@@ -463,7 +490,7 @@ void core_window_update(core_window_t* window) {
 	window->mouse.right.released = FALSE;
 
 	MSG Message;
-	while (PeekMessage(&Message, 0, 0, 0, PM_REMOVE)) {
+	while (PeekMessageA(&Message, window->hwnd, 0, 0, PM_REMOVE)) {
 		switch (Message.message) {
 			default:
 			TranslateMessage(&Message);

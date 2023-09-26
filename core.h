@@ -320,6 +320,8 @@ void m_pop(m_arena* arena, size_t size) {
 void m_pop_and_shift(m_arena* arena, size_t offset, size_t size) {
 	assert(arena->stack >= offset + size);
 	memcpy(arena->address + offset, arena->address + offset + size, arena->stack - (offset+size));
+	m_pop(arena, size);
+	// arena->stack -= size;
 }
 
 void* _m_alloc_into_free(memory_arena* arena, memory_block* free, size_t size) {
@@ -462,11 +464,16 @@ void dynarr_push(dynarr_t* arr, void* item) {
 
 void dynarr_pop(dynarr_t* arr, int index) {
 	m_pop_and_shift(&arr->arena, index*arr->stride, arr->stride);
+	--arr->count;
 }
 
 void* dynarr_get(dynarr_t* arr, int index) {
 	return arr->arena.address + (arr->stride * index);
 }
+
+// void dynarr_clear(dynarr_t* arr) {
+// 	m_clear
+// }
 
 
 // STRINGS
