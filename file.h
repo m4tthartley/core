@@ -254,26 +254,27 @@ wave_t* f_load_wave_from_memory(m_arena* arena, u8* data, size_t file_size) {
 		// assert(dataChunk->size ==);
 		// Possibly check whether to alloc or push
 		wave_t* wave;
-		// if(format->channels == 1) {
-		// 	wave = m_alloc(arena, sizeof(wave_t) + dataChunk->size*2);
-		// 	wave->channels = 2;
-		// 	wave->samples_per_second = format->samplesPerSec;
-		// 	wave->bytes_per_sample = format->bitsPerSample / 8;
-		// 	wave->sample_count = dataChunk->size / (wave->channels * wave->bytes_per_sample);
-		// 	i16* raw_data = dataChunk->data;
-		// 	audio_sample_t* output = wave + 1;
-		// 	FOR(i, wave->sample_count) {
-		// 		output[i].left = raw_data[i];
-		// 		output[i].right = raw_data[i];
-		// 	}
-		// } else {
+		if(format->channels == 1) {
+			// TODO this is temporary solution
+			wave = m_alloc(arena, sizeof(wave_t) + dataChunk->size*2);
+			wave->channels = 2;
+			wave->samples_per_second = format->samplesPerSec;
+			wave->bytes_per_sample = format->bitsPerSample / 8;
+			wave->sample_count = dataChunk->size / (wave->channels * wave->bytes_per_sample);
+			i16* raw_data = dataChunk->data;
+			audio_sample_t* output = wave + 1;
+			FOR(i, wave->sample_count) {
+				output[i].left = raw_data[i];
+				output[i].right = raw_data[i];
+			}
+		} else {
 			wave = m_alloc(arena, sizeof(wave_t) + dataChunk->size);
 			memcpy(wave+1, dataChunk->data, dataChunk->size);
 			wave->channels = format->channels;
 			wave->samples_per_second = format->samplesPerSec;
 			wave->bytes_per_sample = format->bitsPerSample / 8;
 			wave->sample_count = dataChunk->size / (wave->channels * wave->bytes_per_sample);
-		// }
+		}
 		return wave;
 	}
 

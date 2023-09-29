@@ -93,7 +93,13 @@ void gfx_coord_system(f32 width, f32 height) {
 	_gfx_coord_system = vec2(1.0f / width, 1.0f / height);
 }
 
-void gfx_quad(vec3_t pos, vec2_t size) {
+void gfx_point(vec2_t pos) {
+	glBegin(GL_POINTS);
+	glVertex2f(pos.x, pos.y);
+	glEnd();
+}
+
+void gfx_quad(vec2_t pos, vec2_t size) {
 	// glDisable(GL_TEXTURE_2D);
 
 	vec2_t s = {
@@ -101,33 +107,32 @@ void gfx_quad(vec3_t pos, vec2_t size) {
 		size.y/2.0f,
 	};
 	glBegin(GL_QUADS);
-	glVertex2f((pos.x-s.x) * _gfx_coord_system.x, (pos.y-s.y) * _gfx_coord_system.y);
-	glVertex2f((pos.x+s.x) * _gfx_coord_system.x, (pos.y-s.y) * _gfx_coord_system.y);
-	glVertex2f((pos.x+s.x) * _gfx_coord_system.x, (pos.y+s.y) * _gfx_coord_system.y);
-	glVertex2f((pos.x-s.x) * _gfx_coord_system.x, (pos.y+s.y) * _gfx_coord_system.y);
+	glVertex2f(pos.x-s.x, pos.y-s.y);
+	glVertex2f(pos.x+s.x, pos.y-s.y);
+	glVertex2f(pos.x+s.x, pos.y+s.y);
+	glVertex2f(pos.x-s.x, pos.y+s.y);
 	glEnd();
 }
 
-void gfx_sprite(core_window_t* window, vec2_t pos, int px, int py, int pxs, int pys, int scale) {
-	vec2_t pixel_size = vec2(1.0f/(window->width/pxs), 1.0f/(window->height/pys));
+void gfx_sprite(core_window_t* window, vec2_t pos, int px, int py, int pxs, int pys, float scale) {
+	vec2_t percent_of_screen = vec2(1.0f/((f32)window->width/pxs), 1.0f/((f32)window->height/pys));
 	vec2_t s = {
-		(pixel_size.x/_gfx_coord_system.x)/2.0f * (f32)scale,
-		(pixel_size.y/_gfx_coord_system.y)/2.0f * (f32)scale,
+		(percent_of_screen.x/_gfx_coord_system.x) * (f32)scale,
+		(percent_of_screen.y/_gfx_coord_system.y) * (f32)scale,
 	};
 	gfx_texture_t* t = _gfx_active_texture;
 	glBegin(GL_QUADS);
 	glTexCoord2f((f32)px / (f32)t->width, ((f32)py) / (f32)t->height);
-	// glTexCoord2f(0, 0);
-	glVertex2f((pos.x-s.x) * _gfx_coord_system.x, (pos.y-s.y) * _gfx_coord_system.y);
+	glVertex2f(pos.x-s.x, pos.y-s.y);
+
 	glTexCoord2f(((f32)px+pxs) / (f32)t->width, ((f32)py) / (f32)t->height);
-	// glTexCoord2f(1, 0);
-	glVertex2f((pos.x+s.x) * _gfx_coord_system.x, (pos.y-s.y) * _gfx_coord_system.y);
+	glVertex2f(pos.x+s.x, pos.y-s.y);
+
 	glTexCoord2f(((f32)px+pxs) / (f32)t->width, ((f32)py+pys) / (f32)t->height);
-	// glTexCoord2f(1, 1);
-	glVertex2f((pos.x+s.x) * _gfx_coord_system.x, (pos.y+s.y) * _gfx_coord_system.y);
+	glVertex2f(pos.x+s.x, pos.y+s.y);
+
 	glTexCoord2f((f32)px / (f32)t->width, ((f32)py+pys) / (f32)t->height);
-	// glTexCoord2f(0, 1);
-	glVertex2f((pos.x-s.x) * _gfx_coord_system.x, (pos.y+s.y) * _gfx_coord_system.y);
+	glVertex2f(pos.x-s.x, pos.y+s.y);
 	glEnd();
 
 }
@@ -143,7 +148,7 @@ void gfx_sprite_tile(core_window_t* window, gfx_sprite_t sprite, vec2_t pos, int
 			sprite.tile_size, sprite.tile_size, sprite.scale);
 }
 
-void gfx_circle(vec3_t pos, f32 size, int segments) {
+void gfx_circle(vec2_t pos, f32 size, int segments) {
 	// glDisable(GL_TEXTURE_2D);
 
 	vec2_t s = {
@@ -151,15 +156,35 @@ void gfx_circle(vec3_t pos, f32 size, int segments) {
 		size/2.0f,
 	};
 	glBegin(GL_TRIANGLE_FAN);
-	glVertex2f((pos.x) * _gfx_coord_system.x, (pos.y) * _gfx_coord_system.y);
+	glVertex2f(pos.x, pos.y);
 	for(int i=0; i<segments; ++i) {
 		glVertex2f(
-				(pos.x+sinf(PI2*((f32)i/segments))*s.x) * _gfx_coord_system.x,
-				(pos.y+cosf(PI2*((f32)i/segments))*s.y) * _gfx_coord_system.y);
+				pos.x+sinf(PI2*((f32)i/segments))*s.x,
+				pos.y+cosf(PI2*((f32)i/segments))*s.y);
 	}
 	glVertex2f(
-			(pos.x+sinf(PI2)*s.x) * _gfx_coord_system.x,
-			(pos.y+cosf(PI2)*s.y) * _gfx_coord_system.y);
+			pos.x+sinf(PI2)*s.x,
+			pos.y+cosf(PI2)*s.y);
+	glEnd();
+}
+
+void gfx_line_circle(vec2_t pos, f32 size, int segments) {
+	// glDisable(GL_TEXTURE_2D);
+
+	vec2_t s = {
+		size/2.0f,
+		size/2.0f,
+	};
+	glBegin(GL_LINE_STRIP);
+	// glVertex2f(pos.x, pos.y);
+	for(int i=0; i<segments; ++i) {
+		glVertex2f(
+				pos.x+sinf(PI2*((f32)i/segments))*s.x,
+				pos.y+cosf(PI2*((f32)i/segments))*s.y);
+	}
+	glVertex2f(
+			pos.x+sinf(PI2)*s.x,
+			pos.y+cosf(PI2)*s.y);
 	glEnd();
 }
 
@@ -167,8 +192,8 @@ void gfx_line(vec2_t start, vec2_t end) {
 	// glDisable(GL_TEXTURE_2D);
 
 	glBegin(GL_LINES);
-	glVertex2f(start.x * _gfx_coord_system.x, start.y * _gfx_coord_system.y);
-	glVertex2f(end.x * _gfx_coord_system.x, end.y * _gfx_coord_system.y);
+	glVertex2f(start.x, start.y);
+	glVertex2f(end.x, end.y);
 	glEnd();
 }
 
@@ -180,11 +205,17 @@ void gfx_text(core_window_t* window, vec2_t pos, float scale, char* str, ...) {
 	// char* buffer = pushMemory(&ui->transient, length);
 	vsnprintf(b, sizeof(b), str, args);
 
-	vec2_t pixel_size = vec2(1.0f/(window->width/8), 1.0f/(window->height/8));
+	// vec2_t pixel_size = vec2(1.0f/(window->width/8), 1.0f/(window->height/8));
+	// vec2_t s = {
+	// 	(pixel_size.x)*2.0f * (f32)scale,
+	// 	(pixel_size.y)*2.0f * (f32)scale,
+	// };
+	vec2_t percent_of_screen = vec2(1.0f/((f32)window->width/8), 1.0f/((f32)window->height/8));
 	vec2_t s = {
-		(pixel_size.x)*2.0f * (f32)scale,
-		(pixel_size.y)*2.0f * (f32)scale,
+		(percent_of_screen.x/_gfx_coord_system.x) * (f32)scale,
+		(percent_of_screen.y/_gfx_coord_system.y) * (f32)scale,
 	};
+	gfx_texture_t* t = _gfx_active_texture;
 	
 	// float charSize = 1.0f*0.05f;
 	char* buffer = b;
@@ -192,7 +223,7 @@ void gfx_text(core_window_t* window, vec2_t pos, float scale, char* str, ...) {
 		if(*buffer != '\n') {
 			vec2_t uv = vec2((float)(*buffer%16) / 16.0f, (float)(*buffer/16) / 8.0f);
 			vec2_t uvt = vec2(1.0f/16.0f, 1.0f/8.0f);
-			vec2_t charPos = add2(mul2(pos, _gfx_coord_system), vec2(i * s.x, 0));
+			vec2_t charPos = add2(pos, vec2(i * s.x, 0));
 			glBegin(GL_QUADS);
 			glTexCoord2f(uv.x,       uv.y+uvt.y); glVertex2f(charPos.x,            charPos.y+s.y);
 			glTexCoord2f(uv.x+uvt.x, uv.y+uvt.y); glVertex2f(charPos.x+(s.x), charPos.y+s.y);

@@ -49,6 +49,8 @@ typedef u64 size_t;
 // BACKWARDS COMPATIBILITY
 #define pushMemory m_push
 #define slen s_len
+#define zeroMemory m_zero
+#define copyMemory m_copy
 
 
 // STRUCTURES
@@ -151,6 +153,11 @@ u64 align64(u64 size, u64 align) {
 
 f32 r_float() {
 	f32 result = (f32)rand() / (f32)RAND_MAX;
+	return result;
+}
+f32 r_float_range(f32 a, f32 b) {
+	f32 result = (f32)rand() / (f32)RAND_MAX;
+	result = a + (b-a)*result;
 	return result;
 }
 int r_int_range(int min, int max) {
@@ -336,14 +343,14 @@ void m_reserve(memory_arena* arena, size_t size, size_t pagesToCommit) {
 	}
 }
 
-void zeroMemory(byte* address, int size) {
+void m_zero(byte* address, int size) {
 	byte* end = address+size;
 	while(address<end) {
 		*address++ = 0;
 	}
 }
 
-void copyMemory(byte* dest, byte* src, int size) {
+void m_copy(byte* dest, byte* src, int size) {
 	byte* end = dest+size;
 	while(dest<end) {
 		*dest++ = *src++;
@@ -443,6 +450,23 @@ void m_free(memory_arena* arena, u8* block) {
 	arena->stack -= ((memory_block*)block)->size;
 	list_remove(&arena->blocks, block);
 	list_add(&arena->free, block);
+}
+
+void m_clear(m_arena* arena) {
+	if (arena->flags & ARENA_RESERVE) {
+		m_zero(arena->address, arena->commit);
+		arena->stack = 0;
+		arena->blocks = (list){0};
+
+	} else {
+		m_zero(arena->address, arena->commit);
+		arena->stack = 0;
+	}
+
+	if(arena->flags & ARENA_FREELIST) {
+		((memory_block*)arena->address)->size = arena->commit;
+		list_add(&arena->free, arena->address);
+	}
 }
 
 // TODO m_defrag
@@ -581,6 +605,10 @@ void s_create_pool(string_pool* pool, u8* buffer, u64 size) {
 
 void s_pool(string_pool* pool) {
 	_s_active_pool = pool;
+}
+
+void s_pool_clear(string_pool* pool) {
+	m_clear(pool);
 }
 
 u32 s_len(char* str) {
