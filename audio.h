@@ -1,5 +1,10 @@
 
 // C interface for cpp wasapi stuff
+#include "core.h"
+#include "math.c"
+
+#include <mmdeviceapi.h>
+#include <audioclient.h>
 
 #define CORE_AUDIO_SAMPLES_PER_SECOND 48000
 
@@ -82,5 +87,70 @@ void CORE_DEFAULT_AUDIO_MIXER_PROC(audio_sample_t* output, size_t sample_count, 
 	FOR(i, sounds_count) {
 
 	}
+}
+
+b32 cpp_wasapi_init_audio() {
+	printf("initializing wasapi audio \n");
+#define AssertSucceeded(hr)\
+	if(!SUCCEEDED(hr)) {\
+		printf("it broke \n");\
+		return;\
+	}
+
+	IAudioClient* audio_client;
+	IAudioRenderClient* audio_render_client;
+
+	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+	IMMDeviceEnumerator* device_enumerator;
+	HRESULT hresult;
+	if (!SUCCEEDED(CoCreateInstance(
+			&CLSID_MMDeviceEnumerator,
+			NULL,
+			CLSCTX_ALL,
+			&IID_IMMDeviceEnumerator,
+			&device_enumerator)) {
+		printf();
+	}
+	// AssertSucceeded(hresult);
+	//
+	// IMMDevice* audio_device;
+	// hresult = device_enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &audio_device);
+	// AssertSucceeded(hresult);
+	//
+	// audio_device->Activate(__uuidof(IAudioClient), CLSCTX_ALL, 0, (void**)&audio_client);
+	// AssertSucceeded(hresult);
+	//
+	// REFERENCE_TIME device_period;
+	// audio_client->GetDevicePeriod(0, &device_period);
+	// AssertSucceeded(hresult);
+	//
+	// WAVEFORMATEX format = {0};
+	// format.wFormatTag = WAVE_FORMAT_PCM;
+	// format.nChannels = 2;
+	// format.nSamplesPerSec = CORE_AUDIO_SAMPLES_PER_SECOND;
+	// format.wBitsPerSample = 16;
+	// format.nBlockAlign = 4;
+	// format.nAvgBytesPerSec = CORE_AUDIO_SAMPLES_PER_SECOND * format.nBlockAlign;
+	//
+	// hresult = audio_client->Initialize(
+	// 		AUDCLNT_SHAREMODE_SHARED,
+	// 		AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
+	// 		device_period,
+	// 		0,
+	// 		&format,
+	// 		0);
+	// AssertSucceeded(hresult);
+	//
+	// AssertSucceeded(audio_client->GetService(IID_PPV_ARGS(&audio_render_client)));
+	//
+	// device_enumerator->Release();
+	//
+	// CreateThread(0, 0, wasapi_audio_thread, NULL, 0, 0);
+
+	return TRUE;
+
+done:
+	core_error()
+	return FALSE
 }
 

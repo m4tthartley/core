@@ -5,6 +5,7 @@
 #include <math.h>
 #include <mmdeviceapi.h>
 #include <audioclient.h>
+#include <stdint.h>
 
 // #include "core.h"
 // extern "C" {
@@ -53,6 +54,19 @@ IAudioRenderClient* audio_render_client;
 
 float tick = 0;
 float mod = 0;
+
+wchat_t _win32_error_buffer[1024];
+char* _win32_hresult_string(HRESULT hresult) {
+	FormatMessage(
+		/*FORMAT_MESSAGE_ALLOCATE_BUFFER |*/ FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+		NULL,
+		hresult,
+		0,
+		(LPWSTR)_win32_error_buffer,
+		sizeof(_win32_error_buffer),
+		NULL);
+	return _win32_error_buffer;
+}
 
 DWORD wasapi_audio_thread(void* arg) {
 	// TODO sort out the error handling dude
