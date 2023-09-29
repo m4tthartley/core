@@ -5,6 +5,8 @@
 
 // typedef GLuint glh_t;
 
+#include "font/default_font.h"
+
 typedef struct {
 	GLuint handle;
 	f32 width;
@@ -68,8 +70,13 @@ gfx_texture_t gfx_create_null_texture(int width, int height) {
 }
 
 void gfx_texture(gfx_texture_t* texture) {
-	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, texture->handle);
+	if (texture) {
+		glEnable(GL_TEXTURE_2D);
+		glBindTexture(GL_TEXTURE_2D, texture->handle);
+	} else {
+		glDisable(GL_TEXTURE_2D);
+		glBindTexture(GL_TEXTURE_2D, 0);
+	}
 	_gfx_active_texture = texture;
 }
 
@@ -87,7 +94,7 @@ void gfx_coord_system(f32 width, f32 height) {
 }
 
 void gfx_quad(vec3_t pos, vec2_t size) {
-	glDisable(GL_TEXTURE_2D);
+	// glDisable(GL_TEXTURE_2D);
 
 	vec2_t s = {
 		size.x/2.0f,
@@ -106,7 +113,6 @@ void gfx_sprite(core_window_t* window, vec2_t pos, int px, int py, int pxs, int 
 	vec2_t s = {
 		(pixel_size.x/_gfx_coord_system.x)/2.0f * (f32)scale,
 		(pixel_size.y/_gfx_coord_system.y)/2.0f * (f32)scale,
-		// 1,1
 	};
 	gfx_texture_t* t = _gfx_active_texture;
 	glBegin(GL_QUADS);
@@ -138,7 +144,7 @@ void gfx_sprite_tile(core_window_t* window, gfx_sprite_t sprite, vec2_t pos, int
 }
 
 void gfx_circle(vec3_t pos, f32 size, int segments) {
-	glDisable(GL_TEXTURE_2D);
+	// glDisable(GL_TEXTURE_2D);
 
 	vec2_t s = {
 		size/2.0f,
@@ -158,11 +164,42 @@ void gfx_circle(vec3_t pos, f32 size, int segments) {
 }
 
 void gfx_line(vec2_t start, vec2_t end) {
-	glDisable(GL_TEXTURE_2D);
+	// glDisable(GL_TEXTURE_2D);
 
 	glBegin(GL_LINES);
 	glVertex2f(start.x * _gfx_coord_system.x, start.y * _gfx_coord_system.y);
 	glVertex2f(end.x * _gfx_coord_system.x, end.y * _gfx_coord_system.y);
 	glEnd();
+}
+
+void gfx_text(core_window_t* window, vec2_t pos, float scale, char* str, ...) {
+	char b[1024];
+	va_list args;
+	va_start(args, str);
+	// int length = vsnprintf(0, 0, layout.text, args) + 1;
+	// char* buffer = pushMemory(&ui->transient, length);
+	vsnprintf(b, sizeof(b), str, args);
+
+	vec2_t pixel_size = vec2(1.0f/(window->width/8), 1.0f/(window->height/8));
+	vec2_t s = {
+		(pixel_size.x)*2.0f * (f32)scale,
+		(pixel_size.y)*2.0f * (f32)scale,
+	};
+	
+	// float charSize = 1.0f*0.05f;
+	char* buffer = b;
+	for (int i=0; *buffer; ++i,++buffer) {
+		if(*buffer != '\n') {
+			vec2_t uv = vec2((float)(*buffer%16) / 16.0f, (float)(*buffer/16) / 8.0f);
+			vec2_t uvt = vec2(1.0f/16.0f, 1.0f/8.0f);
+			vec2_t charPos = add2(mul2(pos, _gfx_coord_system), vec2(i * s.x, 0));
+			glBegin(GL_QUADS);
+			glTexCoord2f(uv.x,       uv.y+uvt.y); glVertex2f(charPos.x,            charPos.y+s.y);
+			glTexCoord2f(uv.x+uvt.x, uv.y+uvt.y); glVertex2f(charPos.x+(s.x), charPos.y+s.y);
+			glTexCoord2f(uv.x+uvt.x, uv.y);       glVertex2f(charPos.x+(s.x), charPos.y);
+			glTexCoord2f(uv.x,       uv.y);       glVertex2f(charPos.x,            charPos.y);
+			glEnd();
+		}
+	}
 }
 
