@@ -1,12 +1,9 @@
-#include <stdarg.h>
-#include <stdio.h>
-#include <winuser.h>
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+
+#include "core.h"
+#include "math.c"
+
 #include <gl/gl.h>
 
-#define GFX_VEC_CLASSIC_NAMES
-#include "math.c"
 
 // #include "audio.h"
 
@@ -41,49 +38,49 @@
 typedef BOOL (*wglSwapIntervalEXT_proc)(int interval);
 typedef int (*wglGetSwapIntervalEXT_proc)(void);
 
-// void core_fatal_error
-void core_error(char* err, ...) {
-	char str[1024];
-	va_list va;
-	va_start(va, err);
-	vsnprintf(str, 1024, err, va);
-	print(REDF "%s\n" RESET, str);
-	MessageBox(NULL, str, NULL, MB_OK);
-	va_end(va);
-}
-
-// void core_error_exit(char* err) {
-// 	core_error(err);
-// 	exit(1);
+// // void core_fatal_error
+// void core_error(char* err, ...) {
+// 	char str[1024];
+// 	va_list va;
+// 	va_start(va, err);
+// 	vsnprintf(str, 1024, err, va);
+// 	print(REDF "%s\n" RESET, str);
+// 	MessageBox(NULL, str, NULL, MB_OK);
+// 	va_end(va);
 // }
-#define core_error_exit(...)\
-	core_error(__VA_ARGS__);\
-	exit(1);
+//
+// // void core_error_exit(char* err) {
+// // 	core_error(err);
+// // 	exit(1);
+// // }
+// #define core_error_exit(...)\
+// 	core_error(__VA_ARGS__);\
+// 	exit(1);
 
-char _win32_error_buffer[1024];
-char* _win32_error() {
-	DWORD error = GetLastError();
-	FormatMessage(
-		FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-		NULL,
-		error,
-		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		(LPWSTR)_win32_error_buffer,
-		sizeof(_win32_error_buffer),
-		NULL);
-	return _win32_error_buffer;
-}
-char* _win32_hresult_string(HRESULT hresult) {
-	FormatMessage(
-		/*FORMAT_MESSAGE_ALLOCATE_BUFFER |*/ FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-		NULL,
-		hresult,
-		0,
-		(LPWSTR)_win32_error_buffer,
-		sizeof(_win32_error_buffer),
-		NULL);
-	return _win32_error_buffer;
-}
+// char _win32_error_buffer[1024];
+// char* _win32_error() {
+// 	DWORD error = GetLastError();
+// 	FormatMessage(
+// 		FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+// 		NULL,
+// 		error,
+// 		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+// 		(LPWSTR)_win32_error_buffer,
+// 		sizeof(_win32_error_buffer),
+// 		NULL);
+// 	return _win32_error_buffer;
+// }
+// char* _win32_hresult_string(HRESULT hresult) {
+// 	FormatMessage(
+// 		/*FORMAT_MESSAGE_ALLOCATE_BUFFER |*/ FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+// 		NULL,
+// 		hresult,
+// 		0,
+// 		(LPWSTR)_win32_error_buffer,
+// 		sizeof(_win32_error_buffer),
+// 		NULL);
+// 	return _win32_error_buffer;
+// }
 
 enum {
 	WINDOW_DEFAULT = (1<<0),
@@ -119,67 +116,12 @@ typedef struct {
 	core_mouse_t mouse;
 	// f32 last_frame_time;
 
-	// TODO separate into timer structure
-	f32 dt;
-	u64 performance_freq;
-	u64 start_time;
-	u64 last_frame_time;
-	u64 last_second_time;
-	int frame_counter;
-
 	// GL
 	wglSwapIntervalEXT_proc wglSwapIntervalEXT;
 	wglGetSwapIntervalEXT_proc wglGetSwapIntervalEXT;
 } core_window_t;
 
 LRESULT CALLBACK _core_wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
-
-void core_time_init(core_window_t* timer) {
-	LARGE_INTEGER freq;
-	QueryPerformanceFrequency(&freq);
-	timer->performance_freq = freq.QuadPart/1000;
-	LARGE_INTEGER start;
-	QueryPerformanceCounter(&start);
-	timer->start_time = start.QuadPart;
-	timer->last_second_time = timer->start_time;
-	timer->last_frame_time = timer->start_time;
-	timer->frame_counter = 0;
-}
-
-f64 core_time(core_window_t* timer) { // Milliseconds
-	LARGE_INTEGER counter;
-	QueryPerformanceCounter(&counter);
-	return (f64)(counter.QuadPart-timer->start_time) / (f64)timer->performance_freq;
-}
-
-f64 core_time_seconds(core_window_t* timer) { // Seconds
-	LARGE_INTEGER counter;
-	QueryPerformanceCounter(&counter);
-	return (f64)(counter.QuadPart-timer->start_time) / (f64)timer->performance_freq / 1000.0;
-}
-
-u64 core_time_raw(core_window_t* timer) {
-	LARGE_INTEGER counter;
-	QueryPerformanceCounter(&counter);
-	return counter.QuadPart;
-}
-
-void core_time_update(core_window_t* window) {
-	LARGE_INTEGER counter;
-	QueryPerformanceCounter(&counter);
-	window->dt = (f64)(counter.QuadPart - window->last_frame_time) /
-			(f64)window->performance_freq / 1000.0;
-	window->dt = min(window->dt, 0.1f);
-	window->last_frame_time = counter.QuadPart;
-
-	++window->frame_counter;
-	f32 seconds = (f64)(counter.QuadPart-window->last_second_time) / (f64)window->performance_freq / 1000.0;
-	if(seconds > 1.0f) {
-		// printf("fps %i, dt %f \n", window->frame_counter, window->dt);
-		window->last_second_time = counter.QuadPart;
-		window->frame_counter = 0;
-	}
-}
 
 void _core_update_button(core_button_t *button, b32 new_state) {
 	button->pressed = new_state && !button->down;
@@ -214,8 +156,7 @@ void core_window(core_window_t* window, char* title, int width, int height, int 
 	// }
 
 	if(!RegisterClassA(&windowClass)) {
-		core_error("RegisterClassA failed \n");
-		core_error_exit(_win32_error());
+		core_win32_error(0, TRUE, "RegisterClassA failed");
 	}
 
 	POINTS adjusted = {
@@ -246,8 +187,7 @@ void core_window(core_window_t* window, char* title, int width, int height, int 
 		0);
 
 	if(!hwnd) {
-		core_error("CreateWindowA failed \n");
-		core_error_exit(_win32_error());
+		core_win32_error(0, TRUE, "CreateWindowA failed");
 	}
 
 	SetWindowLong(hwnd, GWL_STYLE, style);
@@ -266,15 +206,12 @@ void core_window(core_window_t* window, char* title, int width, int height, int 
 	mouse_raw_input.dwFlags = 0;
 	mouse_raw_input.hwndTarget = window->hwnd;
 	if(!RegisterRawInputDevices(&mouse_raw_input, 1, sizeof(mouse_raw_input))) {
-		core_error("RegisterRawInputDevices failed \n");
-		core_error(_win32_error());
+		core_win32_error(0, FALSE, "RegisterRawInputDevices failed");
 	}
 
 	window->quit = FALSE;
 	SetWindowLongPtrA(hwnd, GWLP_USERDATA, (LONG_PTR)window);
 	SetFocus(hwnd);
-
-	core_time_init(window);
 
 	return;
 }
@@ -397,20 +334,20 @@ void core_opengl(core_window_t* window) {
 
 	int suggestedIndex = ChoosePixelFormat(hdc, &pixelFormat);
 	if (!suggestedIndex) {
-		core_error_exit("OpenGL initialisation failed: ChoosePixelFormat \n");
+		core_win32_error(0, FALSE, "OpenGL initialisation failed: ChoosePixelFormat");
 	}
 	PIXELFORMATDESCRIPTOR suggested;
 	DescribePixelFormat(hdc, suggestedIndex, sizeof(PIXELFORMATDESCRIPTOR), &suggested);
 	if (!SetPixelFormat(hdc, suggestedIndex, &suggested)) {
-		core_error_exit("OpenGL initialisation failed: SetPixelFormat \n");
+		core_win32_error(0, FALSE, "OpenGL initialisation failed: SetPixelFormat");
 	}
 
 	HGLRC glContext = wglCreateContext(hdc);
 	if (!glContext) {
-		core_error_exit("OpenGL initialisation failed: wglCreateContext \n");
+		core_win32_error(0, FALSE, "OpenGL initialisation failed: wglCreateContext");
 	}
 	if (!wglMakeCurrent(hdc, glContext)) {
-		core_error_exit("OpenGL initialisation failed: wglMakeCurrent \n");
+		core_win32_error(0, FALSE, "OpenGL initialisation failed: wglMakeCurrent");
 	}
 
 	// Upgrade to extended context
@@ -445,7 +382,7 @@ void core_opengl(core_window_t* window) {
 	HGLRC context = wglCreateContextAttribsARB(hdc, 0, attribs);
 	wglMakeCurrent(hdc, context);
 
-	char* gl_extensions = glGetString(GL_EXTENSIONS);
+	const char* gl_extensions = glGetString(GL_EXTENSIONS);
 	// printf(gl_extensions);
 	window->wglSwapIntervalEXT = (wglSwapIntervalEXT_proc)wglGetProcAddress("wglSwapIntervalEXT");
 	window->wglGetSwapIntervalEXT = (wglGetSwapIntervalEXT_proc)wglGetProcAddress("wglGetSwapIntervalEXT");
@@ -456,6 +393,8 @@ void core_opengl(core_window_t* window) {
 }
 
 void core_window_update(core_window_t* window) {
+	SetWindowLongPtrA(window->hwnd, GWLP_WNDPROC, (LONG_PTR)_core_wndproc);
+
 	// f32 time = core_time();
 	// window->dt = (time - window->last_frame_time) * 1000.0f;
 	// window->last_frame_time = time;
@@ -466,7 +405,7 @@ void core_window_update(core_window_t* window) {
 	// memset(&os->input.
 	//os->input.keysLast[Message.wParam] = os->input.keys[Message.wParam];
 	//memcpy(rain->input.keys_last, rain->input.keys, sizeof(rain->input.keys));
-	core_time_update(window);
+	// core_time_update(window);
 
 	BYTE keyboard[256] = {0};
 	GetKeyboardState(keyboard);
@@ -490,7 +429,7 @@ void core_window_update(core_window_t* window) {
 	window->mouse.right.released = FALSE;
 
 	MSG Message;
-	while (PeekMessageA(&Message, window->hwnd, 0, 0, PM_REMOVE)) {
+	while (PeekMessageA(&Message, NULL, 0, 0, PM_REMOVE)) {
 		switch (Message.message) {
 			default:
 			TranslateMessage(&Message);

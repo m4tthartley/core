@@ -1,8 +1,13 @@
+
+#ifndef __CORE_HEADER__
+#define __CORE_HEADER__
+
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-// #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
+// #include <string.h>
+
+#include "terminal.h"
 
 typedef __int64  i64;
 typedef unsigned __int64  u64;
@@ -73,6 +78,65 @@ typedef struct {
 	audio_sample_t data[];
 } audio_buffer_t;
 typedef audio_buffer_t wave_t;
+
+
+// ERRORS
+void core_error(b32 fatal, char* err, ...) {
+	char str[1024];
+	va_list va;
+	va_start(va, err);
+	vsnprintf(str, 1024, err, va);
+	print(REDF "%s\n" RESET, str);
+	MessageBox(NULL, str, NULL, MB_OK);
+	va_end(va);
+	if (fatal) {
+		exit(1);
+	}
+}
+
+void core_win32_error(DWORD error_code, b32 fatal, char* err, ...) {
+	if (!error_code) {
+		error_code = GetLastError();
+	}
+	char str[1024];
+	va_list va;
+	va_start(va, err);
+	vsnprintf(str, 1024, err, va);
+	char* msg;
+	FormatMessage(
+		FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+		NULL,
+		error_code,
+		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		&msg,
+		0,
+		NULL);
+	print(REDF "%s\n%s\n" RESET, str, msg);
+	MessageBox(NULL, str, NULL, MB_OK);
+	va_end(va);
+	LocalFree(msg);
+	if (fatal) {
+		exit(1);
+	}
+}
+
+// #define core_error_exit(...)\
+// 	core_error(__VA_ARGS__);\
+// 	exit(1);
+
+// char* _win32_hresult_string(HRESULT hresult) {
+// 	FormatMessage(
+// 		FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+// 		NULL,
+// 		hresult,
+// 		0,
+// 		// (LPWSTR)_win32_error_buffer,
+// 		// sizeof(_win32_error_buffer),
+// 		NULL,
+// 		0,
+// 		NULL);
+// 	return _win32_error_buffer;
+// }
 
 
 // MISC
@@ -809,4 +873,6 @@ int atomic_sub32(void *ptr, int value) {
 int atomic_read32(void *ptr) {
 	return _InterlockedExchangeAdd((long volatile*)ptr, 0);
 }
+
+#endif
 

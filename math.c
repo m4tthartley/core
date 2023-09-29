@@ -12,7 +12,7 @@
 #define PI 3.14159265359f
 #define PI2 (PI*2.0f)
 
-#ifdef GFX_VEC_CLASSIC_NAMES
+#ifndef MATH_LEGACY_NAMING
 #	define vec2_create vec2
 #	define vec3_create vec3
 #	define vec4_create vec4
