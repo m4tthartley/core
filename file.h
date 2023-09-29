@@ -1,10 +1,84 @@
 
-#ifndef CORE_FILE_HEADER
-#define CORE_FILE_HEADER
+#ifndef __CORE_FILE_HEADER__
+#define __CORE_FILE_HEADER__
 
+#include "core.h"
 #include <mmreg.h>
 
-#include <string.h>
+typedef void* f_handle;
+typedef struct {
+	u64 created;
+	u64 modified;
+	size_t size;
+} f_info;
+
+f_handle f_open(char* path) {
+	assert(sizeof(HANDLE)<=sizeof(f_handle));
+	
+	HANDLE handle = CreateFileA(path, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ,
+								0, /*OPEN_EXISTING*/OPEN_ALWAYS, 0, 0);
+	if(handle==INVALID_HANDLE_VALUE) {
+		DWORD error = GetLastError();
+		LPTSTR msg;
+		FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER|
+					  FORMAT_MESSAGE_FROM_SYSTEM|
+					  FORMAT_MESSAGE_IGNORE_INSERTS,
+					  NULL, error,
+					  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+					  (LPTSTR)&msg, 0, NULL);
+		// uiMessage("%i, %s", GetLastError(), msg);
+		return 0;
+	}
+	return handle;
+}
+
+int f_read(f_handle file, int offset, void* output, size_t size) { // 32bit only?
+	DWORD bytesRead;
+	OVERLAPPED overlapped = {0};
+	overlapped.Offset = offset;
+	int result = ReadFile(file, output, size, &bytesRead, &overlapped);
+	if(!result || bytesRead!=size) {
+		char path[64];
+		GetFinalPathNameByHandleA(file, path, 64, FILE_NAME_OPENED);
+		MessageBox(NULL, s_format("Failed to read file: %s", path), "File Error", MB_OK);
+		return 0;
+	} else {
+		return 1;
+	}
+}
+
+void f_write(f_handle file, int offset, void* data, size_t size) { // 32bit only?
+	DWORD bytesWritten;
+	OVERLAPPED overlapped = {0};
+	overlapped.Offset = offset;
+	int result = WriteFile(file, data, size, &bytesWritten, &overlapped);
+	if(!result || bytesWritten!=size) {
+		MessageBox(NULL, "Failed to write file", "Error", MB_OK);
+	}
+}
+
+f_info f_stat(f_handle file) {
+	f_info result = {0};
+	BY_HANDLE_FILE_INFORMATION info = {0};
+	if(GetFileInformationByHandle(file, &info)) {
+		result.created = info.ftCreationTime.dwLowDateTime;
+		result.created |= (u64)info.ftCreationTime.dwHighDateTime<<32;
+		result.modified = info.ftLastWriteTime.dwLowDateTime;
+		result.modified |= (u64)info.ftLastWriteTime.dwHighDateTime<<32;
+		result.size = info.nFileSizeLow;
+	} else {
+		MessageBox(NULL, "Failed to stat file", "Error", MB_OK);
+	}
+	return result;
+}
+
+void f_close(f_handle file) {
+	if(file != INVALID_HANDLE_VALUE) {
+		CloseHandle(file);
+	}
+}
+
+
 #pragma pack(push, 1)
 typedef struct {
 	char header[2];
@@ -108,6 +182,21 @@ bitmap_t* f_load_bitmap(memory_arena* arena, char* filename) {
 	return result;
 }
 
+bitmap_t* f_load_font_file(m_arena* arena, char*filename) {
+	bitmap_t* bitmap = f_load_bitmap(arena, filename);
+	u32* pixels = bitmap + 1;
+	FOR (i, bitmap->width * bitmap->height) {
+		u32 pixel = pixels[i];
+		if (pixel != 0xFF000000) {
+			pixels[i] = 0;
+		} else {
+			pixels[i] = 0xFFFFFFFF;
+		}
+	}
+
+	return bitmap;
+}
+
 #pragma pack(push, 1)
 typedef struct {
 	char ChunkId[4];
@@ -195,7 +284,7 @@ wave_t* f_load_wave(memory_arena* arena, char* filename) {
 	FILE* file;
 	file = fopen(filename, "r");
 	if(!file) {
-		core_error("Unable to open file: %s", filename);
+		core_error(FALSE, "Unable to open file: %s", filename);
 	}
 	fseek(file, 0, SEEK_END);
 	size_t size = ftell(file);
