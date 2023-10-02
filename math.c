@@ -366,6 +366,12 @@ math_inline float dot4(vec4_t a, vec4_t b) {
 	return a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w;
 }
 
+// math_inline vec2_t cross2(vec2_t a, vec2_t b) {
+// 	vec2_t result;
+// 	result.x = a.y*b.z - a.z*b.y;
+// 	result.y = a.z*b.x - a.x*b.z;
+// 	return normalize2(result);
+// }
 math_inline vec3_t cross3(vec3_t a, vec3_t b) {
 	vec3_t result;
 	result.x = a.y*b.z - a.z*b.y;

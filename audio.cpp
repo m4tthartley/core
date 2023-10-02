@@ -103,6 +103,32 @@ int atomic_read32(void *ptr) {
 // 	return _win32_error_buffer;
 // }
 
+void core_win32_error(DWORD error_code, int fatal, char* err, ...) {
+	if (!error_code) {
+		error_code = GetLastError();
+	}
+	char str[1024];
+	va_list va;
+	va_start(va, err);
+	vsnprintf(str, 1024, err, va);
+	char* msg;
+	FormatMessage(
+		FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+		NULL,
+		error_code,
+		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPSTR)&msg,
+		0,
+		NULL);
+	printf("%s\n%s\n", str, msg);
+	MessageBox(NULL, str, NULL, MB_OK);
+	va_end(va);
+	LocalFree(msg);
+	if (fatal) {
+		exit(1);
+	}
+}
+
 DWORD wasapi_audio_thread(void* arg) {
 	core_audio_t* audio = (core_audio_t*)arg;
 	// TODO sort out the error handling dude
@@ -174,7 +200,7 @@ void cpp_wasapi_init_audio(core_audio_t* audio) {
 	printf("initializing wasapi audio \n");
 #define AssertSucceeded(hr)\
 	if(!SUCCEEDED(hr)) {\
-		printf("it broke \n");\
+		core_win32_error(hresult, 0, "Wasapi error: ");\
 		return;\
 	}
 

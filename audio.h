@@ -21,6 +21,10 @@ typedef void (*CORE_AUDIO_MIXER_PROC)(audio_sample_t* output, size_t sample_coun
 void wasapi_init_audio(audio_sample_t* output, CORE_AUDIO_MIXER_PROC mixer_proc);
 
 typedef struct {
+	// WAVEOUT
+	HWAVEOUT hwaveout;
+
+	// WASAPI
 	CORE_AUDIO_MIXER_PROC mixer_proc;
 	IAudioClient* audio_client;
 	IAudioRenderClient* audio_render_client;
@@ -83,8 +87,8 @@ void CORE_DEFAULT_AUDIO_MIXER_PROC(audio_sample_t* output, size_t sample_count, 
 		} else {
 			FOR(isample, samples_to_mix) {
 				u32 buffer_index = sound->cursor;
-				output[isample].left += sound->buffer->data[buffer_index].left;
-				output[isample].right += sound->buffer->data[buffer_index].right;
+				output[isample].left += (f32)sound->buffer->data[buffer_index].left * sound->volume;
+				output[isample].right += (f32)sound->buffer->data[buffer_index].right * sound->volume;
 				sound->cursor += speed_diff;
 			}
 		}
