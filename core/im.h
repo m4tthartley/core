@@ -30,26 +30,12 @@ vec2_t _gfx_coord_system = {1.0f, 1.0f};
 
 #define gfx_color(c) glColor4f(c.r, c.g, c.b, c.a)
 
-gfx_texture_t gfx_create_texture(bitmap_t* image) {
-	gfx_texture_t result;
-	result.width = image->width;
-	result.height = image->height;
-	glGenTextures(1, &result.handle);
-	glBindTexture(GL_TEXTURE_2D, result.handle);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image->width, image->height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, image->data);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	return result;
-}
-
 gfx_texture_t gfx_create_null_texture(int width, int height) {
-	// r_texture result;
-	// result.width = image.header->bitmapWidth;
-	// result.height = image.header->bitmapHeight;
+	int block_size = 2;
 	u32* data = malloc(sizeof(u32) * width * height);
 	for(int y=0; y<height; ++y) for(int x=0; x<width; ++x) {
-		if(((y/8)&1) ? (x / 8) & 1 : !((x / 8) & 1)) {
-			data[y*width+x] = (255<<0) | (0) | (255<<16) | (255<<24);
+		if(((y/block_size)&1) ? (x / block_size) & 1 : !((x / block_size) & 1)) {
+			data[y*width+x] = (255<<0) | (255<<8) | (255<<16) | (255<<24);
 		} else {
 			data[y*width+x] = (0<<0) | (0) | (0<<16) | (255<<24);
 		}
@@ -67,6 +53,22 @@ gfx_texture_t gfx_create_null_texture(int width, int height) {
 		height
 	};
 	return result;
+}
+
+gfx_texture_t gfx_create_texture(bitmap_t* bitmap) {
+	if (bitmap) {
+		gfx_texture_t result;
+		result.width = bitmap->width;
+		result.height = bitmap->height;
+		glGenTextures(1, &result.handle);
+		glBindTexture(GL_TEXTURE_2D, result.handle);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bitmap->width, bitmap->height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, bitmap->data);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		return result;
+	} else {
+		return gfx_create_null_texture(256, 256);
+	}
 }
 
 void gfx_texture(gfx_texture_t* texture) {
@@ -215,14 +217,18 @@ void gfx_text(core_window_t* window, vec2_t pos, float scale, char* str, ...) {
 		(percent_of_screen.x/_gfx_coord_system.x) * (f32)scale,
 		(percent_of_screen.y/_gfx_coord_system.y) * (f32)scale,
 	};
+
 	gfx_texture_t* t = _gfx_active_texture;
+	int chars_per_row = t->width / 8;
+	int chars_per_col = t->height / 8;
 	
 	// float charSize = 1.0f*0.05f;
 	char* buffer = b;
 	for (int i=0; *buffer; ++i,++buffer) {
 		if(*buffer != '\n') {
-			vec2_t uv = vec2((float)(*buffer%16) / 16.0f, (float)(*buffer/16) / 8.0f);
-			vec2_t uvt = vec2(1.0f/16.0f, 1.0f/8.0f);
+			vec2_t uv = vec2((float)(*buffer%chars_per_row) / (float)chars_per_row,
+					(float)(*buffer/chars_per_row) / (float)chars_per_col);
+			vec2_t uvt = vec2(1.0f/(float)chars_per_row, 1.0f/(float)chars_per_col);
 			vec2_t charPos = add2(pos, vec2(i * s.x, 0));
 			glBegin(GL_QUADS);
 			glTexCoord2f(uv.x,       uv.y+uvt.y); glVertex2f(charPos.x,            charPos.y+s.y);

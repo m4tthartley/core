@@ -6,7 +6,6 @@
 #include <windows.h>
 #include <mmeapi.h>
 #include <stdio.h>
-// #include <string.h>
 
 #include "terminal.h"
 
@@ -38,7 +37,6 @@ typedef u64 size_t;
 
 #define PAGE_SIZE 4096
 
-// #define assert(exp) ((exp) ? (exp) : (*(int*)0 = 0))
 #define assert(exp) if(!(exp)) { printf("Assertion failed (" #exp ") in function \"%s\" \n", __FUNCTION__); fflush(stdout); (*(int*)0 = 0); } //(*(int*)0 = 0);
 #define array_size(a) (sizeof(a)/sizeof(a[0]))
 
@@ -52,6 +50,9 @@ typedef u64 size_t;
 #define slen s_len
 #define zeroMemory m_zero
 #define copyMemory m_copy
+
+#define memory_arena m_arena
+#define memory_block m_block
 
 
 // STRUCTURES
@@ -77,7 +78,6 @@ typedef struct {
 	int samples_per_second;
 	int bytes_per_sample;
 	size_t sample_count;
-	// size_t num_bytes;
 	audio_sample_t data[];
 } audio_buffer_t;
 typedef audio_buffer_t wave_t;
@@ -97,14 +97,27 @@ void core_error(b32 fatal, char* err, ...) {
 	}
 }
 
-void core_win32_error(DWORD error_code, b32 fatal, char* err, ...) {
-	if (!error_code) {
-		error_code = GetLastError();
-	}
+void core_error_console(b32 fatal, char* err, ...) {
 	char str[1024];
 	va_list va;
 	va_start(va, err);
 	vsnprintf(str, 1024, err, va);
+	print(REDF "%s\n" RESET, str);
+	va_end(va);
+	if (fatal) {
+		exit(1);
+	}
+}
+
+void core_win32_error(DWORD error_code, b32 fatal, char* err, ...) {
+	if (!error_code) {
+		error_code = GetLastError();
+	}
+	char usrstr[1024];
+	va_list va;
+	va_start(va, err);
+	vsnprintf(usrstr, 1024, err, va);
+
 	char* msg;
 	FormatMessage(
 		FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
@@ -114,32 +127,19 @@ void core_win32_error(DWORD error_code, b32 fatal, char* err, ...) {
 		&msg,
 		0,
 		NULL);
-	print(REDF "%s\n%s\n" RESET, str, msg);
+
+	char str[1024];
+	snprintf(str, 1024, "%s\n%#08X %s\n", usrstr, error_code, msg);
+
+	printf(REDF "%s" RESET, str);
 	MessageBox(NULL, str, NULL, MB_OK);
+
 	va_end(va);
 	LocalFree(msg);
 	if (fatal) {
 		exit(1);
 	}
 }
-
-// #define core_error_exit(...)\
-// 	core_error(__VA_ARGS__);\
-// 	exit(1);
-
-// char* _win32_hresult_string(HRESULT hresult) {
-// 	FormatMessage(
-// 		FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-// 		NULL,
-// 		hresult,
-// 		0,
-// 		// (LPWSTR)_win32_error_buffer,
-// 		// sizeof(_win32_error_buffer),
-// 		NULL,
-// 		0,
-// 		NULL);
-// 	return _win32_error_buffer;
-// }
 
 
 // MISC
@@ -235,39 +235,10 @@ void list_remove(list* list, list_node* item) {
 		item->next->prev = item->prev;
 	}
 }
-// void addToListBack(ll_node** head, ll_node* item) {
-// 	item->next = 0;
-// 	if(*head) {
-// 		ll_node* w = *head;
-// 		while(w->next) {
-// 			w = w->next;
-// 		}
-// 		w->next = item;
-// 		item->prev = w;
-// 	} else {
-// 		*head = item;
-// 	}
-// }
-// void removeFromList(ll_node **head, ll_node* item) {
-// 	if(item->next) {
-// 		item->next->prev = item->prev;
-// 	}
-// 	if(item->prev) {
-// 		item->prev->next = item->next;
-// 	} else {
-// 		*head = item->next;
-// 	}
-// }
 
 
 // MEMORY
 // TODO pools
-// TODO freelist
-// TODO dynamic arrays
-
-#define m_arena memory_arena
-#define m_block memory_block
-
 typedef enum {
 	ARENA_STATIC = 1,
 	ARENA_DYNAMIC = 1<<1,
@@ -281,7 +252,7 @@ typedef struct {
 	u64 size;
 	// struct memory_block* next;
 	// struct memory_block* prev;
-} memory_block;
+} m_block;
 typedef struct {
 	u8* address;
 	u64 size;
@@ -291,7 +262,7 @@ typedef struct {
 	u64 flags;
 	list blocks;
 	list free;
-} memory_arena;
+} m_arena;
 
 // memory_arena memoryInit(void* address, u64 size, u64 flags, u64 reserveSize) {
 // 	assert(flags&ARENA_STACK || flags&ARENA_FREELIST);
@@ -569,6 +540,7 @@ void* dynarr_get(dynarr_t* arr, int index) {
 // TODO string pools
 // TODO string functions
 /*
+	s_create()					DONE
 	s_len()						DONE
 	s_format(char*fmt, ...)	    DONE
 	s_copy()					DONE
@@ -584,7 +556,6 @@ void* dynarr_get(dynarr_t* arr, int index) {
 	s_lower()					DONE
 	s_upper()					DONE
 
-	s_intern()
 	s_size()					X
 	s_free()					DONE
 	s_slice()
@@ -761,7 +732,6 @@ void s_replace(string* str, char* find, char* replace) {
 
 void s_replace_single(string* str, char* find, char* replace) {
 	memory_block* block = (memory_block*)*str - 1;
-	// int num = s_findn(*str, find);
 	int len = s_len(*str);
 	int flen = s_len(find);
 	int rlen = s_len(replace);
@@ -778,7 +748,6 @@ void s_replace_single(string* str, char* find, char* replace) {
 			o += rlen;
 			i += flen;
 			memcpy(o, s, len-i+1);
-			// newStr[newSize-1] = '|';
 			break;
 		}
 		++s;

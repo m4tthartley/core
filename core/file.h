@@ -32,7 +32,7 @@ f_handle f_open(char* path) {
 	return handle;
 }
 
-int f_read(f_handle file, int offset, void* output, size_t size) { // 32bit only?
+int f_read(f_handle file, size_t offset, void* output, size_t size) {
 	DWORD bytesRead;
 	OVERLAPPED overlapped = {0};
 	overlapped.Offset = offset;
@@ -47,7 +47,7 @@ int f_read(f_handle file, int offset, void* output, size_t size) { // 32bit only
 	}
 }
 
-void f_write(f_handle file, int offset, void* data, size_t size) { // 32bit only?
+void f_write(f_handle file, size_t offset, void* data, size_t size) {
 	DWORD bytesWritten;
 	OVERLAPPED overlapped = {0};
 	overlapped.Offset = offset;
@@ -119,7 +119,8 @@ bitmap_t* f_load_bitmap(memory_arena* arena, char* filename) {
 
 	fontFile = fopen(filename, "r"); // todo: this stuff crashes when file not found
 	if(!fontFile) {
-		printf("cant open file\n");
+		core_error_console(FALSE, "Unable to open file: %s", filename);
+		return NULL;
 	}
 	fseek(fontFile, 0, SEEK_END);
 	fileSize = ftell(fontFile);
@@ -184,13 +185,15 @@ bitmap_t* f_load_bitmap(memory_arena* arena, char* filename) {
 
 bitmap_t* f_load_font_file(m_arena* arena, char*filename) {
 	bitmap_t* bitmap = f_load_bitmap(arena, filename);
-	u32* pixels = bitmap + 1;
-	FOR (i, bitmap->width * bitmap->height) {
-		u32 pixel = pixels[i];
-		if (pixel != 0xFF000000) {
-			pixels[i] = 0;
-		} else {
-			pixels[i] = 0xFFFFFFFF;
+	if (bitmap) {
+		u32* pixels = bitmap + 1;
+		FOR (i, bitmap->width * bitmap->height) {
+			u32 pixel = pixels[i];
+			if (pixel != 0xFF000000) {
+				pixels[i] = 0;
+			} else {
+				pixels[i] = 0xFFFFFFFF;
+			}
 		}
 	}
 
@@ -231,51 +234,53 @@ wave_t* f_load_wave_from_memory(m_arena* arena, u8* data, size_t file_size) {
 	WavDataChunk *dataChunk = NULL;
 	char *f = (char*)(header + 1);
 
-	// Parse file and collect structures
-	while (f < (char*)data + file_size) {
-		int id = *(int*)f;
-		u32 size = *(u32*)(f+4);
-		if (id == (('f'<<0)|('m'<<8)|('t'<<16)|(' '<<24))) {
-			format = (WavFormatChunk*)f;
-		}
-		if (id == (('d'<<0)|('a'<<8)|('t'<<16)|('a'<<24))) {
-			dataChunk = (WavDataChunk*)f;
-			dataChunk->data = f + 8;
-		}
-		f += size + 8;
-	}
-
-	WAVEFORMAT* win32_format = &format->formatTag;
-	WAVEFORMATEXTENSIBLE* win32_extended_format = &format->formatTag;
-
-	if (format && dataChunk) {
-		assert(format->channels <= 2);
-		assert(format->bitsPerSample == 16);
-		// assert(dataChunk->size ==);
-		// Possibly check whether to alloc or push
-		wave_t* wave;
-		if(format->channels == 1) {
-			// TODO this is temporary solution
-			wave = m_alloc(arena, sizeof(wave_t) + dataChunk->size*2);
-			wave->channels = 2;
-			wave->samples_per_second = format->samplesPerSec;
-			wave->bytes_per_sample = format->bitsPerSample / 8;
-			wave->sample_count = dataChunk->size / (wave->channels * wave->bytes_per_sample);
-			i16* raw_data = dataChunk->data;
-			audio_sample_t* output = wave + 1;
-			FOR(i, wave->sample_count) {
-				output[i].left = raw_data[i];
-				output[i].right = raw_data[i];
+	if (data) {
+		// Parse file and collect structures
+		while (f < (char*)data + file_size) {
+			int id = *(int*)f;
+			u32 size = *(u32*)(f+4);
+			if (id == (('f'<<0)|('m'<<8)|('t'<<16)|(' '<<24))) {
+				format = (WavFormatChunk*)f;
 			}
-		} else {
-			wave = m_alloc(arena, sizeof(wave_t) + dataChunk->size);
-			memcpy(wave+1, dataChunk->data, dataChunk->size);
-			wave->channels = format->channels;
-			wave->samples_per_second = format->samplesPerSec;
-			wave->bytes_per_sample = format->bitsPerSample / 8;
-			wave->sample_count = dataChunk->size / (wave->channels * wave->bytes_per_sample);
+			if (id == (('d'<<0)|('a'<<8)|('t'<<16)|('a'<<24))) {
+				dataChunk = (WavDataChunk*)f;
+				dataChunk->data = f + 8;
+			}
+			f += size + 8;
 		}
-		return wave;
+
+		WAVEFORMAT* win32_format = &format->formatTag;
+		WAVEFORMATEXTENSIBLE* win32_extended_format = &format->formatTag;
+
+		if (format && dataChunk) {
+			assert(format->channels <= 2);
+			assert(format->bitsPerSample == 16);
+			// assert(dataChunk->size ==);
+			// Possibly check whether to alloc or push
+			wave_t* wave;
+			if(format->channels == 1) {
+				// TODO this is temporary solution
+				wave = m_alloc(arena, sizeof(wave_t) + dataChunk->size*2);
+				wave->channels = 2;
+				wave->samples_per_second = format->samplesPerSec;
+				wave->bytes_per_sample = format->bitsPerSample / 8;
+				wave->sample_count = dataChunk->size / (wave->channels * wave->bytes_per_sample);
+				i16* raw_data = dataChunk->data;
+				audio_sample_t* output = wave + 1;
+				FOR(i, wave->sample_count) {
+					output[i].left = raw_data[i];
+					output[i].right = raw_data[i];
+				}
+			} else {
+				wave = m_alloc(arena, sizeof(wave_t) + dataChunk->size);
+				memcpy(wave+1, dataChunk->data, dataChunk->size);
+				wave->channels = format->channels;
+				wave->samples_per_second = format->samplesPerSec;
+				wave->bytes_per_sample = format->bitsPerSample / 8;
+				wave->sample_count = dataChunk->size / (wave->channels * wave->bytes_per_sample);
+			}
+			return wave;
+		}
 	}
 
 	return NULL;
@@ -285,7 +290,8 @@ wave_t* f_load_wave(memory_arena* arena, char* filename) {
 	FILE* file;
 	file = fopen(filename, "r");
 	if(!file) {
-		core_error(FALSE, "Unable to open file: %s", filename);
+		core_error_console(FALSE, "Unable to open file: %s", filename);
+		return NULL;
 	}
 	fseek(file, 0, SEEK_END);
 	size_t size = ftell(file);

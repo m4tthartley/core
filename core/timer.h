@@ -8,6 +8,7 @@ typedef struct {
 	u64 last_frame_time;
 	u64 last_second_time;
 	int frame_counter;
+	int fps;
 } core_timer_t;
 
 void core_timer(core_timer_t* timer) {
@@ -22,13 +23,15 @@ void core_timer(core_timer_t* timer) {
 	timer->frame_counter = 0;
 }
 
-f64 core_time(core_timer_t* timer) { // Milliseconds
+// Milliseconds
+f64 core_time(core_timer_t* timer) {
 	LARGE_INTEGER counter;
 	QueryPerformanceCounter(&counter);
 	return (f64)(counter.QuadPart-timer->start_time) / (f64)timer->performance_freq;
 }
 
-f64 core_time_seconds(core_timer_t* timer) { // Seconds
+// Seconds
+f64 core_time_seconds(core_timer_t* timer) {
 	LARGE_INTEGER counter;
 	QueryPerformanceCounter(&counter);
 	return (f64)(counter.QuadPart-timer->start_time) / (f64)timer->performance_freq / 1000.0;
@@ -51,8 +54,8 @@ void core_timer_update(core_timer_t* timer) {
 	++timer->frame_counter;
 	f32 seconds = (f64)(counter.QuadPart-timer->last_second_time) / (f64)timer->performance_freq / 1000.0;
 	if(seconds > 1.0f) {
-		// printf("fps %i, dt %f \n", timer->frame_counter, timer->dt);
 		timer->last_second_time = counter.QuadPart;
+		timer->fps = timer->frame_counter;
 		timer->frame_counter = 0;
 	}
 }

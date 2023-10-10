@@ -38,50 +38,6 @@
 typedef BOOL (*wglSwapIntervalEXT_proc)(int interval);
 typedef int (*wglGetSwapIntervalEXT_proc)(void);
 
-// // void core_fatal_error
-// void core_error(char* err, ...) {
-// 	char str[1024];
-// 	va_list va;
-// 	va_start(va, err);
-// 	vsnprintf(str, 1024, err, va);
-// 	print(REDF "%s\n" RESET, str);
-// 	MessageBox(NULL, str, NULL, MB_OK);
-// 	va_end(va);
-// }
-//
-// // void core_error_exit(char* err) {
-// // 	core_error(err);
-// // 	exit(1);
-// // }
-// #define core_error_exit(...)\
-// 	core_error(__VA_ARGS__);\
-// 	exit(1);
-
-// char _win32_error_buffer[1024];
-// char* _win32_error() {
-// 	DWORD error = GetLastError();
-// 	FormatMessage(
-// 		FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-// 		NULL,
-// 		error,
-// 		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-// 		(LPWSTR)_win32_error_buffer,
-// 		sizeof(_win32_error_buffer),
-// 		NULL);
-// 	return _win32_error_buffer;
-// }
-// char* _win32_hresult_string(HRESULT hresult) {
-// 	FormatMessage(
-// 		/*FORMAT_MESSAGE_ALLOCATE_BUFFER |*/ FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-// 		NULL,
-// 		hresult,
-// 		0,
-// 		(LPWSTR)_win32_error_buffer,
-// 		sizeof(_win32_error_buffer),
-// 		NULL);
-// 	return _win32_error_buffer;
-// }
-
 enum {
 	WINDOW_DEFAULT = (1<<0),
 	WINDOW_CENTERED = (1<<1),
@@ -114,7 +70,6 @@ typedef struct {
 	b32 quit;
 	core_button_t keyboard[256];
 	core_mouse_t mouse;
-	// f32 last_frame_time;
 
 	// GL
 	wglSwapIntervalEXT_proc wglSwapIntervalEXT;
@@ -198,7 +153,7 @@ void core_window(core_window_t* window, char* title, int width, int height, int 
 	window->width = width;
 	window->height = height;
 	ZeroMemory(&window->keyboard, sizeof(window->keyboard));
-	printf("hwnd %#08x hdc %#08x \n", window->hwnd, window->hdc);
+	// printf("hwnd %#08x hdc %#08x \n", window->hwnd, window->hdc);
 
 	RAWINPUTDEVICE mouse_raw_input;
 	mouse_raw_input.usUsagePage = 1;
@@ -257,29 +212,10 @@ LRESULT CALLBACK _core_wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
 		case WM_SIZE: {
 			if (window) {
 				RECT rect;
-				// GetWindowRect(hwnd, &rect);
 				GetClientRect(hwnd, &rect);
 				printf("%i %i \n", rect.right - rect.left, rect.bottom - rect.top);
 				window->width = rect.right - rect.left;
 				window->height = rect.bottom - rect.top;
-
-				// TODO doesn't seem to run during resize
-				// _last_frame_time = core_time_raw();
-
-				// RECT windowRect;
-				// windowRect.left = 0;
-				// windowRect.right = rect.right - rect.left;
-				// windowRect.top = 0;
-				// windowRect.bottom = rect.bottom - rect.top;
-				// AdjustWindowRectEx(&windowRect, WS_OVERLAPPEDWINDOW | WS_VISIBLE, FALSE, 0);
-
-				// int2 diff = {
-				// 	(windowRect.right - windowRect.left) - (rect.right - rect.left),
-				// 	(windowRect.bottom - windowRect.top) - (rect.bottom - rect.top),
-				// };
-
-				// rain->window_width = (rect.right - rect.left) - diff.x;
-				// rain->window_height = (rect.bottom - rect.top) - diff.y;
 			}
 			break;
 		}
@@ -383,7 +319,7 @@ void core_opengl(core_window_t* window) {
 	wglMakeCurrent(hdc, context);
 
 	const char* gl_extensions = glGetString(GL_EXTENSIONS);
-	// printf(gl_extensions);
+
 	window->wglSwapIntervalEXT = (wglSwapIntervalEXT_proc)wglGetProcAddress("wglSwapIntervalEXT");
 	window->wglGetSwapIntervalEXT = (wglGetSwapIntervalEXT_proc)wglGetProcAddress("wglGetSwapIntervalEXT");
 
@@ -394,18 +330,6 @@ void core_opengl(core_window_t* window) {
 
 void core_window_update(core_window_t* window) {
 	SetWindowLongPtrA(window->hwnd, GWLP_WNDPROC, (LONG_PTR)_core_wndproc);
-
-	// f32 time = core_time();
-	// window->dt = (time - window->last_frame_time) * 1000.0f;
-	// window->last_frame_time = time;
-
-	// _window_width = window->width;
-	// _window_height = window->height;
-
-	// memset(&os->input.
-	//os->input.keysLast[Message.wParam] = os->input.keys[Message.wParam];
-	//memcpy(rain->input.keys_last, rain->input.keys, sizeof(rain->input.keys));
-	// core_time_update(window);
 
 	BYTE keyboard[256] = {0};
 	GetKeyboardState(keyboard);
@@ -441,5 +365,4 @@ void core_window_update(core_window_t* window) {
 void core_opengl_swap(core_window_t* window) {
 	SwapBuffers(window->hdc);
 }
-
 

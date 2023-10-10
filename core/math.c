@@ -28,16 +28,16 @@
 // #	define GFX_VEC3_STRUCT_NAME vec3_t
 // #	define GFX_VEC4_STRUCT_NAME vec4_t
 // #	define GFX_VEC2_CREATE_NAME vec2
-/* #	define GFX_VEC3_CREATE_NAME vec3
-#	define GFX_VEC4_CREATE_NAME vec4
-#else
-#	define GFX_VEC2_STRUCT_NAME vec2
-#	define GFX_VEC3_STRUCT_NAME vec3
-#	define GFX_VEC4_STRUCT_NAME vec4
-#	define GFX_VEC2_CREATE_NAME vec2_create
-#	define GFX_VEC3_CREATE_NAME vec3_create
-#	define GFX_VEC4_CREATE_NAME vec4_create
-#endif */
+// #	define GFX_VEC3_CREATE_NAME vec3
+// #	define GFX_VEC4_CREATE_NAME vec4
+// #else
+// #	define GFX_VEC2_STRUCT_NAME vec2
+// #	define GFX_VEC3_STRUCT_NAME vec3
+// #	define GFX_VEC4_STRUCT_NAME vec4
+// #	define GFX_VEC2_CREATE_NAME vec2_create
+// #	define GFX_VEC3_CREATE_NAME vec3_create
+// #	define GFX_VEC4_CREATE_NAME vec4_create
+// #endif
 
 typedef union {
 	struct {
