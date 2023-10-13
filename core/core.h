@@ -84,6 +84,15 @@ typedef audio_buffer_t wave_t;
 
 
 // ERRORS
+void core_print(char* fmt, ...) {
+	char str[1024];
+	va_list va;
+	va_start(va, fmt);
+	vsnprintf(str, 1024, fmt, va);
+	print("%s\n", str);
+	va_end(va);
+}
+
 void core_error(b32 fatal, char* err, ...) {
 	char str[1024];
 	va_list va;
@@ -399,6 +408,10 @@ void*_m_alloc_into_virtual(memory_arena* arena, size_t size) {
 
 // TODO maybe always use ->commit for size and rename ->size
 void* m_alloc(memory_arena* arena, size_t size) {
+	if (!arena) {
+		core_print("malloc");
+		return malloc(size);
+	}
 	assert(arena->address);
 	assert(arena->stack + size <= arena->size);
 	size += sizeof(memory_block);
@@ -417,6 +430,10 @@ void* m_alloc(memory_arena* arena, size_t size) {
 }
 
 void m_free(memory_arena* arena, u8* block) {
+	if (!arena) {
+		core_print("free");
+		return free(block);
+	}
 	assert(block >= arena->address && block < arena->address+arena->size);
 	block -= sizeof(memory_block);
 	arena->stack -= ((memory_block*)block)->size;
@@ -590,7 +607,7 @@ u32 s_len(char* str) {
 }
 
 string s_create(char* str) {
-	assert(_s_active_pool);
+	// assert(_s_active_pool);
 	u64 len = s_len(str);
 	char* result = m_alloc(_s_active_pool, align64(len+1, 64));
 	memcpy(result, str, len+1);

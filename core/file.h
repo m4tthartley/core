@@ -16,20 +16,66 @@ f_handle f_open(char* path) {
 	assert(sizeof(HANDLE)<=sizeof(f_handle));
 	
 	HANDLE handle = CreateFileA(path, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ,
-								0, /*OPEN_EXISTING*/OPEN_ALWAYS, 0, 0);
+								0, OPEN_EXISTING, 0, 0);
 	if(handle==INVALID_HANDLE_VALUE) {
-		DWORD error = GetLastError();
-		LPTSTR msg;
-		FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER|
-					  FORMAT_MESSAGE_FROM_SYSTEM|
-					  FORMAT_MESSAGE_IGNORE_INSERTS,
-					  NULL, error,
-					  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-					  (LPTSTR)&msg, 0, NULL);
-		// uiMessage("%i, %s", GetLastError(), msg);
+		// DWORD error = GetLastError();
+		// LPTSTR msg;
+		// FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER|
+		// 			  FORMAT_MESSAGE_FROM_SYSTEM|
+		// 			  FORMAT_MESSAGE_IGNORE_INSERTS,
+		// 			  NULL, error,
+		// 			  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		// 			  (LPTSTR)&msg, 0, NULL);
+		core_win32_error(0, FALSE, "Failed to open file %s", path);
 		return 0;
 	}
 	return handle;
+}
+
+f_handle f_create(char* path) {
+	assert(sizeof(HANDLE)<=sizeof(f_handle));
+	
+	HANDLE handle = CreateFileA(path, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ,
+								0, CREATE_ALWAYS, 0, 0);
+	if(handle==INVALID_HANDLE_VALUE) {
+		// DWORD error = GetLastError();
+		// LPTSTR msg;
+		// FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER|
+		// 			  FORMAT_MESSAGE_FROM_SYSTEM|
+		// 			  FORMAT_MESSAGE_IGNORE_INSERTS,
+		// 			  NULL, error,
+		// 			  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		// 			  (LPTSTR)&msg, 0, NULL);
+		core_win32_error(0, FALSE, "Failed to create file %s", path);
+		return 0;
+	}
+	return handle;
+}
+
+f_handle f_open_directory(char* path) {
+	assert(sizeof(HANDLE)<=sizeof(f_handle));
+	
+	HANDLE handle = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ,
+								0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, 0);
+	if(handle==INVALID_HANDLE_VALUE) {
+		core_win32_error(0, FALSE, "Failed to open directory %s", path);
+		return 0;
+	}
+	return handle;
+}
+
+void f_create_directory(char* path) {
+	BOOL success = CreateDirectoryA(path, NULL);
+	if(!success) {
+		DWORD err = GetLastError();
+		if (err == ERROR_ALREADY_EXISTS) {
+			core_error_console(FALSE, "Directory already exists");
+		} else if (err == ERROR_PATH_NOT_FOUND) {
+			core_error_console(FALSE, "Directory path not found");
+		} else {
+			core_win32_error(0, FALSE, "Failed to create directory %s", path);
+		}
+	}
 }
 
 int f_read(f_handle file, size_t offset, void* output, size_t size) {
