@@ -409,7 +409,7 @@ void*_m_alloc_into_virtual(memory_arena* arena, size_t size) {
 // TODO maybe always use ->commit for size and rename ->size
 void* m_alloc(memory_arena* arena, size_t size) {
 	if (!arena) {
-		core_print("malloc");
+		// core_print("malloc");
 		return malloc(size);
 	}
 	assert(arena->address);
@@ -431,7 +431,7 @@ void* m_alloc(memory_arena* arena, size_t size) {
 
 void m_free(memory_arena* arena, u8* block) {
 	if (!arena) {
-		core_print("free");
+		// core_print("free");
 		return free(block);
 	}
 	assert(block >= arena->address && block < arena->address+arena->size);
