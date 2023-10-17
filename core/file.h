@@ -10,6 +10,7 @@ typedef struct {
 	u64 created;
 	u64 modified;
 	size_t size;
+	char filename[64];
 } f_info;
 
 f_handle f_open(char* path) {
@@ -76,6 +77,36 @@ void f_create_directory(char* path) {
 			core_win32_error(0, FALSE, "Failed to create directory %s", path);
 		}
 	}
+}
+
+int f_get_directory_files(char* path, f_info* output, int length) {
+	int output_index = 0;
+	char* wildcard = s_format("%s/*", path);
+	WIN32_FIND_DATAA find_data;
+	HANDLE find_handle = FindFirstFileA(wildcard, &find_data);
+	if (find_handle == INVALID_HANDLE_VALUE) {
+		core_error_console(FALSE, "Failed to open directory: %s", path);
+		return 0;
+	}
+	do {
+		if (!s_compare(find_data.cFileName, ".") && !s_compare(find_data.cFileName, "..")) {
+			if (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+				output_index += f_get_directory_files(
+					s_format("%s/%s", path, find_data.cFileName),
+					output+output_index,
+					length-output_index);
+			} else {
+				// char* filename = s_copy(find_data.cFileName);
+				if (output_index < length) {
+					f_info* file = output + output_index++;
+					assert(s_len(find_data.cFileName) < sizeof(output->filename));
+					strcpy(file->filename, find_data.cFileName);
+				}
+			}
+		}
+	} while (FindNextFileA(find_handle, &find_data));
+	FindClose(find_handle);
+	return output_index;
 }
 
 int f_read(f_handle file, size_t offset, void* output, size_t size) {
