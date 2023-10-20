@@ -234,7 +234,7 @@ int main(int _argc, char **_argv) {
 		exit(1);
 	}
 
-	u8 strBuffer[PAGE_SIZE];
+	u8 strBuffer[PAGE_SIZE/8];
 	string_pool spool;
 	s_create_pool(&spool, strBuffer, sizeof(strBuffer));
 	s_pool(&spool);

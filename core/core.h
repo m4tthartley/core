@@ -27,6 +27,8 @@ typedef u64 size_t;
 
 #define TRUE 1
 #define FALSE 0
+#undef NULL
+#define NULL 0
 
 #define KILOBYTES(n) (n*1024)
 #define MEGABYTES(n) (n*1024*1024)
@@ -160,6 +162,18 @@ u64 align64(u64 size, u64 align) {
 		return (size & ~(align-1)) + align;
 	}
 }
+
+// int align_pow2_round_down(int value) {
+// 	int l = log2(value);
+// 	int target = 0x1 << l;
+// 	return target;
+// }
+//
+// int align_pow2_round_up(int value) {
+// 	int l = log2(value) + 1;
+// 	int target = 0x1 << l;
+// 	return target;
+// }
 
 f32 r_float() {
 	f32 result = (f32)rand() / (f32)RAND_MAX;
@@ -426,6 +440,7 @@ void* m_alloc(memory_arena* arena, size_t size) {
 			free = ((list_node*)free)->next;
 		}
 	}
+	assert(!"Failed to find a free block large enough");
 	return 0;
 }
 
