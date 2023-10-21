@@ -41,53 +41,53 @@
 // } PRINT_COLOR;
 
 // Foreground
-#define BLKF "\e[0;30m"
-#define REDF "\e[0;31m"
-#define GRNF "\e[0;32m"
-#define YELF "\e[0;33m"
-#define BLUF "\e[0;34m"
-#define MAGF "\e[0;35m"
-#define CYNF "\e[0;36m"
-#define WHTF "\e[0;37m"
+#define TERM_BLACK_FG "\e[0;30m"
+#define TERM_RED_FG "\e[0;31m"
+#define TERM_GREEN_FG "\e[0;32m"
+#define TERM_YELLOW_FG "\e[0;33m"
+#define TERM_BLUE_FG "\e[0;34m"
+#define TERM_MAGENTA_FG "\e[0;35m"
+#define TERM_CYAN_FG "\e[0;36m"
+#define TERM_WHITE_FG "\e[0;37m"
 // Background
-#define BLKB "\e[40m"
-#define REDB "\e[41m"
-#define GRNB "\e[42m"
-#define YELB "\e[43m"
-#define BLUB "\e[44m"
-#define MAGB "\e[45m"
-#define CYNB "\e[46m"
-#define WHTB "\e[47m"
+#define TERM_BLACK_BG "\e[40m"
+#define TERM_RED_BG "\e[41m"
+#define TERM_GREEN_BG "\e[42m"
+#define TERM_YELLOW_BG "\e[43m"
+#define TERM_BLUE_BG "\e[44m"
+#define TERM_MAGENTA_BG "\e[45m"
+#define TERM_CYAN_BG "\e[46m"
+#define TERM_WHITE_BG "\e[47m"
 // Bold
-#define BBLK "\e[1;30m"
-#define BRED "\e[1;31m"
-#define BGRN "\e[1;32m"
-#define BYEL "\e[1;33m"
-#define BBLU "\e[1;34m"
-#define BMAG "\e[1;35m"
-#define BCYN "\e[1;36m"
-#define BWHT "\e[1;37m"
+#define TERM_BLACK_BOLD "\e[1;30m"
+#define TERM_RED_BOLD "\e[1;31m"
+#define TERM_GREEN_BOLD "\e[1;32m"
+#define TERM_YELLOW_BOLD "\e[1;33m"
+#define TERM_BLUE_BOLD "\e[1;34m"
+#define TERM_MAGENTA_BOLD "\e[1;35m"
+#define TERM_CYAN_BOLD "\e[1;36m"
+#define TERM_WHITE_BOLD "\e[1;37m"
 // Underline
-#define UBLK "\e[4;30m"
-#define URED "\e[4;31m"
-#define UGRN "\e[4;32m"
-#define UYEL "\e[4;33m"
-#define UBLU "\e[4;34m"
-#define UMAG "\e[4;35m"
-#define UCYN "\e[4;36m"
-#define UWHT "\e[4;37m"
+#define TERM_BLACK_UNDERLINE "\e[4;30m"
+#define TERM_RED_UNDERLINE "\e[4;31m"
+#define TERM_GREEN_UNDERLINE "\e[4;32m"
+#define TERM_YELLOW_UNDERLINE "\e[4;33m"
+#define TERM_BLUE_UNDERLINE "\e[4;34m"
+#define TERM_MAGENTA_UNDERLINE "\e[4;35m"
+#define TERM_CYAN_UNDERLINE "\e[4;36m"
+#define TERM_WHITE_UNDERLINE "\e[4;37m"
 // Misc
-#define RESET "\e[0m"
-#define INVERTED "\e[7m"
+#define TERM_RESET "\e[0m"
+#define TERM_INVERTED "\e[7m"
 
-void escape_code(char* code) {
-	printf(code);
-}
+// void escape_code(char* code) {
+// 	printf(code);
+// }
 
-int print(char* str, ...) {
-	va_list args;
-	va_start(args, str);
-	int result = vprintf(str, args);
-	va_end(args);
-	return result;
-}
+// int print(char* str, ...) {
+// 	va_list args;
+// 	va_start(args, str);
+// 	int result = vprintf(str, args);
+// 	va_end(args);
+// 	return result;
+// }

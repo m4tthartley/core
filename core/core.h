@@ -2,31 +2,20 @@
 #ifndef __CORE_HEADER__
 #define __CORE_HEADER__
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <mmeapi.h>
-#include <stdio.h>
-
-#include "terminal.h"
-
-typedef __int64  i64;
-typedef unsigned __int64  u64;
-typedef __int32  i32;
-typedef unsigned __int32  u32;
-typedef __int16  i16;
-typedef unsigned __int16  u16;
-typedef __int8  i8;
-typedef unsigned __int8  u8;
-
-typedef float f32;
-typedef double f64;
-
-typedef u32 b32;
-typedef u8 byte;
-typedef u64 size_t;
 
 #define TRUE 1
 #define FALSE 0
+
+
+#include <stdint.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "platform.h"
+#include "terminal.h"
+
+
 #undef NULL
 #define NULL 0
 
@@ -85,72 +74,71 @@ typedef struct {
 typedef audio_buffer_t wave_t;
 
 
-// ERRORS
+// PRINTING
 void core_print(char* fmt, ...) {
 	char str[1024];
 	va_list va;
 	va_start(va, fmt);
 	vsnprintf(str, 1024, fmt, va);
-	print("%s\n", str);
+	printf("%s\n", str);
 	va_end(va);
 }
-
-void core_error(b32 fatal, char* err, ...) {
+void core_error(b32 fatal, char* fmt, ...) {
 	char str[1024];
 	va_list va;
-	va_start(va, err);
-	vsnprintf(str, 1024, err, va);
-	print(REDF "%s\n" RESET, str);
-	MessageBox(NULL, str, NULL, MB_OK);
+	va_start(va, fmt);
+	vsnprintf(str, 1024, fmt, va);
+	printf(TERM_RED_FG "%s\n" TERM_RESET, str);
 	va_end(va);
 	if (fatal) {
 		exit(1);
 	}
 }
 
-void core_error_console(b32 fatal, char* err, ...) {
-	char str[1024];
-	va_list va;
-	va_start(va, err);
-	vsnprintf(str, 1024, err, va);
-	print(REDF "%s\n" RESET, str);
-	va_end(va);
-	if (fatal) {
-		exit(1);
-	}
-}
 
-void core_win32_error(DWORD error_code, b32 fatal, char* err, ...) {
-	if (!error_code) {
-		error_code = GetLastError();
-	}
-	char usrstr[1024];
-	va_list va;
-	va_start(va, err);
-	vsnprintf(usrstr, 1024, err, va);
+// void core_error_console(b32 fatal, char* err, ...) {
+// 	char str[1024];
+// 	va_list va;
+// 	va_start(va, err);
+// 	vsnprintf(str, 1024, err, va);
+// 	print(REDF "%s\n" RESET, str);
+// 	va_end(va);
+// 	if (fatal) {
+// 		exit(1);
+// 	}
+// }
 
-	char* msg;
-	FormatMessage(
-		FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-		NULL,
-		error_code,
-		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		&msg,
-		0,
-		NULL);
+// void core_win32_error(DWORD error_code, b32 fatal, char* err, ...) {
+// 	if (!error_code) {
+// 		error_code = GetLastError();
+// 	}
+// 	char usrstr[1024];
+// 	va_list va;
+// 	va_start(va, err);
+// 	vsnprintf(usrstr, 1024, err, va);
 
-	char str[1024];
-	snprintf(str, 1024, "%s\n%#08X %s\n", usrstr, error_code, msg);
+// 	char* msg;
+// 	FormatMessage(
+// 		FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+// 		NULL,
+// 		error_code,
+// 		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+// 		&msg,
+// 		0,
+// 		NULL);
 
-	printf(REDF "%s" RESET, str);
-	MessageBox(NULL, str, NULL, MB_OK);
+// 	char str[1024];
+// 	snprintf(str, 1024, "%s\n%#08X %s\n", usrstr, error_code, msg);
 
-	va_end(va);
-	LocalFree(msg);
-	if (fatal) {
-		exit(1);
-	}
-}
+// 	printf(REDF "%s" RESET, str);
+// 	MessageBox(NULL, str, NULL, MB_OK);
+
+// 	va_end(va);
+// 	LocalFree(msg);
+// 	if (fatal) {
+// 		exit(1);
+// 	}
+// }
 
 
 // MISC
@@ -292,6 +280,14 @@ typedef struct {
 // 	assert(!(flags&ARENA_STACK && flags&ARENA_FREELIST));
 // }
 
+void m_zero(byte* address, int size) {
+	core_zero_memory(address, size);
+}
+
+void m_copy(byte* dest, byte* src, int size) {
+	core_copy_memory(dest, src, size);
+}
+
 void m_stack(memory_arena* arena, u8* buffer, size_t size) {
 	*arena = (memory_arena){};
 	arena->address = buffer;
@@ -304,7 +300,7 @@ void m_stack(memory_arena* arena, u8* buffer, size_t size) {
 }
 
 void m_freelist(memory_arena* arena, u8* buffer, size_t size) {
-	ZeroMemory(arena, sizeof(memory_arena));
+	m_zero(arena, sizeof(memory_arena));
 	arena->address = buffer;
 	arena->size = size;
 	arena->stack = 0;
@@ -326,9 +322,9 @@ void m_freelist(memory_arena* arena, u8* buffer, size_t size) {
 void m_reserve(memory_arena* arena, size_t size, size_t pagesToCommit) {
 	assert(!(arena->flags & ARENA_STATIC));
 	arena->size = align64(size, PAGE_SIZE);
-	arena->address = VirtualAlloc(0, arena->size, MEM_RESERVE, PAGE_READWRITE);
+	arena->address = core_reserve_virtual_memory(arena->size);
 	arena->commit = align64(pagesToCommit, PAGE_SIZE);
-	VirtualAlloc(arena->address, arena->commit, MEM_COMMIT, PAGE_READWRITE);
+	core_commit_virtual_memory(arena->address, arena->commit);
 	arena->stack = 0;
 	arena->flags |= ARENA_RESERVE;
 
@@ -338,25 +334,11 @@ void m_reserve(memory_arena* arena, size_t size, size_t pagesToCommit) {
 	}
 }
 
-void m_zero(byte* address, int size) {
-	byte* end = address+size;
-	while(address<end) {
-		*address++ = 0;
-	}
-}
-
-void m_copy(byte* dest, byte* src, int size) {
-	byte* end = dest+size;
-	while(dest<end) {
-		*dest++ = *src++;
-	}
-}
-
 void* m_push_into_reserve(memory_arena* arena, size_t size) {
 	assert(arena->flags & ARENA_RESERVE);
 	if(arena->stack+size > arena->commit) {
 		size_t pagesToCommit = align64(arena->stack+size - arena->commit, PAGE_SIZE);
-		VirtualAlloc((u8*)arena->address+arena->commit, pagesToCommit, MEM_COMMIT, PAGE_READWRITE);
+		core_commit_virtual_memory((u8*)arena->address+arena->commit, pagesToCommit);
 		arena->commit += pagesToCommit;
 	}
 	arena->stack += size;
@@ -385,7 +367,7 @@ void m_pop(m_arena* arena, size_t size) {
 
 void m_pop_and_shift(m_arena* arena, size_t offset, size_t size) {
 	assert(arena->stack >= offset + size);
-	memcpy(arena->address + offset, arena->address + offset + size, arena->stack - (offset+size));
+	m_copy(arena->address + offset, arena->address + offset + size, arena->stack - (offset+size));
 	m_pop(arena, size);
 	// arena->stack -= size;
 }
@@ -413,7 +395,7 @@ void*_m_alloc_into_virtual(memory_arena* arena, size_t size) {
 	}
 
 	u64 commit = align64(size, PAGE_SIZE);
-	memory_block* newMemory = VirtualAlloc((u8*)arena->address+arena->commit, commit, MEM_COMMIT, PAGE_READWRITE);
+	memory_block* newMemory = core_commit_virtual_memory((u8*)arena->address+arena->commit, commit);
 	arena->commit += commit;
 	newMemory->size = commit;
 	list_add(&arena->free, newMemory);
@@ -550,7 +532,7 @@ dynarr_t dynarr(int stride) {
 
 void dynarr_push(dynarr_t* arr, void* item) {
 	void* result = m_push(&arr->arena, arr->stride);
-	memcpy(result, item, arr->stride);
+	m_copy(result, item, arr->stride);
 	++arr->count;
 }
 
@@ -625,7 +607,7 @@ string s_create(char* str) {
 	// assert(_s_active_pool);
 	u64 len = s_len(str);
 	char* result = m_alloc(_s_active_pool, align64(len+1, 64));
-	memcpy(result, str, len+1);
+	m_copy(result, str, len+1);
 	return result;
 }
 
@@ -696,11 +678,11 @@ void s_append(string* str, char* append) {
 	u64 alen = align64(len+1, 64);
 	if(len + 1 + len2 > alen) {
 		string newStr = m_alloc(_s_active_pool, align64(len + len2 + 1, 64));
-		memcpy(newStr, *str, len);
+		m_copy(newStr, *str, len);
 		m_free(_s_active_pool, *str);
 		*str = newStr;
 	}
-	memcpy(*str + len, append, len2+1);
+	m_copy(*str + len, append, len2+1);
 }
 
 void s_prepend(string* str, char* prepend) {
@@ -710,13 +692,13 @@ void s_prepend(string* str, char* prepend) {
 	u64 newLen = len + len2 + 1;
 	if(newLen > block->size) {
 		string newStr = m_alloc(_s_active_pool, align64(newLen, 64));
-		memcpy(newStr+len2, *str, len+1);
+		m_copy(newStr+len2, *str, len+1);
 		m_free(_s_active_pool, *str);
 		*str = newStr;
 	} else {
-		memcpy(*str+len2, *str, len+1);
+		m_copy(*str+len2, *str, len+1);
 	}
-	memcpy(*str, prepend, len2);
+	m_copy(*str, prepend, len2);
 }
 
 void s_insert(string* str, u64 index, char* insert) {
@@ -727,13 +709,13 @@ void s_insert(string* str, u64 index, char* insert) {
 	u64 newLen = len + len2 + 1;
 	if(newLen > block->size) {
 		string newStr = m_alloc(_s_active_pool, align64(newLen, 64));
-		memcpy(newStr+index+len2, *str+index, len+1);
+		m_copy(newStr+index+len2, *str+index, len+1);
 		m_free(_s_active_pool, *str);
 		*str = newStr;
 	} else {
-		memcpy(*str+index+len2, *str+index, len+1);
+		m_copy(*str+index+len2, *str+index, len+1);
 	}
-	memcpy(*str+index, insert, len2);
+	m_copy(*str+index, insert, len2);
 }
 // s_split()
 // s_trim()
@@ -748,7 +730,7 @@ void s_replace(string* str, char* find, char* replace) {
 	char* o = newStr;
 	while(*s) {
 		if(s_ncompare(s, find, flen)) {
-			memcpy(o, replace, rlen);
+			m_copy(o, replace, rlen);
 			o += rlen;
 			s += flen;
 		} else {
@@ -774,12 +756,12 @@ void s_replace_single(string* str, char* find, char* replace) {
 	int i = 0;
 	while(*s) {
 		if(s_ncompare(s, find, flen)) {
-			memcpy(newStr, *str, i);
-			memcpy(o, replace, rlen);
+			m_copy(newStr, *str, i);
+			m_copy(o, replace, rlen);
 			s += flen;
 			o += rlen;
 			i += flen;
-			memcpy(o, s, len-i+1);
+			m_copy(o, s, len-i+1);
 			break;
 		}
 		++s;
@@ -823,7 +805,7 @@ u32 murmur3_scramble(u32 k) {
 
 // https://en.wikipedia.org/wiki/MurmurHash
 u32 murmur3(u8* key) {
-	u32 len = strlen((char*)key);
+	u32 len = s_len((char*)key);
 
 	u32 c1 = 0xcc9e2d51;
 	u32 c2 = 0x1b873593;
@@ -836,7 +818,7 @@ u32 murmur3(u8* key) {
 	u32 k;
 
 	for(int i = len>>2; i; --i) {
-		memcpy(&k, key, sizeof(u32));
+		m_copy(&k, key, sizeof(u32));
 		key += sizeof(u32);
 		hash ^= murmur3_scramble(k);
 		hash = (hash << 13) | (hash >> 19);
@@ -859,50 +841,6 @@ u32 murmur3(u8* key) {
 	return hash;
 }
 
-
-// THREADS AND ATOMICS
-// TODO TryEnterCriticalSection 
-typedef struct {
-	CRITICAL_SECTION win32_section;
-} core_critical_section_t;
-
-void core_init_critical_section(core_critical_section_t* section) {
-	InitializeCriticalSection(&section->win32_section);
-}
-
-// TODO maybe core_atomic_section, enter_atomic_section, exit_atomic_section, atomic_lock
-void core_enter_critical_section(core_critical_section_t* section) {
-	// if (!) {
-		// TODO I assume this is unsafe as you could have a 
-		// race condition on the initialization?
-		// InitializeCriticalSection(&section->win32_section);
-	// }
-	EnterCriticalSection(&section->win32_section);
-}
-
-void core_exit_critical_section(core_critical_section_t* section) {
-	LeaveCriticalSection(&section->win32_section);
-}
-
-int atomic_swap32(void *ptr, int swap) {
-	return _InterlockedExchange((long volatile*)ptr, swap);
-}
-
-b32 atomic_compare_swap32(void *ptr, int cmp, int swap) {
-	return _InterlockedCompareExchange((long volatile*)ptr, swap, cmp) == cmp;
-}
-
-int atomic_add32(void *ptr, int value) {
-	return _InterlockedExchangeAdd((long volatile*)ptr, value);
-}
-
-int atomic_sub32(void *ptr, int value) {
-	return _InterlockedExchangeAdd((long volatile*)ptr, -value);
-}
-
-int atomic_read32(void *ptr) {
-	return _InterlockedExchangeAdd((long volatile*)ptr, 0);
-}
 
 #endif
 

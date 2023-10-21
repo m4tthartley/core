@@ -3,185 +3,7 @@
 #define __CORE_FILE_HEADER__
 
 #include "core.h"
-#include <mmreg.h>
-
-#define NULL_HANDLE 0
-typedef void* f_handle;
-typedef struct {
-	u64 created;
-	u64 modified;
-	size_t size;
-	char filename[64];
-} f_info;
-
-f_handle f_open(char* path) {
-	assert(sizeof(HANDLE)<=sizeof(f_handle));
-	
-	HANDLE handle = CreateFileA(path, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ,
-								0, OPEN_EXISTING, 0, 0);
-	if(handle==INVALID_HANDLE_VALUE) {
-		// DWORD error = GetLastError();
-		// LPTSTR msg;
-		// FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER|
-		// 			  FORMAT_MESSAGE_FROM_SYSTEM|
-		// 			  FORMAT_MESSAGE_IGNORE_INSERTS,
-		// 			  NULL, error,
-		// 			  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		// 			  (LPTSTR)&msg, 0, NULL);
-		core_error_console(FALSE, "Failed to open file %s", path);
-		return NULL_HANDLE;
-	}
-	return handle;
-}
-
-f_handle f_create(char* path) {
-	assert(sizeof(HANDLE)<=sizeof(f_handle));
-	
-	HANDLE handle = CreateFileA(path, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ,
-								0, CREATE_ALWAYS, 0, 0);
-	if(handle==INVALID_HANDLE_VALUE) {
-		// DWORD error = GetLastError();
-		// LPTSTR msg;
-		// FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER|
-		// 			  FORMAT_MESSAGE_FROM_SYSTEM|
-		// 			  FORMAT_MESSAGE_IGNORE_INSERTS,
-		// 			  NULL, error,
-		// 			  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		// 			  (LPTSTR)&msg, 0, NULL);
-		core_win32_error(0, FALSE, "Failed to create file %s", path);
-		return 0;
-	}
-	return handle;
-}
-
-f_handle f_open_directory(char* path) {
-	assert(sizeof(HANDLE)<=sizeof(f_handle));
-	
-	DWORD attributes = GetFileAttributesA(path);
-	if (attributes == INVALID_FILE_ATTRIBUTES) {
-		core_error_console(FALSE, "Failed to open directory %s", path);
-		return NULL_HANDLE;
-	}
-	if (!(attributes & FILE_ATTRIBUTE_DIRECTORY)) {
-		core_error_console(FALSE, "Path is not a directory %s", path);
-		return NULL_HANDLE;
-	}
-
-	HANDLE handle = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ,
-								0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, 0);
-	if(handle==INVALID_HANDLE_VALUE) {
-		core_error_console(FALSE, "Failed to open directory %s", path);
-		return NULL_HANDLE;
-	}
-	return handle;
-}
-
-void f_create_directory(char* path) {
-	BOOL success = CreateDirectoryA(path, NULL);
-	if(!success) {
-		DWORD err = GetLastError();
-		if (err == ERROR_ALREADY_EXISTS) {
-			core_error_console(FALSE, "Directory already exists");
-		} else if (err == ERROR_PATH_NOT_FOUND) {
-			core_error_console(FALSE, "Directory path not found");
-		} else {
-			core_win32_error(0, FALSE, "Failed to create directory %s", path);
-		}
-	}
-}
-
-int f_directory_list(char* path, b32 recursive, f_info* output, int length) {
-	int output_index = 0;
-	char* wildcard = s_format("%s/*", path);
-	WIN32_FIND_DATAA find_data;
-	HANDLE find_handle = FindFirstFileA(wildcard, &find_data);
-	if (find_handle == INVALID_HANDLE_VALUE) {
-		core_error_console(FALSE, "Failed to open directory: %s", path);
-		return 0;
-	}
-	do {
-		if (!s_compare(find_data.cFileName, ".") && !s_compare(find_data.cFileName, "..")) {
-			if (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-				if (recursive) {
-					output_index += f_directory_list(
-						s_format("%s/%s", path, find_data.cFileName),
-						TRUE,
-						output+output_index,
-						length-output_index);
-				} else {
-					f_info* file = output + output_index++;
-					assert(s_len(find_data.cFileName) < sizeof(output->filename));
-					strcpy(file->filename, find_data.cFileName);
-					file->created = find_data.ftCreationTime.dwLowDateTime;
-					file->created |= (u64)find_data.ftCreationTime.dwHighDateTime<<32;
-					file->modified = find_data.ftLastWriteTime.dwLowDateTime;
-					file->modified |= (u64)find_data.ftLastWriteTime.dwHighDateTime<<32;
-					file->size = ((u64)find_data.nFileSizeHigh<<32) | find_data.nFileSizeLow;
-				}
-			} else {
-				// char* filename = s_copy(find_data.cFileName);
-				if (output_index < length) {
-					f_info* file = output + output_index++;
-					assert(s_len(find_data.cFileName) < sizeof(output->filename));
-					strcpy(file->filename, find_data.cFileName);
-					file->created = find_data.ftCreationTime.dwLowDateTime;
-					file->created |= (u64)find_data.ftCreationTime.dwHighDateTime<<32;
-					file->modified = find_data.ftLastWriteTime.dwLowDateTime;
-					file->modified |= (u64)find_data.ftLastWriteTime.dwHighDateTime<<32;
-					file->size = ((u64)find_data.nFileSizeHigh<<32) | find_data.nFileSizeLow;
-				}
-			}
-		}
-	} while (FindNextFileA(find_handle, &find_data));
-	FindClose(find_handle);
-	return output_index;
-}
-
-int f_read(f_handle file, size_t offset, void* output, size_t size) {
-	DWORD bytesRead;
-	OVERLAPPED overlapped = {0};
-	overlapped.Offset = offset;
-	int result = ReadFile(file, output, size, &bytesRead, &overlapped);
-	if(!result || bytesRead!=size) {
-		char path[64];
-		GetFinalPathNameByHandleA(file, path, 64, FILE_NAME_OPENED);
-		MessageBox(NULL, s_format("Failed to read file: %s", path), "File Error", MB_OK);
-		return 0;
-	} else {
-		return 1;
-	}
-}
-
-void f_write(f_handle file, size_t offset, void* data, size_t size) {
-	DWORD bytesWritten;
-	OVERLAPPED overlapped = {0};
-	overlapped.Offset = offset;
-	int result = WriteFile(file, data, size, &bytesWritten, &overlapped);
-	if(!result || bytesWritten!=size) {
-		MessageBox(NULL, "Failed to write file", "Error", MB_OK);
-	}
-}
-
-f_info f_stat(f_handle file) {
-	f_info result = {0};
-	BY_HANDLE_FILE_INFORMATION info = {0};
-	if(GetFileInformationByHandle(file, &info)) {
-		result.created = info.ftCreationTime.dwLowDateTime;
-		result.created |= (u64)info.ftCreationTime.dwHighDateTime<<32;
-		result.modified = info.ftLastWriteTime.dwLowDateTime;
-		result.modified |= (u64)info.ftLastWriteTime.dwHighDateTime<<32;
-		result.size = info.nFileSizeLow;
-	} else {
-		MessageBox(NULL, "Failed to stat file", "Error", MB_OK);
-	}
-	return result;
-}
-
-void f_close(f_handle file) {
-	if(file != INVALID_HANDLE_VALUE) {
-		CloseHandle(file);
-	}
-}
+// #include <mmreg.h>
 
 
 #pragma pack(push, 1)
@@ -224,7 +46,7 @@ bitmap_t* f_load_bitmap(memory_arena* arena, char* filename) {
 
 	fontFile = fopen(filename, "r"); // todo: this stuff crashes when file not found
 	if(!fontFile) {
-		core_error_console(FALSE, "Unable to open file: %s", filename);
+		core_error(FALSE, "Unable to open file: %s", filename);
 		return NULL;
 	}
 	fseek(fontFile, 0, SEEK_END);
@@ -354,8 +176,10 @@ wave_t* f_load_wave_from_memory(m_arena* arena, u8* data, size_t file_size) {
 			f += size + 8;
 		}
 
+#ifdef __WIN32__
 		WAVEFORMAT* win32_format = &format->formatTag;
 		WAVEFORMATEXTENSIBLE* win32_extended_format = &format->formatTag;
+#endif
 
 		if (format && dataChunk) {
 			assert(format->channels <= 2);
@@ -395,7 +219,7 @@ wave_t* f_load_wave(memory_arena* arena, char* filename) {
 	FILE* file;
 	file = fopen(filename, "r");
 	if(!file) {
-		core_error_console(FALSE, "Unable to open file: %s", filename);
+		core_error(FALSE, "Unable to open file: %s", filename);
 		return NULL;
 	}
 	fseek(file, 0, SEEK_END);

@@ -1,8 +1,9 @@
-#include <STDLIB.H>
-#include <MATH.H>
 
-#ifndef _MATH_C
-#define _MATH_C
+// #include <STDLIB.H>
+#include <math.h>
+
+#ifndef __CORE_MATH_HEADER__
+#define __CORE_MATH_HEADER__
 
 #undef min
 #undef max
