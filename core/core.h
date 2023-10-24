@@ -620,7 +620,9 @@ char* s_format(char* fmt, ...) {
 	va_start(args, fmt);
 	int len = vsnprintf(0, 0, fmt, args) + 1;
 	char* result = m_alloc(_s_active_pool, align64(len+1, 64));
-	vsnprintf(result, len, fmt, args);
+	va_list args2;
+	va_start(args2, fmt);
+	vsnprintf(result, len, fmt, args2);
 	return result;
 }
 

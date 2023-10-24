@@ -8,12 +8,23 @@
 #include <dirent.h>
 #include <time.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #define HANDLE_NULL (-1)
 #define HANDLE_STDOUT STDOUT_FILENO
 
 typedef int f_handle;
 typedef int socket_t;
+
+
+char* error_with_source_location(char* errstr, char* file, int line_number) {
+	char* buffer = malloc(64);
+	snprintf(buffer, 64, "%s (%s:%i)", errstr, file, line_number);
+	return buffer;
+}
+#define strerror(err)\
+	error_with_source_location(strerror(errno), __FILE__, __LINE__)
 
 
 // Virtual memory
@@ -200,13 +211,21 @@ char* core_format_time(timestamp_t timestamp) {
 	struct tm* date = gmtime(&t);
 
 	char buffer[64];
-	snprintf("%s, %i %s %i %i:%i:%i GMT",
+	snprintf(
+		buffer,
+		64,
+		"%s, %i %s %i %i:%i:%i GMT",
 		short_days[date->tm_wday],
 		date->tm_mday,
 		short_months[date->tm_mon],
+		date->tm_year,
 		date->tm_hour,
 		date->tm_min,
 		date->tm_sec);
+
+	char* result = malloc(s_len(buffer));
+	strcpy(result, buffer);
+	return result;
 }
 
 
@@ -331,6 +350,7 @@ int f_directory_list(char* path, b32 recursive, f_info* output, int length) {
 		}
 	}
 	closedir(dir);
+	return output_index;
 }
 
 int f_read(f_handle file, size_t offset, void* buffer, size_t size) {
@@ -358,7 +378,7 @@ int f_write(f_handle file, size_t offset, void* buffer, size_t size) {
 f_info f_stat(f_handle file) {
 	f_info result = {0};
 	struct stat stats;
-	int stat_result = fstat(file, &result);
+	int stat_result = fstat(file, &stats);
 	if (stat_result == -1) {
 		core_error(FALSE, strerror(errno));
 	}
@@ -368,6 +388,8 @@ f_info f_stat(f_handle file) {
 	if ((stats.st_mode & S_IFMT) == S_IFDIR) {
 		result.is_directory = TRUE;
 	}
+
+	return result;
 }
 
 void f_close(f_handle file) {
