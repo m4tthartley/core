@@ -47,7 +47,7 @@ typedef double f64;
 
 typedef u32 b32;
 typedef u8 byte;
-typedef u64 size_t;
+// typedef u64 size_t;
 
 // Structures
 enum {
