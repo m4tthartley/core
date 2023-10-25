@@ -29,7 +29,8 @@
 
 #define PAGE_SIZE 4096
 
-#define assert(exp) if(!(exp)) { printf("Assertion failed (" #exp ") in function \"%s\" \n", __FUNCTION__); fflush(stdout); (*(int*)0 = 0); } //(*(int*)0 = 0);
+// #define assert(exp) if(!(exp)) { printf("Assertion failed (" #exp ") in function \"%s\" \n", __FUNCTION__); fflush(stdout); (*(int*)0 = 0); } //(*(int*)0 = 0);
+#include <assert.h>
 #define array_size(a) (sizeof(a)/sizeof(a[0]))
 
 #define FOR(index, count) for(int index=0; index<count; ++index)
@@ -620,10 +621,12 @@ char* s_format(char* fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
 	int len = vsnprintf(0, 0, fmt, args) + 1;
+	va_end(args);
 	char* result = m_alloc(_s_active_pool, align64(len+1, 64));
 	va_list args2;
 	va_start(args2, fmt);
 	vsnprintf(result, len, fmt, args2);
+	va_end(args2);
 	return result;
 }
 

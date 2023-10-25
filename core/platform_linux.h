@@ -341,7 +341,7 @@ int f_directory_list(char* path, b32 recursive, f_info* output, int length) {
 		if (output_index < length) {
 			f_info* file = output + output_index++;
 			// assert(s_len(ent->d_name) < sizeof(file->filename));
-			strncpy(file->filename, ent->d_name, 256);
+			strncpy(file->filename, ent->d_name, sizeof(file->filename));
 			// file->created = find_data.ftCreationTime.dwLowDateTime;
 			// file->created |= (u64)find_data.ftCreationTime.dwHighDateTime<<32;
 			// file->modified = find_data.ftLastWriteTime.dwLowDateTime;
