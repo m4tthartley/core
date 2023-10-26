@@ -305,6 +305,7 @@ void m_freelist(memory_arena* arena, u8* buffer, size_t size) {
 	m_zero(arena, sizeof(memory_arena));
 	arena->address = buffer;
 	arena->size = size;
+	arena->commit = size;
 	arena->stack = 0;
 	arena->flags = ARENA_FREELIST;
 	if(buffer) {
@@ -442,16 +443,18 @@ void m_free(memory_arena* arena, u8* block) {
 
 void m_clear(m_arena* arena) {
 	if (arena->flags & ARENA_RESERVE) {
-		m_zero(arena->address, arena->commit);
+		m_zero(arena->address, arena->stack);
 		arena->stack = 0;
 		arena->blocks = (list){0};
 
 	} else {
-		m_zero(arena->address, arena->commit);
+		m_zero(arena->address, arena->stack);
 		arena->stack = 0;
 	}
 
 	if(arena->flags & ARENA_FREELIST) {
+		arena->blocks = (list){0};
+		arena->free = (list){0};
 		((memory_block*)arena->address)->size = arena->commit;
 		list_add(&arena->free, arena->address);
 	}
