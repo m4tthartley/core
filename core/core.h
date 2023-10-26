@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
+#include <assert.h>
 
 #include "platform.h"
 #include "terminal.h"
@@ -30,7 +31,6 @@
 #define PAGE_SIZE 4096
 
 // #define assert(exp) if(!(exp)) { printf("Assertion failed (" #exp ") in function \"%s\" \n", __FUNCTION__); fflush(stdout); (*(int*)0 = 0); } //(*(int*)0 = 0);
-#include <assert.h>
 #define array_size(a) (sizeof(a)/sizeof(a[0]))
 
 #define FOR(index, count) for(int index=0; index<count; ++index)

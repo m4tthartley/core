@@ -3,7 +3,9 @@
 #define __CORE_FILE_HEADER__
 
 #include "core.h"
-// #include <mmreg.h>
+#ifdef __WIN32__
+#	include <mmreg.h>
+#endif
 
 
 #pragma pack(push, 1)

@@ -1,7 +1,9 @@
 
+#include <stdio.h>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 // #include <mmeapi.h>
+#include <winsock2.h>
 
 #define HANDLE_NULL INVALID_HANDLE_VALUE
 #define HANDLE_STDOUT stdout
@@ -32,10 +34,10 @@ char* core_win32_error(DWORD error_code) {
 	// char str[1024];
 	// snprintf(str, 1024, "%s\n%#08X %s\n", usrstr, error_code, msg);
 
-	char* result = s_create(msg);
-	LocalFree(msg);
+	// char* result = s_create(msg);
+	// LocalFree(msg);
 
-	return result;
+	return msg;
 }
 
 
@@ -57,7 +59,7 @@ void core_free_virtual_memory(void* addr, size_t size) {
 }
 
 void core_zero_memory(void* addr, size_t size) {
-	ZeroMemory(arena, sizeof(memory_arena));
+	ZeroMemory(addr, size);
 }
 
 void core_copy_memory(void* dest, void* source, size_t size) {
@@ -144,6 +146,8 @@ char* core_format_time(timestamp_t time) {
 		GetTimeFormatA(LOCALE_SYSTEM_DEFAULT, 0, &st, "HH:mm:ss", t, 64);
 	}
 	char* result = s_format("%s %s GMT", d, t);
+	// char buffer[32];
+	// snprintf(buffer, 32, "%s %s GMT", d, t);
 	return result;
 }
 
@@ -163,8 +167,8 @@ f_handle f_open(char* path) {
 		// 			  NULL, error,
 		// 			  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
 		// 			  (LPTSTR)&msg, 0, NULL);
-		core_error_console(FALSE, "Failed to open file %s", path);
-		return NULL_HANDLE;
+		core_error(FALSE, "Failed to open file %s", path);
+		return NULL;
 	}
 	return handle;
 }
@@ -183,7 +187,10 @@ f_handle f_create(char* path) {
 		// 			  NULL, error,
 		// 			  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
 		// 			  (LPTSTR)&msg, 0, NULL);
-		core_win32_error(0, FALSE, "Failed to create file %s", path);
+		// core_win32_error(0, FALSE, "Failed to create file %s", path);
+		char* err = core_win32_error(NULL);
+		core_print(err);
+		LocalFree(err);
 		return 0;
 	}
 	return handle;
@@ -194,19 +201,19 @@ f_handle f_open_directory(char* path) {
 	
 	DWORD attributes = GetFileAttributesA(path);
 	if (attributes == INVALID_FILE_ATTRIBUTES) {
-		core_error_console(FALSE, "Failed to open directory %s", path);
-		return NULL_HANDLE;
+		core_error(FALSE, "Failed to open directory %s", path);
+		return NULL;
 	}
 	if (!(attributes & FILE_ATTRIBUTE_DIRECTORY)) {
-		core_error_console(FALSE, "Path is not a directory %s", path);
-		return NULL_HANDLE;
+		core_error(FALSE, "Path is not a directory %s", path);
+		return NULL;
 	}
 
 	HANDLE handle = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ,
 								0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, 0);
 	if(handle==INVALID_HANDLE_VALUE) {
-		core_error_console(FALSE, "Failed to open directory %s", path);
-		return NULL_HANDLE;
+		core_error(FALSE, "Failed to open directory %s", path);
+		return NULL;
 	}
 	return handle;
 }
@@ -216,11 +223,13 @@ void f_create_directory(char* path) {
 	if(!success) {
 		DWORD err = GetLastError();
 		if (err == ERROR_ALREADY_EXISTS) {
-			core_error_console(FALSE, "Directory already exists");
+			core_error(FALSE, "Directory already exists");
 		} else if (err == ERROR_PATH_NOT_FOUND) {
-			core_error_console(FALSE, "Directory path not found");
+			core_error(FALSE, "Directory path not found");
 		} else {
-			core_win32_error(0, FALSE, "Failed to create directory %s", path);
+			char* err = core_win32_error(NULL);
+			core_print(err);
+			LocalFree(err);
 		}
 	}
 }
@@ -231,7 +240,7 @@ int f_directory_list(char* path, b32 recursive, f_info* output, int length) {
 	WIN32_FIND_DATAA find_data;
 	HANDLE find_handle = FindFirstFileA(wildcard, &find_data);
 	if (find_handle == INVALID_HANDLE_VALUE) {
-		core_error_console(FALSE, "Failed to open directory: %s", path);
+		core_error(FALSE, "Failed to open directory: %s", path);
 		return 0;
 	}
 	do {
@@ -320,5 +329,5 @@ void f_close(f_handle file) {
 }
 
 void f_change_directory(char* path) {
-	SetCurrentDirectoryA(argv[1]);
+	SetCurrentDirectoryA(path);
 }

@@ -3,9 +3,9 @@
 #ifndef __CORE_PLATFORM_HEADER__
 #define __CORE_PLATFORM_HEADER__
 
-
 // Define standard platform defs
 #ifdef _WIN32
+#	undef __WIN32__
 #	define __WIN32__
 #endif
 #ifdef __linux__
@@ -72,6 +72,8 @@ typedef struct {
 void core_print(char* fmt, ...);
 void core_error(b32 fatal, char* fmt, ...);
 u32 s_len(char* str);
+char* s_format(char* fmt, ...);
+b32 s_compare(char* a, char* b);
 
 #ifdef __WIN32__
 #	include "platform_win32.h"
