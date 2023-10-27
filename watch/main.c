@@ -1,10 +1,10 @@
-#include <windows.h>
-#include <stdio.h>
-#include <locale.h>
+// #include <windows.h>
+// #include <stdio.h>
+// #include <locale.h>
 
 #include <core/core.h>
 
-#define VERSION "0.5.0"
+#define VERSION "0.6.0"
 #define SIMULATE_MULTIPLE_DIRECTORY 0
 
 typedef struct {
@@ -19,12 +19,15 @@ typedef struct {
 	HANDLE handle;
 	HANDLE event_handle;
 	OVERLAPPED overlapped;
-	char path[MAX_PATH];
+	char path[CORE_MAX_PATH_LENGTH];
 	FILE_NOTIFY_INFORMATION change_buffer[64];
 } directory_t;
 
 directory_t directories[64] = {0};
 int directory_count = 0;
+
+b32 verbose_mode = FALSE;
+char* build_command = "./build.sh";
 
 // HANDLE directoryHandles[64];
 // HANDLE ioHandles[64];
@@ -47,12 +50,12 @@ void addFile(char* filename, unsigned long long lastWriteTime) {
 		strncpy(file->filename, filename, 63);
 		file->lastWriteTime = lastWriteTime;
 	} else {
-		core_error_console(FALSE, "Failed to add file");
+		core_error(FALSE, "Failed to add file");
 	}
 }
 
 void clear() {
-	// system("cls");
+	system("clear");
 }
 
 int build(char* filename) {
@@ -60,16 +63,20 @@ int build(char* filename) {
 	GetCurrentDirectoryA(MAX_PATH, cwd);
 	SetCurrentDirectoryA(directories[0].path);
 
-	clear();
-	printf("file changed %s \n", filename);
+	// clear();
+	// printf(TERM_CLEAR);
 
-	int result = system("sh ./build.sh");
+	if (verbose_mode) {
+		printf("file changed %s \n", filename);
+	}
+
+	int result = system(s_format("sh %s", build_command));
 	// printf("result %i \n", result);
 
 	if(!result) {
-		printf("\033[92mbuild successful\033[0m \n");
+		core_print(TERM_BRIGHT_GREEN_FG "build successful" TERM_RESET);
 	} else {
-		printf("\033[91mbuild failed\033[0m \n");
+		core_print(TERM_BRIGHT_RED_FG "build failed" TERM_RESET);
 	}
 
 	SetCurrentDirectoryA(cwd);
@@ -128,7 +135,8 @@ void handleChange(directory_t* dir) {
 
 					file->lastWriteTime = writeTime;
 					
-					// build(filename);
+					build(filename);
+#if 0
 					{
 						int next_offset1 = fileChange->NextEntryOffset;
 						// printf("before build %i \n", fileChange->NextEntryOffset);
@@ -162,6 +170,7 @@ void handleChange(directory_t* dir) {
 							int x = 0;
 						}
 					}
+#endif
 				}
 			} else {
 				// printf("file change %s, new \n", filename);
@@ -191,16 +200,18 @@ void completionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVE
 void dir_read_changes(directory_t* dir) {
 	long bytes;
 	int read = ReadDirectoryChangesW(
-			dir->handle,
-			dir->change_buffer,
-			sizeof(dir->change_buffer),
-			TRUE,
-			FILE_NOTIFY_CHANGE_LAST_WRITE,
-			&bytes,
-			&dir->overlapped,
-			&completionRoutine);
+		dir->handle,
+		dir->change_buffer,
+		sizeof(dir->change_buffer),
+		TRUE,
+		FILE_NOTIFY_CHANGE_LAST_WRITE,
+		&bytes,
+		&dir->overlapped,
+		&completionRoutine
+	);
 	if(!read) {
 		printf("\033[91mReadDirectoryChangesW failed\033[0m \n");
+		core_print(core_win32_error(NULL));
 	}
 }
 
@@ -226,13 +237,65 @@ void completionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVE
 	dir_read_changes(dir);
 }
 
-int main(int _argc, char **_argv) {
-	printf("\033[93mcore watch version %s\033[0m \n", VERSION);
+void old() {
+	for(int i=0; i<directory_count; ++i) {
+		directory_t* dir = directories + i;
+		// strcpy(dir->path, _argv[i+1]);
 
-	if(_argc < 2) {
-		printf("Arg 1 should be a directory to watch \n");
-		exit(1);
+		dir->handle = CreateFileA(
+			dir->path,
+			FILE_LIST_DIRECTORY,
+			FILE_SHARE_DELETE|FILE_SHARE_READ|FILE_SHARE_WRITE,
+			NULL,
+			OPEN_EXISTING,
+			FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OVERLAPPED,
+			NULL);
+		if(dir->handle == INVALID_HANDLE_VALUE) {
+			printf("\033[91mCreateFileA failed\033[0m \n");
+			exit(1);
+		}
+
+		dir->event_handle = CreateEventA(NULL, FALSE, FALSE, dir->path);
+		dir->overlapped = (OVERLAPPED){0};
+		dir->overlapped.hEvent = (void*)dir;
+
+		dir_read_changes(dir);
 	}
+
+	HANDLE handles[64];
+	FOR (i, directory_count) {
+		// handles[i] = directories[i].handle;
+		handles[i] = directories[i].event_handle;
+	}
+
+	for(;;) {
+		DWORD wait_result = WaitForMultipleObjectsEx(directory_count, handles, FALSE, INFINITE, TRUE);
+		// if(wait_result != WAIT_IO_COMPLETION) {
+		// 	if (wait_result >= WAIT_OBJECT_0 && wait_result < WAIT_OBJECT_0 + directory_count) {
+		// 		core_print("WaitForMultipleObjectsEx: WAIT_OBJECT_0 + %i", wait_result - WAIT_OBJECT_0);
+		// 	} else if (wait_result >= WAIT_ABANDONED_0 && wait_result < WAIT_ABANDONED_0 + directory_count) {
+		// 		core_print("WaitForMultipleObjectsEx: WAIT_ABANDONED_0 + %i", wait_result - WAIT_OBJECT_0);
+		// 	} else if (wait_result == WAIT_TIMEOUT) {
+		// 		core_print("WaitForMultipleObjectsEx: WAIT_TIMEOUT");
+		// 	} else if (wait_result == WAIT_FAILED) {
+		// 		core_print("WaitForMultipleObjectsEx: WAIT_FAILED");
+		// 	} else {
+		// 		core_print("WaitForMultipleObjectsEx: %s", wait_result);
+		// 	}
+		// }
+
+		// GetOverlappedResult(directoryHandles[dirIndex], &directoryOverlapped[dirIndex], &bytesTransfered, FALSE);
+		printf("reuslt %i %i \n", wait_result-WAIT_OBJECT_0, WAIT_IO_COMPLETION);
+	}
+}
+
+int main(int argc, char **argv) {
+	core_print(TERM_BRIGHT_YELLOW_FG "core watch (version %s)" TERM_RESET, VERSION);
+
+	// if(argc < 2) {
+	// 	printf("Arg 1 should be a directory to watch \n");
+	// 	exit(1);
+	// }
 
 	u8 strBuffer[PAGE_SIZE/8];
 	string_pool spool;
@@ -248,11 +311,39 @@ int main(int _argc, char **_argv) {
 	// 	printf("Failed with error code %d \n", GetLastError());
 	// }
 
-	int dirCount = _argc-1;
-	if(dirCount > 64) {
-		printf("Too many directories \n");
-		exit(1);
+	for (int i=1; i<argc; ++i) {
+		char* arg = argv[i];
+
+		if (arg[0] == '-' && arg[1] == 'D') {
+			// Directory
+			if (directory_count < array_size(directories)) {
+				directory_t* dir = directories + directory_count++;
+				s_ncopy(dir->path, argv[i] + 2, array_size(dir->path));
+			} else {
+				core_error(FALSE, "Too many directories");
+			}
+		}
+
+		if (arg[0] == '-' && arg[1] == 'B') {
+			build_command = arg + 2;
+		}
 	}
+
+	core_print(TERM_BRIGHT_BLUE_FG"watching: ");
+	for(int i=0; i<directory_count; ++i) {
+		// if (i) printf(" | ");
+		core_print("    %s", directories[i].path);
+		// if (i < dirCount-1) printf(", ");
+	}
+	core_print("build command:");
+	core_print("    %s", build_command);
+	printf("\n"TERM_RESET);
+
+	// int dirCount = _argc-1;
+	// if(dirCount > 64) {
+	// 	printf("Too many directories \n");
+	// 	exit(1);
+	// }
 
 
 	// char* cwd = paths[0];
@@ -263,71 +354,62 @@ int main(int _argc, char **_argv) {
 	// 	s_append(paths, "/..");
 	// }
 
-	printf("\033[93mwatching:\033[0m ");
-	for(int i=0; i<dirCount; ++i) {
-		printf("\033[93m%s\033[0m ", _argv[i+1]);
-		// if (i < dirCount-1) printf(", ");
+	DWORD filter = 0b11111111; //FILE_NOTIFY_CHANGE_LAST_WRITE
+	HANDLE handles[2];
+	handles[0] = FindFirstChangeNotification(directories[0].path, TRUE, filter);
+	handles[1] = FindFirstChangeNotification(directories[1].path, TRUE, filter);
+
+	if (handles[0] == INVALID_HANDLE_VALUE) {
+		core_error(TRUE, "FindFirstChangeNotification");
 	}
-	printf("\n");
-	
-	for(int i=0; i<dirCount; ++i) {
-		directory_t* dir = directories + directory_count;
-		strcpy(dir->path, _argv[i+1]);
-
-		dir->handle = CreateFileA(
-			dir->path,
-			FILE_LIST_DIRECTORY,
-			FILE_SHARE_DELETE|FILE_SHARE_READ|FILE_SHARE_WRITE,
-			NULL,
-			OPEN_EXISTING,
-			FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OVERLAPPED,
-			NULL);
-		if(dir->handle == INVALID_HANDLE_VALUE) {
-			printf("\033[91mCreateFileA failed\033[0m \n");
-		}
-
-		dir->event_handle = CreateEventA(NULL, FALSE, FALSE, dir->path);
-		dir->overlapped = (OVERLAPPED){0};
-		dir->overlapped.hEvent = (void*)dir;
-
-		dir_read_changes(dir);
-
-		directory_count++;
+	if (handles[1] == INVALID_HANDLE_VALUE) {
+		core_error(TRUE, "FindFirstChangeNotification");
 	}
 
-	HANDLE handles[64];
-	FOR (i, directory_count) {
-		handles[i] = directories[i].handle;
-	}
+	for (;;) {
+		
+		// DWORD wait  = WaitForMultipleObjects(1, &handle, FALSE, INFINITE);
+		DWORD wait  = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
+		if (wait == WAIT_OBJECT_0 || wait == WAIT_OBJECT_0+1) {
 
-	for(;;) {
-		DWORD wait_result = WaitForMultipleObjectsEx(directory_count, handles, FALSE, INFINITE, TRUE);
-		if(wait_result != WAIT_IO_COMPLETION) {
-			// printf("\033[91mWaitForMultipleObjectsEx returned something other than WAIT_IO_COMPLETION: %i\033[0m \n", waitResult);
-
-			if (wait_result >= WAIT_OBJECT_0 && wait_result < WAIT_OBJECT_0 + directory_count) {
-				core_print("WaitForMultipleObjectsEx: WAIT_OBJECT_0 + %i", wait_result - WAIT_OBJECT_0);
-			} else if (wait_result >= WAIT_ABANDONED_0 && wait_result < WAIT_ABANDONED_0 + directory_count) {
-				core_print("WaitForMultipleObjectsEx: WAIT_ABANDONED_0 + %i", wait_result - WAIT_OBJECT_0);
-			} else if (wait_result == WAIT_TIMEOUT) {
-				core_print("WaitForMultipleObjectsEx: WAIT_TIMEOUT");
-			} else if (wait_result == WAIT_FAILED) {
-				core_print("WaitForMultipleObjectsEx: WAIT_FAILED");
+			u8 change_buffer[512] = {0};
+			int bytes;
+			if (!ReadDirectoryChangesW(
+				handles[wait-WAIT_OBJECT_0],
+				change_buffer,
+				sizeof(change_buffer),
+				TRUE,
+				filter,
+				&bytes,
+				NULL,
+				NULL
+			)) {
+				printf("ReadDirectoryChangesW failed \n");
 			} else {
-				core_print("WaitForMultipleObjectsEx: %s", wait_result);
+				printf("ReadDirectoryChangesW bytes %i %lu, ", wait-WAIT_OBJECT_0, bytes);
+
+				FILE_NOTIFY_INFORMATION *change = change_buffer;
+				while (change) {
+					wprintf(change->FileName);
+					printf(", ");
+					if (change->NextEntryOffset) {
+						change = (u8*)change + change->NextEntryOffset;
+					} else {
+						change = NULL;
+					}
+				}
+
+				printf("\n\n");
 			}
+
+		} else {
+			core_error(FALSE, "wait %i", wait-WAIT_OBJECT_0);
 		}
-		// TODO what is waitResult now?
-		// printf("waitResult %i \n", waitResult);
 
-		// if(waitResult >= WAIT_OBJECT_0+argc-1) {
-			// printf("\033[91mwait error %i\033[0m \n", waitResult);
-			// exit(1);
-		// }
+		// m_zero(change_buffer, sizeof(change_buffer));
 
-		// int dirIndex = waitResult-WAIT_OBJECT_0;
-
-		// long bytesTransfered;
-		// GetOverlappedResult(directoryHandles[dirIndex], &directoryOverlapped[dirIndex], &bytesTransfered, FALSE);
+		if(!FindNextChangeNotification(handles[wait-WAIT_OBJECT_0])) {
+			core_error(TRUE, "FindNextChangeNotification");
+		}
 	}
 }
