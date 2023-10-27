@@ -49,6 +49,8 @@ typedef u32 b32;
 typedef u8 byte;
 // typedef u64 size_t;
 
+#define CORE_MAX_PATH_LENGTH 256
+
 // Structures
 enum {
 	CORE_MB_OK = (1<<0),

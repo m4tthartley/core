@@ -1,9 +1,8 @@
 
-#include <stdio.h>
+#include <winsock2.h>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 // #include <mmeapi.h>
-#include <winsock2.h>
 
 #define HANDLE_NULL INVALID_HANDLE_VALUE
 #define HANDLE_STDOUT stdout
@@ -155,6 +154,12 @@ char* core_format_time(timestamp_t time) {
 // Files
 f_handle f_open(char* path) {
 	assert(sizeof(HANDLE)<=sizeof(f_handle));
+
+	// TODO: do this for all functions
+	if (s_len(path) >= MAX_PATH) {
+		core_error(FALSE, "Sorry, we don't support paths longer than %i", (int)MAX_PATH);
+		return NULL;
+	}
 	
 	HANDLE handle = CreateFileA(path, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ,
 								0, OPEN_EXISTING, 0, 0);

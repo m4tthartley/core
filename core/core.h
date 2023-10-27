@@ -14,9 +14,6 @@
 #include <stddef.h>
 #include <assert.h>
 
-#include "platform.h"
-#include "terminal.h"
-
 
 #undef NULL
 #define NULL 0
@@ -29,6 +26,11 @@
 #define GB GIGABYTES
 
 #define PAGE_SIZE 4096
+
+
+#include "platform.h"
+#include "terminal.h"
+
 
 // #define assert(exp) if(!(exp)) { printf("Assertion failed (" #exp ") in function \"%s\" \n", __FUNCTION__); fflush(stdout); (*(int*)0 = 0); } //(*(int*)0 = 0);
 #define array_size(a) (sizeof(a)/sizeof(a[0]))
@@ -633,8 +635,21 @@ char* s_format(char* fmt, ...) {
 	return result;
 }
 
-char* s_copy(char* str) {
-	return s_create(str);
+// char* s_copy(char* str) {
+// 	return s_create(str);
+// }
+
+void s_copy(char* dest, char* src) {
+	while (*src) {
+		*dest++ = *src++;
+	}
+}
+
+void s_ncopy(char* dest, char* src, int n) {
+	while (*src && n > 0) {
+		*dest++ = *src++;
+		--n;
+	}
 }
 
 b32 s_compare(char* a, char* b) {
