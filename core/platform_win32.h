@@ -336,3 +336,105 @@ void f_close(f_handle file) {
 void f_change_directory(char* path) {
 	SetCurrentDirectoryA(path);
 }
+
+
+// Watching directory changes
+typedef struct {
+	HANDLE handles[64];
+	int directory_count;
+	DWORD filter;
+	struct {
+		f_info* files;
+		int count;
+		int directory_index;
+	} result;
+} core_directory_watcher_t;
+
+b32 core_watch_directory_changes(core_directory_watcher_t* watcher, char** dir_paths, int dir_count) {
+	if (dir_count > array_size(watcher->handles)) {
+		core_error(FALSE, "You can't have more than %i directories", array_size(watcher->handles));
+		return FALSE;
+	}
+	// HANDLE dir_handles[64];
+	// dir_handles = core_allocate_virtual_memory(dir_count * sizeof(HANDLE));
+
+	watcher->filter = FILE_NOTIFY_CHANGE_LAST_WRITE; //0b11111111;
+	watcher->directory_count = dir_count;
+	
+	FOR (i, dir_count) {
+		watcher->handles[i] = FindFirstChangeNotification(dir_paths[i], TRUE, watcher->filter);
+		if (watcher->handles[i] == INVALID_HANDLE_VALUE) {
+			core_error(FALSE, "Failed to open directory %s", dir_paths[i]);
+			return NULL;
+		}
+	}
+}
+
+void core_wait_for_directory_changes(core_directory_watcher_t* watcher, f_info* output, int output_size) {
+	watcher->result.files = output;
+	watcher->result.directory_index = 0;
+	watcher->result.count = 0;
+
+	core_print("Waiting...");
+	DWORD wait  = WaitForMultipleObjects(watcher->directory_count, watcher->handles, FALSE, INFINITE);
+
+	if (wait < WAIT_OBJECT_0 || wait >= WAIT_OBJECT_0+watcher->directory_count) {
+		core_error(FALSE, "wait %i", wait-WAIT_OBJECT_0);
+	}
+
+	u8 change_buffer[512] = {0};
+	int bytes;
+	core_print("Reading...");
+	BOOL rdc = ReadDirectoryChangesW(
+		watcher->handles[wait-WAIT_OBJECT_0],
+		change_buffer,
+		sizeof(change_buffer),
+		TRUE,
+		watcher->filter,
+		&bytes,
+		NULL,
+		NULL
+	);
+	if (!rdc) {
+		core_error(FALSE, "ReadDirectoryChangesW failed");
+		return;
+	}
+
+	printf("ReadDirectoryChangesW bytes %i %lu, ", wait-WAIT_OBJECT_0, bytes);
+	if (!bytes) {
+		return;
+	}
+
+	// char filenames[64][CORE_MAX_PATH_LENGTH];
+	// int file_count = 0;
+	FILE_NOTIFY_INFORMATION *change = change_buffer;
+	while (change) {
+		char* filename = core_convert_wide_string(change->FileName);
+		printf(filename);
+		printf(", ");
+
+		if (watcher->result.count < output_size) {
+			s_ncopy(watcher->result.files[watcher->result.count].filename, filename, array_size(output[0].filename));
+			watcher->result.count++;
+		} else {
+			break;
+		}
+		
+		s_free(filename);
+
+		if (change->NextEntryOffset) {
+			change = (u8*)change + change->NextEntryOffset;
+		} else {
+			change = NULL;
+		}
+	}
+
+	printf("\n\n");
+
+
+	// m_zero(change_buffer, sizeof(change_buffer));
+
+	if(!FindNextChangeNotification(watcher->handles[wait-WAIT_OBJECT_0])) {
+		core_error(TRUE, "FindNextChangeNotification");
+	}
+}

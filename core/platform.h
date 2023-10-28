@@ -74,7 +74,11 @@ typedef struct {
 void core_print(char* fmt, ...);
 void core_error(b32 fatal, char* fmt, ...);
 u32 s_len(char* str);
+void s_free(char* str);
 char* s_format(char* fmt, ...);
+char* core_convert_wide_string(wchar_t* str);
+void s_copy(char* dest, char* src);
+void s_ncopy(char* dest, char* src, int n);
 b32 s_compare(char* a, char* b);
 
 #ifdef __WIN32__

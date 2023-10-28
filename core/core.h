@@ -12,7 +12,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
-#include <assert.h>
+
+#ifdef CORE_CRT_ASSERT
+#	include <assert.h>
+#else
+#	define assert(exp) if(!(exp)) { printf("Assertion failed (" #exp ") in function \"%s\" \n", __FUNCTION__); fflush(stdout); (*(int*)0 = 0); }
+#endif
 
 
 #undef NULL
@@ -27,17 +32,14 @@
 
 #define PAGE_SIZE 4096
 
-
-#include "platform.h"
-#include "terminal.h"
-
-
-// #define assert(exp) if(!(exp)) { printf("Assertion failed (" #exp ") in function \"%s\" \n", __FUNCTION__); fflush(stdout); (*(int*)0 = 0); } //(*(int*)0 = 0);
 #define array_size(a) (sizeof(a)/sizeof(a[0]))
-
 #define FOR(index, count) for(int index=0; index<count; ++index)
 #define FORSTATIC(index, arr) for(int index=0; index<(sizeof(arr)/sizeof(arr[0])); ++index)
 #define FORDYNARR(index, arr) for(int index=0; index<arr.count; ++index)
+
+
+#include "platform.h"
+#include "terminal.h"
 
 
 // BACKWARDS COMPATIBILITY
@@ -635,6 +637,18 @@ char* s_format(char* fmt, ...) {
 	return result;
 }
 
+char* core_convert_wide_string(wchar_t* str) {
+	int wlen = 0;
+	while (str[wlen]) wlen++;
+
+	char* result = m_alloc(_s_active_pool, align64(wlen+1, 64));
+	for(int i=0; i<wlen+1; ++i) {
+		result[i] = str[i];
+	}
+
+	return result;
+}
+
 // char* s_copy(char* str) {
 // 	return s_create(str);
 // }
@@ -643,13 +657,15 @@ void s_copy(char* dest, char* src) {
 	while (*src) {
 		*dest++ = *src++;
 	}
+	*dest = *src;
 }
 
 void s_ncopy(char* dest, char* src, int n) {
-	while (*src && n > 0) {
+	while (*src && n > 1) {
 		*dest++ = *src++;
 		--n;
 	}
+	*dest = *src;
 }
 
 b32 s_compare(char* a, char* b) {

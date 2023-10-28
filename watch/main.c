@@ -7,12 +7,12 @@
 #define VERSION "0.6.0"
 #define SIMULATE_MULTIPLE_DIRECTORY 0
 
-typedef struct {
-	char filename[64];
-	unsigned long long lastWriteTime;
-} file_info;
+// typedef struct {
+// 	char filename[64];
+// 	unsigned long long lastWriteTime;
+// } file_info;
 
-file_info files[256];
+f_info files[256];
 int file_count = 0;
 
 typedef struct {
@@ -34,7 +34,7 @@ char* build_command = "./build.sh";
 // OVERLAPPED directoryOverlapped[64];
 // string paths[64];
 
-file_info* getFile(char* filename) {
+f_info* getFile(char* filename) {
 	for(int i=0; i<file_count; ++i) {
 		if(!strcmp(files[i].filename, filename)) {
 			return files + i;
@@ -43,15 +43,19 @@ file_info* getFile(char* filename) {
 	return NULL;
 }
 
-void addFile(char* filename, unsigned long long lastWriteTime) {
+f_info* addFile(char* filename, f_info info) {
 	printf("adding file %s \n", filename);
 	if (file_count < 256) {
-		file_info* file = &files[file_count++];
-		strncpy(file->filename, filename, 63);
-		file->lastWriteTime = lastWriteTime;
+		// f_info* file = &files[file_count++];
+		// strncpy(file->filename, filename, 63);
+		// file->modified = lastWriteTime;
+		f_info* file = files + file_count++;
+		*file = info;
+		return file;
 	} else {
 		core_error(FALSE, "Failed to add file");
 	}
+	return NULL;
 }
 
 void clear() {
@@ -59,9 +63,9 @@ void clear() {
 }
 
 int build(char* filename) {
-	char cwd[MAX_PATH] = {0};
-	GetCurrentDirectoryA(MAX_PATH, cwd);
-	SetCurrentDirectoryA(directories[0].path);
+	// char cwd[MAX_PATH] = {0};
+	// GetCurrentDirectoryA(MAX_PATH, cwd);
+	// SetCurrentDirectoryA(directories[0].path);
 
 	// clear();
 	// printf(TERM_CLEAR);
@@ -79,11 +83,12 @@ int build(char* filename) {
 		core_print(TERM_BRIGHT_RED_FG "build failed" TERM_RESET);
 	}
 
-	SetCurrentDirectoryA(cwd);
+	// SetCurrentDirectoryA(cwd);
 	return result;
 }
 
-void handleChange(directory_t* dir) {
+#if 0
+void OLDhandleChange(directory_t* dir) {
 	// printf("Handling file changes... \n");
 	FILE_NOTIFY_INFORMATION *fileChange = dir->change_buffer;
 	int loop_count = 0;
@@ -288,6 +293,53 @@ void old() {
 		printf("reuslt %i %i \n", wait_result-WAIT_OBJECT_0, WAIT_IO_COMPLETION);
 	}
 }
+#endif
+
+void file_changes(int dir_index, f_info* files, int count) {
+	directory_t* dir = directories + dir_index;
+
+	FOR (i, count) {
+		char* filename = files[i].filename;
+		s_prepend(&filename, "/");
+		s_prepend(&filename, dir->path);
+
+		if( s_find(filename, ".c", 0) ||
+			s_find(filename, ".h", 0) ||
+			s_find(filename, ".txt", 0) ||
+			s_find(filename, ".sh", 0)) {
+			f_info* saved_file = getFile(filename);
+
+			f_handle new_file = f_open(filename);
+			if (!new_file) {
+				core_print(core_win32_error(NULL));
+				continue;
+			}
+			f_info info = f_stat(new_file);
+			f_close(new_file);
+
+			if(saved_file) {
+				if(info.modified - saved_file->modified < 1000) {
+					continue;
+				}
+				saved_file->modified = info.modified;
+			} else {
+				addFile(filename, info);
+			}
+
+			build(filename);
+
+			// if(saved_file) {
+			// 	if(info.modified - saved_file->modified > 1000) {
+			// 		saved_file->modified = info.modified;
+			// 		build(filename);
+			// 	}
+			// } else {
+			// 	addFile(filename, info);
+			// 	build(filename);
+			// }
+		}
+	}
+}
 
 int main(int argc, char **argv) {
 	core_print(TERM_BRIGHT_YELLOW_FG "core watch (version %s)" TERM_RESET, VERSION);
@@ -354,62 +406,87 @@ int main(int argc, char **argv) {
 	// 	s_append(paths, "/..");
 	// }
 
-	DWORD filter = 0b11111111; //FILE_NOTIFY_CHANGE_LAST_WRITE
-	HANDLE handles[2];
-	handles[0] = FindFirstChangeNotification(directories[0].path, TRUE, filter);
-	handles[1] = FindFirstChangeNotification(directories[1].path, TRUE, filter);
+	// DWORD filter = FILE_NOTIFY_CHANGE_LAST_WRITE; //0b11111111;
+	// HANDLE handles[2];
+	// handles[0] = FindFirstChangeNotification(directories[0].path, TRUE, filter);
+	// handles[1] = FindFirstChangeNotification(directories[1].path, TRUE, filter);
 
-	if (handles[0] == INVALID_HANDLE_VALUE) {
-		core_error(TRUE, "FindFirstChangeNotification");
-	}
-	if (handles[1] == INVALID_HANDLE_VALUE) {
-		core_error(TRUE, "FindFirstChangeNotification");
-	}
+	// if (handles[0] == INVALID_HANDLE_VALUE) {
+	// 	core_error(TRUE, "FindFirstChangeNotification");
+	// }
+	// if (handles[1] == INVALID_HANDLE_VALUE) {
+	// 	core_error(TRUE, "FindFirstChangeNotification");
+	// }
 
+	// for (;;) {
+	// 	DWORD wait  = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
+	// 	if (wait == WAIT_OBJECT_0 || wait == WAIT_OBJECT_0+1) {
+
+	// 		u8 change_buffer[512] = {0};
+	// 		char filenames[64][CORE_MAX_PATH_LENGTH];
+	// 		int file_count = 0;
+	// 		int bytes;
+	// 		if (!ReadDirectoryChangesW(
+	// 			handles[wait-WAIT_OBJECT_0],
+	// 			change_buffer,
+	// 			sizeof(change_buffer),
+	// 			TRUE,
+	// 			filter,
+	// 			&bytes,
+	// 			NULL,
+	// 			NULL
+	// 		)) {
+	// 			printf("ReadDirectoryChangesW failed \n");
+	// 		} else {
+	// 			printf("ReadDirectoryChangesW bytes %i %lu, ", wait-WAIT_OBJECT_0, bytes);
+
+	// 			FILE_NOTIFY_INFORMATION *change = change_buffer;
+	// 			while (change) {
+	// 				char* filename = core_convert_wide_string(change->FileName);
+	// 				printf(filename);
+	// 				printf(", ");
+
+	// 				if (file_count < array_size(filenames)) {
+	// 					s_copy(filenames[file_count], filename);
+	// 					++file_count;
+	// 				} else {
+	// 					break;
+	// 				}
+	// 				// file_changes(filename);
+
+	// 				if (change->NextEntryOffset) {
+	// 					change = (u8*)change + change->NextEntryOffset;
+	// 				} else {
+	// 					change = NULL;
+	// 				}
+	// 			}
+
+	// 			printf("\n\n");
+
+	// 			file_changes(filenames, file_count);
+	// 		}
+
+	// 	} else {
+	// 		core_error(FALSE, "wait %i", wait-WAIT_OBJECT_0);
+	// 	}
+
+	// 	// m_zero(change_buffer, sizeof(change_buffer));
+
+	// 	if(!FindNextChangeNotification(handles[wait-WAIT_OBJECT_0])) {
+	// 		core_error(TRUE, "FindNextChangeNotification");
+	// 	}
+	// }
+
+	char* dirpaths[array_size(directories)];
+	FOR (i, directory_count) {
+		dirpaths[i] = directories[i].path;
+	}
+	core_directory_watcher_t watcher;
+	core_watch_directory_changes(&watcher, dirpaths, directory_count);
 	for (;;) {
-		
-		// DWORD wait  = WaitForMultipleObjects(1, &handle, FALSE, INFINITE);
-		DWORD wait  = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
-		if (wait == WAIT_OBJECT_0 || wait == WAIT_OBJECT_0+1) {
-
-			u8 change_buffer[512] = {0};
-			int bytes;
-			if (!ReadDirectoryChangesW(
-				handles[wait-WAIT_OBJECT_0],
-				change_buffer,
-				sizeof(change_buffer),
-				TRUE,
-				filter,
-				&bytes,
-				NULL,
-				NULL
-			)) {
-				printf("ReadDirectoryChangesW failed \n");
-			} else {
-				printf("ReadDirectoryChangesW bytes %i %lu, ", wait-WAIT_OBJECT_0, bytes);
-
-				FILE_NOTIFY_INFORMATION *change = change_buffer;
-				while (change) {
-					wprintf(change->FileName);
-					printf(", ");
-					if (change->NextEntryOffset) {
-						change = (u8*)change + change->NextEntryOffset;
-					} else {
-						change = NULL;
-					}
-				}
-
-				printf("\n\n");
-			}
-
-		} else {
-			core_error(FALSE, "wait %i", wait-WAIT_OBJECT_0);
-		}
-
-		// m_zero(change_buffer, sizeof(change_buffer));
-
-		if(!FindNextChangeNotification(handles[wait-WAIT_OBJECT_0])) {
-			core_error(TRUE, "FindNextChangeNotification");
-		}
+		f_info changes[64];
+		core_wait_for_directory_changes(&watcher, changes, 64);
+		// Sleep(1000);
+		// file_changes(watcher.result.directory_index, changes, watcher.result.count);
 	}
 }
