@@ -340,6 +340,131 @@ void f_change_directory(char* path) {
 
 // Watching directory changes
 typedef struct {
+	int directory_index;
+	struct core_directory_watcher_t* watcher;
+} core_directory_watcher_thread_t;
+
+typedef struct {
+	HANDLE semaphore;
+	HANDLE ready_event;
+	HANDLE handles[64];
+	core_directory_watcher_thread_t threads[64];
+	int directory_count;
+	DWORD filter;
+	// struct {
+	// 	f_info* files;
+	// 	int count;
+	// 	int directory_index;
+	// } result;
+	struct {
+		char filename[CORE_MAX_PATH_LENGTH];
+		int directory_index;
+	} results[64];
+	int result_count;
+} core_directory_watcher_t;
+
+DWORD WINAPI core_watcher_thread_proc(LPVOID param) {
+	int directory_index = ((core_directory_watcher_thread_t*)param)->directory_index;
+	core_directory_watcher_t* watcher = ((core_directory_watcher_thread_t*)param)->watcher;
+
+	for (;;) {
+		WaitForSingleObject(watcher->handles[directory_index], INFINITE);
+
+		u8 change_buffer[512] = {0};
+		int bytes;
+		core_print("Reading %i...", directory_index);
+		BOOL rdc = ReadDirectoryChangesW(
+			watcher->handles[directory_index],
+			change_buffer,
+			sizeof(change_buffer),
+			TRUE,
+			watcher->filter,
+			&bytes,
+			NULL,
+			NULL
+		);
+		if (!rdc) {
+			core_error(FALSE, "ReadDirectoryChangesW failed");
+			continue;
+		}
+
+		printf("ReadDirectoryChangesW bytes %i %lu, ", directory_index, bytes);
+		if (!bytes) {
+			printf("\n\n");
+			continue;
+		}
+
+		WaitForSingleObject(watcher->semaphore, INFINITE);
+
+		FILE_NOTIFY_INFORMATION *change = change_buffer;
+		while (change) {
+			char* filename = core_convert_wide_string(change->FileName);
+			printf(filename);
+			printf(", ");
+
+			// if (watcher->result.count < output_size) {
+			// 	s_ncopy(watcher->result.files[watcher->result.count].filename, filename, array_size(output[0].filename));
+			// 	watcher->result.count++;
+			// } else {
+			// 	break;
+			// }
+			
+			s_free(filename);
+
+			if (change->NextEntryOffset) {
+				change = (u8*)change + change->NextEntryOffset;
+			} else {
+				change = NULL;
+			}
+		}
+
+		printf("\n\n");
+
+		ReleaseSemaphore(watcher->semaphore, 1, NULL);
+	}
+}
+
+b32 core_watch_directory_changes(core_directory_watcher_t* watcher, char** dir_paths, int dir_count) {
+	if (dir_count > array_size(watcher->handles)) {
+		core_error(FALSE, "You can't have more than %i directories", array_size(watcher->handles));
+		return FALSE;
+	}
+	
+	watcher->filter = FILE_NOTIFY_CHANGE_LAST_WRITE;
+	// watcher->filter = 0b11111111;
+	watcher->directory_count = dir_count;
+
+	watcher->semaphore = CreateSemaphoreA(NULL, 1, 1, "DirectoryWatcherSemaphore");
+	watcher->ready_event = CreateEventA(NULL, TRUE, FALSE, "DirectoryWatcherEvent");
+	
+	FOR (i, dir_count) {
+		watcher->handles[i] = FindFirstChangeNotification(dir_paths[i], TRUE, watcher->filter);
+		if (watcher->handles[i] == INVALID_HANDLE_VALUE) {
+			core_error(FALSE, "Failed to open directory %s", dir_paths[i]);
+			return NULL;
+		}
+		core_directory_watcher_thread_t* thread = watcher->threads + i;
+		thread->directory_index = i;
+		thread->watcher = watcher;
+		CreateThread(NULL, 0, core_watcher_thread_proc, thread, 0, NULL);
+	}
+}
+
+void core_wait_for_directory_changes(core_directory_watcher_t* watcher, f_info* output, int output_size) {
+	// ReleaseSemaphore(watcher=>semaphore, 1, NULL);
+
+	WaitForSingleObject(watcher->ready_event, INFINITE);
+	core_print("event triggered");
+	ResetEvent(watcher->ready_event);
+}
+
+// This version didn't work well because sometimes
+// WaitForMultipleObjects would trigger but then ReadDirectoryChangesW
+// would block and wait again instead of just reading the changes.
+// I think it's meant to work this way, but who knows.
+// Windows is confusing.
+#if 0
+typedef struct {
 	HANDLE handles[64];
 	int directory_count;
 	DWORD filter;
@@ -355,10 +480,8 @@ b32 core_watch_directory_changes(core_directory_watcher_t* watcher, char** dir_p
 		core_error(FALSE, "You can't have more than %i directories", array_size(watcher->handles));
 		return FALSE;
 	}
-	// HANDLE dir_handles[64];
-	// dir_handles = core_allocate_virtual_memory(dir_count * sizeof(HANDLE));
-
-	watcher->filter = FILE_NOTIFY_CHANGE_LAST_WRITE; //0b11111111;
+	
+	watcher->filter = FILE_NOTIFY_CHANGE_LAST_WRITE;
 	watcher->directory_count = dir_count;
 	
 	FOR (i, dir_count) {
@@ -405,8 +528,6 @@ void core_wait_for_directory_changes(core_directory_watcher_t* watcher, f_info* 
 		return;
 	}
 
-	// char filenames[64][CORE_MAX_PATH_LENGTH];
-	// int file_count = 0;
 	FILE_NOTIFY_INFORMATION *change = change_buffer;
 	while (change) {
 		char* filename = core_convert_wide_string(change->FileName);
@@ -431,10 +552,8 @@ void core_wait_for_directory_changes(core_directory_watcher_t* watcher, f_info* 
 
 	printf("\n\n");
 
-
-	// m_zero(change_buffer, sizeof(change_buffer));
-
 	if(!FindNextChangeNotification(watcher->handles[wait-WAIT_OBJECT_0])) {
 		core_error(TRUE, "FindNextChangeNotification");
 	}
 }
+#endif

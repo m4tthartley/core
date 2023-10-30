@@ -68,27 +68,19 @@ void core_copy_memory(void* dest, void* src, size_t size) {
 
 
 // Threading and atomic operations
-// TODO TryEnterCriticalSection 
-// typedef struct {
-// 	CRITICAL_SECTION handle;
-// } core_critical_section_t;
 typedef b32 core_barrier_t;
-// void core_init_critical_section(core_critical_section_t* section) {
-// 	InitializeCriticalSection(&section->handle);
-// }
 
-// TODO maybe core_atomic_section, enter_atomic_section, exit_atomic_section, atomic_lock
 void core_barrier_start(volatile core_barrier_t* barrier) {
-	while (!__sync_bool_compare_and_swap((long volatile*)barrier, TRUE, FALSE));
+	int num = 0;
+	while (!__sync_bool_compare_and_swap((long volatile*)barrier, TRUE, FALSE)) {
+		++num;
+	}
+	printf("SPIN LOCK %i\n", num);
 }
 
 void core_barrier_end(volatile core_barrier_t* barrier) {
 	__sync_lock_test_and_set((long volatile*)barrier, FALSE);
 }
-
-// void core_exit_critical_section(core_critical_section_t* section) {
-// 	LeaveCriticalSection(&section->handle);
-// }
 
 int atomic_swap32(void *ptr, int swap) {
 	return __sync_lock_test_and_set((long volatile*)ptr, swap);

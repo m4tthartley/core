@@ -15,6 +15,7 @@
 #	define __MACOS__
 #endif
 
+
 // Types
 #ifdef __WIN32__
 typedef __int64  i64;
@@ -51,6 +52,7 @@ typedef u8 byte;
 
 #define CORE_MAX_PATH_LENGTH 256
 
+
 // Structures
 enum {
 	CORE_MB_OK = (1<<0),
@@ -70,6 +72,7 @@ typedef struct {
 	char filename[64];
 } f_info;
 
+
 // Platform functions
 void core_print(char* fmt, ...);
 void core_error(b32 fatal, char* fmt, ...);
@@ -80,6 +83,23 @@ char* core_convert_wide_string(wchar_t* str);
 void s_copy(char* dest, char* src);
 void s_ncopy(char* dest, char* src, int n);
 b32 s_compare(char* a, char* b);
+
+
+// Threading
+typedef b32 core_barrier_t;
+
+void core_barrier_start(volatile core_barrier_t* barrier) {
+	int num = 0;
+	while (!__sync_bool_compare_and_swap((long volatile*)barrier, TRUE, FALSE)) {
+		++num;
+	}
+	printf("SPIN LOCK %i\n", num);
+}
+
+void core_barrier_end(volatile core_barrier_t* barrier) {
+	__sync_lock_test_and_set((long volatile*)barrier, FALSE);
+}
+
 
 #ifdef __WIN32__
 #	include "platform_win32.h"

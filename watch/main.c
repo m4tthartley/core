@@ -477,12 +477,15 @@ int main(int argc, char **argv) {
 	// 	}
 	// }
 
-	char* dirpaths[array_size(directories)];
-	FOR (i, directory_count) {
-		dirpaths[i] = directories[i].path;
-	}
+	// char* dirpaths[array_size(directories)];
+	// FOR (i, directory_count) {
+	// 	dirpaths[i] = directories[i].path;
+	// }
+	char* dirpaths[] = {
+		directories[0].path
+	};
 	core_directory_watcher_t watcher;
-	core_watch_directory_changes(&watcher, dirpaths, directory_count);
+	core_watch_directory_changes(&watcher, dirpaths, 1);
 	for (;;) {
 		f_info changes[64];
 		core_wait_for_directory_changes(&watcher, changes, 64);
