@@ -69,11 +69,13 @@ typedef struct {
 	u64 modified;
 	size_t size;
 	b32 is_directory;
-	char filename[64];
+	char filename[CORE_MAX_PATH_LENGTH];
 } f_info;
 
 
 // Platform functions
+void m_zero(byte* address, int size);
+void m_copy(byte* dest, byte* src, int size);
 void core_print(char* fmt, ...);
 void core_error(b32 fatal, char* fmt, ...);
 u32 s_len(char* str);
