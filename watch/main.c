@@ -295,13 +295,15 @@ void old() {
 }
 #endif
 
-void file_changes(int dir_index, f_info* files, int count) {
-	directory_t* dir = directories + dir_index;
+void file_changes(f_info* files, int count) {
+	// directory_t* dir = directories + dir_index;
+	// core_print("file changes %i", count);
 
 	FOR (i, count) {
+		f_info* file = files + i;
 		char* filename = files[i].filename;
-		s_prepend(&filename, "/");
-		s_prepend(&filename, dir->path);
+		// s_prepend(&filename, "/");
+		// s_prepend(&filename, dir->path);
 
 		if( s_find(filename, ".c", 0) ||
 			s_find(filename, ".h", 0) ||
@@ -309,21 +311,21 @@ void file_changes(int dir_index, f_info* files, int count) {
 			s_find(filename, ".sh", 0)) {
 			f_info* saved_file = getFile(filename);
 
-			f_handle new_file = f_open(filename);
-			if (!new_file) {
-				core_print(core_win32_error(NULL));
-				continue;
-			}
-			f_info info = f_stat(new_file);
-			f_close(new_file);
+			// f_handle new_file = f_open(filename);
+			// if (!new_file) {
+			// 	core_print(core_win32_error(NULL));
+			// 	continue;
+			// }
+			// f_info info = f_stat(new_file);
+			// f_close(new_file);
 
 			if(saved_file) {
-				if(info.modified - saved_file->modified < 1000) {
+				if(file->modified - saved_file->modified < 1000) {
 					continue;
 				}
-				saved_file->modified = info.modified;
+				saved_file->modified = file->modified;
 			} else {
-				addFile(filename, info);
+				addFile(filename, *file);
 			}
 
 			build(filename);
@@ -490,8 +492,8 @@ int main(int argc, char **argv) {
 		f_info changes[64];
 		int count = core_wait_for_directory_changes(&watcher, changes, 64);
 		FOR (i, count) {
-			core_print(changes[i].filename);
+			// core_print("%s %llu", changes[i].filename, changes[i].modified);
 		}
-		// file_changes(watcher.result.directory_index, changes, watcher.result.count);
+		file_changes(changes, count);
 	}
 }
