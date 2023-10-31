@@ -96,6 +96,83 @@
 // 	}
 // }
 
+
+#ifdef CORE_DIRECTORY_WATCHER_SINGLE_THREADED_COMPLETION_ROUTINE
+b32 core_watch_directory_changes(core_directory_watcher_t* watcher, char** dir_paths, int dir_count) {
+    DWORD filter = FILE_NOTIFY_CHANGE_LAST_WRITE; //0b11111111;
+	HANDLE handles[2];
+	handles[0] = FindFirstChangeNotification(directories[0].path, TRUE, filter);
+	handles[1] = FindFirstChangeNotification(directories[1].path, TRUE, filter);
+
+	if (handles[0] == INVALID_HANDLE_VALUE) {
+		core_error(TRUE, "FindFirstChangeNotification");
+	}
+	if (handles[1] == INVALID_HANDLE_VALUE) {
+		core_error(TRUE, "FindFirstChangeNotification");
+	}
+
+	for (;;) {
+		DWORD wait  = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
+		if (wait == WAIT_OBJECT_0 || wait == WAIT_OBJECT_0+1) {
+
+			u8 change_buffer[512] = {0};
+			char filenames[64][CORE_MAX_PATH_LENGTH];
+			int file_count = 0;
+			int bytes;
+			if (!ReadDirectoryChangesW(
+				handles[wait-WAIT_OBJECT_0],
+				change_buffer,
+				sizeof(change_buffer),
+				TRUE,
+				filter,
+				&bytes,
+				NULL,
+				NULL
+			)) {
+				printf("ReadDirectoryChangesW failed \n");
+			} else {
+				printf("ReadDirectoryChangesW bytes %i %lu, ", wait-WAIT_OBJECT_0, bytes);
+
+				FILE_NOTIFY_INFORMATION *change = change_buffer;
+				while (change) {
+					char* filename = core_convert_wide_string(change->FileName);
+					printf(filename);
+					printf(", ");
+
+					if (file_count < array_size(filenames)) {
+						s_copy(filenames[file_count], filename);
+						++file_count;
+					} else {
+						break;
+					}
+					// file_changes(filename);
+
+					if (change->NextEntryOffset) {
+						change = (u8*)change + change->NextEntryOffset;
+					} else {
+						change = NULL;
+					}
+				}
+
+				printf("\n\n");
+
+				file_changes(filenames, file_count);
+			}
+
+		} else {
+			core_error(FALSE, "wait %i", wait-WAIT_OBJECT_0);
+		}
+
+		// m_zero(change_buffer, sizeof(change_buffer));
+
+		if(!FindNextChangeNotification(handles[wait-WAIT_OBJECT_0])) {
+			core_error(TRUE, "FindNextChangeNotification");
+		}
+	}
+}
+#endif
+
+
 #ifdef CORE_DIRECTORY_WATCHER_MULTI_THREADED_COMPLETION_ROUTINE
 // typedef struct {
 // 	int directory_index;

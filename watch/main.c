@@ -12,81 +12,6 @@
 // 	unsigned long long lastWriteTime;
 // } file_info;
 
-f_info files[256];
-int file_count = 0;
-
-typedef struct {
-	HANDLE handle;
-	HANDLE event_handle;
-	OVERLAPPED overlapped;
-	char path[CORE_MAX_PATH_LENGTH];
-	FILE_NOTIFY_INFORMATION change_buffer[64];
-} directory_t;
-
-directory_t directories[64] = {0};
-int directory_count = 0;
-
-b32 verbose_mode = FALSE;
-char* build_command = "./build.sh";
-
-// HANDLE directoryHandles[64];
-// HANDLE ioHandles[64];
-// OVERLAPPED directoryOverlapped[64];
-// string paths[64];
-
-f_info* getFile(char* filename) {
-	for(int i=0; i<file_count; ++i) {
-		if(!strcmp(files[i].filename, filename)) {
-			return files + i;
-		}
-	}
-	return NULL;
-}
-
-f_info* addFile(char* filename, f_info info) {
-	printf("adding file %s \n", filename);
-	if (file_count < 256) {
-		// f_info* file = &files[file_count++];
-		// strncpy(file->filename, filename, 63);
-		// file->modified = lastWriteTime;
-		f_info* file = files + file_count++;
-		*file = info;
-		return file;
-	} else {
-		core_error(FALSE, "Failed to add file");
-	}
-	return NULL;
-}
-
-void clear() {
-	system("clear");
-}
-
-int build(char* filename) {
-	// char cwd[MAX_PATH] = {0};
-	// GetCurrentDirectoryA(MAX_PATH, cwd);
-	// SetCurrentDirectoryA(directories[0].path);
-
-	// clear();
-	// printf(TERM_CLEAR);
-
-	if (verbose_mode) {
-		printf("file changed %s \n", filename);
-	}
-
-	int result = system(s_format("sh %s", build_command));
-	// printf("result %i \n", result);
-
-	if(!result) {
-		core_print(TERM_BRIGHT_GREEN_FG "build successful" TERM_RESET);
-	} else {
-		core_print(TERM_BRIGHT_RED_FG "build failed" TERM_RESET);
-	}
-
-	// SetCurrentDirectoryA(cwd);
-	return result;
-}
-
 #if 0
 void OLDhandleChange(directory_t* dir) {
 	// printf("Handling file changes... \n");
@@ -295,6 +220,75 @@ void old() {
 }
 #endif
 
+f_info files[256];
+int file_count = 0;
+
+typedef struct {
+	HANDLE handle;
+	HANDLE event_handle;
+	OVERLAPPED overlapped;
+	char path[CORE_MAX_PATH_LENGTH];
+	FILE_NOTIFY_INFORMATION change_buffer[64];
+} directory_t;
+
+directory_t directories[64] = {0};
+int directory_count = 0;
+
+b32 verbose_mode = FALSE;
+char* build_command = "./build.sh";
+
+f_info* getFile(char* filename) {
+	for(int i=0; i<file_count; ++i) {
+		if(!strcmp(files[i].filename, filename)) {
+			return files + i;
+		}
+	}
+	return NULL;
+}
+
+f_info* addFile(char* filename, f_info info) {
+	if (file_count < 256) {
+		// f_info* file = &files[file_count++];
+		// strncpy(file->filename, filename, 63);
+		// file->modified = lastWriteTime;
+		f_info* file = files + file_count++;
+		*file = info;
+		return file;
+	} else {
+		core_error(FALSE, "Failed to add file");
+	}
+	return NULL;
+}
+
+void clear() {
+	system("clear");
+}
+
+int build(char* filename) {
+	// char cwd[MAX_PATH] = {0};
+	// GetCurrentDirectoryA(MAX_PATH, cwd);
+	// SetCurrentDirectoryA(directories[0].path);
+
+	// clear();
+	printf(TERM_CLEAR);
+
+	if (verbose_mode) {
+		printf("file changed %s \n", filename);
+	}
+
+	int result = system(s_format("sh %s", build_command));
+	// printf("result %i \n", result);
+
+	if(!result) {
+		core_print(TERM_BRIGHT_GREEN_FG "build successful" TERM_RESET);
+	} else {
+		core_print(TERM_BRIGHT_RED_FG "build failed" TERM_RESET);
+	}
+
+	// SetCurrentDirectoryA(cwd);
+	return result;
+}
+
 void file_changes(f_info* files, int count) {
 	// directory_t* dir = directories + dir_index;
 	// core_print("file changes %i", count);
@@ -346,24 +340,10 @@ void file_changes(f_info* files, int count) {
 int main(int argc, char **argv) {
 	core_print(TERM_BRIGHT_YELLOW_FG "core watch (version %s)" TERM_RESET, VERSION);
 
-	// if(argc < 2) {
-	// 	printf("Arg 1 should be a directory to watch \n");
-	// 	exit(1);
-	// }
-
 	u8 strBuffer[PAGE_SIZE/8];
 	string_pool spool;
 	s_create_pool(&spool, strBuffer, sizeof(strBuffer));
 	s_pool(&spool);
-
-	// HANDLE notificationHandle = FindFirstChangeNotificationA(
-	// 	"./*.c",
-	// 	TRUE,
-	// 	FILE_NOTIFY_CHANGE_LAST_WRITE);
-	// if(notificationHandle == INVALID_HANDLE_VALUE) {
-	// 	printf("FindFirstChangeNotificationA \n");
-	// 	printf("Failed with error code %d \n", GetLastError());
-	// }
 
 	for (int i=1; i<argc; ++i) {
 		char* arg = argv[i];
@@ -372,7 +352,8 @@ int main(int argc, char **argv) {
 			// Directory
 			if (directory_count < array_size(directories)) {
 				directory_t* dir = directories + directory_count++;
-				s_ncopy(dir->path, argv[i] + 2, array_size(dir->path));
+				// s_ncopy(dir->path, argv[i] + 2, array_size(dir->path));
+				GetFullPathNameA(argv[i] + 2, CORE_MAX_PATH_LENGTH, dir->path, NULL);
 			} else {
 				core_error(FALSE, "Too many directories");
 			}
@@ -383,109 +364,23 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	core_print(TERM_BRIGHT_BLUE_FG"watching: ");
+	core_print(TERM_BRIGHT_YELLOW_FG"watching: ");
 	for(int i=0; i<directory_count; ++i) {
 		// if (i) printf(" | ");
-		core_print("    %s", directories[i].path);
+		core_print(TERM_BRIGHT_BLUE_FG"    %s", directories[i].path);
 		// if (i < dirCount-1) printf(", ");
 	}
-	core_print("build command:");
-	core_print("    %s", build_command);
+	core_print(TERM_BRIGHT_YELLOW_FG"build command:");
+	core_print(TERM_BRIGHT_BLUE_FG"    %s", build_command);
 	printf("\n"TERM_RESET);
 
-	// int dirCount = _argc-1;
-	// if(dirCount > 64) {
-	// 	printf("Too many directories \n");
-	// 	exit(1);
-	// }
 
-
-	// char* cwd = paths[0];
-	// SetCurrentDirectoryA(cwd);
-
-	// if(dirCount > 1 && SIMULATE_MULTIPLE_DIRECTORY) {
-	// 	dirCount = 1;
-	// 	s_append(paths, "/..");
-	// }
-
-	// DWORD filter = FILE_NOTIFY_CHANGE_LAST_WRITE; //0b11111111;
-	// HANDLE handles[2];
-	// handles[0] = FindFirstChangeNotification(directories[0].path, TRUE, filter);
-	// handles[1] = FindFirstChangeNotification(directories[1].path, TRUE, filter);
-
-	// if (handles[0] == INVALID_HANDLE_VALUE) {
-	// 	core_error(TRUE, "FindFirstChangeNotification");
-	// }
-	// if (handles[1] == INVALID_HANDLE_VALUE) {
-	// 	core_error(TRUE, "FindFirstChangeNotification");
-	// }
-
-	// for (;;) {
-	// 	DWORD wait  = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
-	// 	if (wait == WAIT_OBJECT_0 || wait == WAIT_OBJECT_0+1) {
-
-	// 		u8 change_buffer[512] = {0};
-	// 		char filenames[64][CORE_MAX_PATH_LENGTH];
-	// 		int file_count = 0;
-	// 		int bytes;
-	// 		if (!ReadDirectoryChangesW(
-	// 			handles[wait-WAIT_OBJECT_0],
-	// 			change_buffer,
-	// 			sizeof(change_buffer),
-	// 			TRUE,
-	// 			filter,
-	// 			&bytes,
-	// 			NULL,
-	// 			NULL
-	// 		)) {
-	// 			printf("ReadDirectoryChangesW failed \n");
-	// 		} else {
-	// 			printf("ReadDirectoryChangesW bytes %i %lu, ", wait-WAIT_OBJECT_0, bytes);
-
-	// 			FILE_NOTIFY_INFORMATION *change = change_buffer;
-	// 			while (change) {
-	// 				char* filename = core_convert_wide_string(change->FileName);
-	// 				printf(filename);
-	// 				printf(", ");
-
-	// 				if (file_count < array_size(filenames)) {
-	// 					s_copy(filenames[file_count], filename);
-	// 					++file_count;
-	// 				} else {
-	// 					break;
-	// 				}
-	// 				// file_changes(filename);
-
-	// 				if (change->NextEntryOffset) {
-	// 					change = (u8*)change + change->NextEntryOffset;
-	// 				} else {
-	// 					change = NULL;
-	// 				}
-	// 			}
-
-	// 			printf("\n\n");
-
-	// 			file_changes(filenames, file_count);
-	// 		}
-
-	// 	} else {
-	// 		core_error(FALSE, "wait %i", wait-WAIT_OBJECT_0);
-	// 	}
-
-	// 	// m_zero(change_buffer, sizeof(change_buffer));
-
-	// 	if(!FindNextChangeNotification(handles[wait-WAIT_OBJECT_0])) {
-	// 		core_error(TRUE, "FindNextChangeNotification");
-	// 	}
-	// }
-
+	// Watch
 	char* dirpaths[array_size(directories)];
 	FOR (i, directory_count) {
 		dirpaths[i] = directories[i].path;
 	}
-	// char* dirpaths[] = {
-	// 	directories[0].path
-	// };
+
 	core_directory_watcher_t watcher;
 	core_watch_directory_changes(&watcher, dirpaths, directory_count);
 	for (;;) {

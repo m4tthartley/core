@@ -341,17 +341,13 @@ void f_change_directory(char* path) {
 // Watching directory changes
 typedef struct {
 	HANDLE handle;
-	// HANDLE event_handle;
-	// OVERLAPPED overlapped;
 	char path[CORE_MAX_PATH_LENGTH];
-	// FILE_NOTIFY_INFORMATION change_buffer[64];
 	struct core_directory_watcher_t* watcher;
 } core_watcher_thread_t;
 
 typedef struct {
 	HANDLE semaphore;
 	HANDLE ready_event;
-	HANDLE handles[64];
 	core_watcher_thread_t threads[64];
 	int directory_count;
 	DWORD filter;
@@ -363,7 +359,6 @@ typedef struct {
 DWORD WINAPI core_watcher_thread_proc(core_watcher_thread_t* thread) {
 	core_directory_watcher_t* watcher = thread->watcher;
 
-	// watcher->handles[i] = FindFirstChangeNotification(dir_paths[i], TRUE, watcher->filter);
 	thread->handle = CreateFileA(
 		thread->path,
 		FILE_LIST_DIRECTORY,
@@ -398,20 +393,15 @@ DWORD WINAPI core_watcher_thread_proc(core_watcher_thread_t* thread) {
 			continue;
 		}
 
-		// printf("ReadDirectoryChangesW bytes %lu, ", bytes);
 		if (!bytes) {
-			// printf("\n");
 			continue;
 		}
 
 		WaitForSingleObject(watcher->semaphore, INFINITE);
-		// core_print("start");
 
 		FILE_NOTIFY_INFORMATION *change = change_buffer;
 		while (change) {
 			char* filename = core_convert_wide_string(change->FileName);
-			// printf(filename);
-			// printf(", ");
 
 			if (watcher->result_count < array_size(watcher->results)) {
 				f_info* result = watcher->results + watcher->result_count++;
@@ -419,26 +409,21 @@ DWORD WINAPI core_watcher_thread_proc(core_watcher_thread_t* thread) {
 				s_ncopy(result->filename, fullpath, CORE_MAX_PATH_LENGTH);
 				s_free(fullpath);
 
-				// s_ncopy(result->filename, thread->path, CORE_MAX_PATH_LENGTH);
-				// int len = s_len(result->filename);
-				// result->filename[len] = '/';
-				// ++len;
-				// s_ncopy(result->filename+len, filename, CORE_MAX_PATH_LENGTH);
-				
-				FOR (i, s_len(result->filename)) {
-					if (result->filename[i] == '\\') {
-						result->filename[i] = '/';
-					}
-				}
+				// FOR (i, s_len(result->filename)) {
+				// 	if (result->filename[i] == '\\') {
+				// 		result->filename[i] = '/';
+				// 	}
+				// }
 
 				f_handle file = f_open(result->filename);
 				int loopcount = 0;
-				while (!file && loopcount < 100) {
+				while (!file && loopcount < 10) {
 					++loopcount;
 					Sleep(10);
 					file = f_open(result->filename);
 				}
-				core_print("%s loop count %i", result->filename, loopcount);
+				// core_print("%s loop count %i", result->filename, loopcount);
+				
 				if (file) {
 					f_info info = f_stat(file);
 					s_ncopy(info.filename, result->filename, CORE_MAX_PATH_LENGTH);
@@ -458,18 +443,14 @@ DWORD WINAPI core_watcher_thread_proc(core_watcher_thread_t* thread) {
 			}
 		}
 
-		// printf("\n");
-
-		// core_print("end");
 		ReleaseSemaphore(watcher->semaphore, 1, NULL);
-
 		SetEvent(watcher->ready_event);
 	}
 }
 
 b32 core_watch_directory_changes(core_directory_watcher_t* watcher, char** dir_paths, int dir_count) {
-	if (dir_count > array_size(watcher->handles)) {
-		core_error(FALSE, "Maximum of %i directories", array_size(watcher->handles));
+	if (dir_count > array_size(watcher->threads)) {
+		core_error(FALSE, "Maximum of %i directories", array_size(watcher->threads));
 		return FALSE;
 	}
 	
@@ -485,17 +466,13 @@ b32 core_watch_directory_changes(core_directory_watcher_t* watcher, char** dir_p
 
 		GetFullPathNameA(dir_paths[i], CORE_MAX_PATH_LENGTH, thread->path, NULL);
 
-		// thread->directory_index = i;
 		thread->watcher = watcher;
 		CreateThread(NULL, 0, core_watcher_thread_proc, thread, 0, NULL);
 	}
 }
 
 int core_wait_for_directory_changes(core_directory_watcher_t* watcher, f_info* output, int output_size) {
-	// ReleaseSemaphore(watcher=>semaphore, 1, NULL);
-
 	WaitForSingleObject(watcher->ready_event, INFINITE);
-	// core_print("event triggered");
 	ResetEvent(watcher->ready_event);
 	
 	// Write out results
