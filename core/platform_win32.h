@@ -315,10 +315,14 @@ f_info f_stat(f_handle file) {
 	f_info result = {0};
 	BY_HANDLE_FILE_INFORMATION info = {0};
 	if(GetFileInformationByHandle(file, &info)) {
+		// FILETIME is the number of 100-nanosecond intervals
+		// I'm storing file times in milliseconds
 		result.created = info.ftCreationTime.dwLowDateTime;
 		result.created |= (u64)info.ftCreationTime.dwHighDateTime<<32;
+		result.created /= 10000;
 		result.modified = info.ftLastWriteTime.dwLowDateTime;
 		result.modified |= (u64)info.ftLastWriteTime.dwHighDateTime<<32;
+		result.modified /= 10000;
 		result.size = info.nFileSizeLow;
 		result.is_directory = info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
 	} else {
@@ -331,6 +335,10 @@ void f_close(f_handle file) {
 	if(file != INVALID_HANDLE_VALUE) {
 		CloseHandle(file);
 	}
+}
+
+void f_get_current_directory(char* output, size_t size) {
+	GetCurrentDirectoryA(size, output);
 }
 
 void f_change_directory(char* path) {
@@ -454,6 +462,7 @@ b32 core_watch_directory_changes(core_directory_watcher_t* watcher, char** dir_p
 		return FALSE;
 	}
 	
+	m_zero(watcher, sizeof(core_directory_watcher_t));
 	watcher->filter = FILE_NOTIFY_CHANGE_LAST_WRITE;
 	// watcher->filter = 0b11111111;
 	watcher->directory_count = dir_count;
@@ -472,6 +481,7 @@ b32 core_watch_directory_changes(core_directory_watcher_t* watcher, char** dir_p
 }
 
 int core_wait_for_directory_changes(core_directory_watcher_t* watcher, f_info* output, int output_size) {
+	assert(output_size > 0);
 	WaitForSingleObject(watcher->ready_event, INFINITE);
 	ResetEvent(watcher->ready_event);
 	
