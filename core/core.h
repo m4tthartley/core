@@ -43,13 +43,14 @@
 
 
 // BACKWARDS COMPATIBILITY
-#define pushMemory m_push
-#define slen s_len
-#define zeroMemory m_zero
-#define copyMemory m_copy
+// TODO move compatibility stuff into the program
+// #define pushMemory m_push
+// #define slen s_len
+// #define zeroMemory m_zero
+// #define copyMemory m_copy
 
-#define memory_arena m_arena
-#define memory_block m_block
+// #define memory_arena m_arena
+// #define core_memblock_t core_memblock_t
 
 
 // STRUCTURES
@@ -256,261 +257,461 @@ void list_remove(list* list, list_node* item) {
 
 // MEMORY
 // TODO pools
-typedef enum {
-	ARENA_STATIC = 1,
-	ARENA_DYNAMIC = 1<<1,
-	ARENA_RESERVE = 1<<2,
-	ARENA_STACK = 1<<3,
-	ARENA_FREELIST = 1<<4,
-} arena_flags;
+// typedef enum {
+// 	ARENA_STATIC = 1,
+// 	ARENA_DYNAMIC = 1<<1,
+// 	ARENA_RESERVE = 1<<2,
+// 	ARENA_STACK = 1<<3,
+// 	ARENA_FREELIST = 1<<4,
+// } arena_flags;
+// typedef struct {
+// 	list_node node;
+// 	u64 size;
+// } core_memblock_t;
+// typedef struct {
+// 	u8* address;
+// 	u64 size;
+// 	u64 stack; // TODO some of this can be unionized
+// 	u64 commit;
+// 	// todo: linked lists | what does that mean?
+// 	u64 flags;
+// 	list blocks;
+// 	list free;
+// } m_arena;
+
 typedef struct {
 	list_node node;
-	// void* address;
 	u64 size;
-	// struct memory_block* next;
-	// struct memory_block* prev;
-} m_block;
+} core_memblock_t;
+
 typedef struct {
 	u8* address;
 	u64 size;
-	u64 stack; // TODO some of this can be unionized
+	u64 stack;
 	u64 commit;
-	// todo: linked lists | what does that mean?
-	u64 flags;
+} core_stack_t;
+
+typedef struct {
+	u8* address;
+	u64 size;
+	u64 commit;
 	list blocks;
 	list free;
-} m_arena;
+} core_allocator_t;
+
+void core_zero(u8* address, int size);
+void core_copy(u8* dest, u8* src, int size);
+core_stack_t core_stack(u8* buffer, size_t size);
+core_stack_t core_virtual_stack(size_t size, size_t commit);
+core_allocator_t core_allocator(u8* buffer, size_t size);
+core_allocator_t core_virtual_allocator(size_t size, size_t commit);
+void core_use_allocator(core_allocator_t* arena);
+// void m_reserve(memory_arena* arena, size_t size, size_t pagesToCommit);
+
+void* core_push_into_virtual(core_stack_t* arena, size_t size);
+void* core_push(core_stack_t* arena, size_t size);
+void  core_pop(core_stack_t* arena, size_t size);
+void  core_pop_and_shift(core_stack_t* arena, size_t offset, size_t size);
+
+void  core_defrag_free_block(core_allocator_t* arena, core_memblock_t* block);
+void* _core_alloc_into_free(core_allocator_t* arena, core_memblock_t* free, size_t size);
+// void* _core_alloc_into_virtual(core_allocator_t* arena, size_t size);
+void _core_virtual_allocator_commit(core_allocator_t* arena, size_t size);
+void* core_alloc_in(core_allocator_t* arena, size_t size);
+void* core_alloc(size_t size);
+void  core_free_in(core_allocator_t* arena, u8* block);
+void  core_free(u8* block);
+void  core_clear_allocator(core_allocator_t* arena);
+void  core_clear_global_allocator();
 
 // memory_arena memoryInit(void* address, u64 size, u64 flags, u64 reserveSize) {
 // 	assert(flags&ARENA_STACK || flags&ARENA_FREELIST);
 // 	assert(!(flags&ARENA_STACK && flags&ARENA_FREELIST));
 // }
 
-void m_zero(byte* address, int size) {
+core_allocator_t* core_global_allocator = NULL;
+
+#define is_arena_virtual(arena) (arena->commit > 0)
+
+void core_zero(u8* address, int size) {
 	core_zero_memory(address, size);
 }
 
-void m_copy(byte* dest, byte* src, int size) {
+void core_copy(u8* dest, u8* src, int size) {
 	core_copy_memory(dest, src, size);
 }
 
-void m_stack(memory_arena* arena, u8* buffer, size_t size) {
-	*arena = (memory_arena){};
-	arena->address = buffer;
-	arena->size = size;
-	arena->stack = 0;
-	arena->flags = ARENA_STACK;
-	if(buffer) {
-		arena->flags |= ARENA_STATIC;
-	}
+// Constructors
+core_stack_t core_stack(u8* buffer, size_t size) {
+	core_stack_t arena = {0};
+	arena.address = buffer;
+	arena.size = size;
+	arena.stack = 0;
+	return arena;
 }
 
-void m_freelist(memory_arena* arena, u8* buffer, size_t size) {
-	m_zero(arena, sizeof(memory_arena));
-	arena->address = buffer;
-	arena->size = size;
-	arena->commit = size;
-	arena->stack = 0;
-	arena->flags = ARENA_FREELIST;
-	if(buffer) {
-		arena->flags |= ARENA_STATIC;
-	}
-
-	arena->blocks.first = 0;
-	arena->blocks.last = 0;
-	// arena->free.first = arena->address;
-	// arena->free.last = arena->address;
-	if(buffer) {
-		((memory_block*)arena->address)->size = arena->size;
-		list_add(&arena->free, arena->address);
-	}
+core_stack_t core_virtual_stack(size_t size, size_t commit) {
+	core_stack_t arena = {0};
+	arena.size = size;
+	arena.commit = align64(commit, PAGE_SIZE);
+	arena.address = core_reserve_virtual_memory(arena.size);
+	core_commit_virtual_memory(arena.address, arena.commit);
+	arena.stack = 0;
+	return arena;
 }
 
-void m_reserve(memory_arena* arena, size_t size, size_t pagesToCommit) {
-	assert(!(arena->flags & ARENA_STATIC));
-	arena->size = align64(size, PAGE_SIZE);
-	arena->address = core_reserve_virtual_memory(arena->size);
-	arena->commit = align64(pagesToCommit, PAGE_SIZE);
-	core_commit_virtual_memory(arena->address, arena->commit);
-	arena->stack = 0;
-	arena->flags |= ARENA_RESERVE;
+core_allocator_t core_allocator(u8* buffer, size_t size) {
+	core_allocator_t arena = {0};
+	arena.address = buffer;
+	arena.size = size;
 
-	if(arena->flags & ARENA_FREELIST) {
-		((memory_block*)arena->address)->size = arena->commit;
-		list_add(&arena->free, arena->address);
-	}
+	arena.blocks.first = NULL;
+	arena.blocks.last = NULL;
+	
+	((core_memblock_t*)arena.address)->size = arena.size;
+	list_add(&arena.free, arena.address);
+
+	return arena;
 }
 
-void* m_push_into_reserve(memory_arena* arena, size_t size) {
-	assert(arena->flags & ARENA_RESERVE);
-	if(arena->stack+size > arena->commit) {
-		size_t pagesToCommit = align64(arena->stack+size - arena->commit, PAGE_SIZE);
-		core_commit_virtual_memory((u8*)arena->address+arena->commit, pagesToCommit);
-		arena->commit += pagesToCommit;
-	}
-	arena->stack += size;
-	return (u8*)arena->address + arena->stack - size;
+core_allocator_t core_virtual_allocator(size_t size, size_t commit) {
+	core_allocator_t arena = {0};
+	arena.size = size;
+	arena.commit = align64(commit, PAGE_SIZE);
+	arena.address = core_reserve_virtual_memory(arena.size);
+	core_commit_virtual_memory(arena.address, arena.commit);
+
+	arena.blocks.first = NULL;
+	arena.blocks.last = NULL;
+	
+	((core_memblock_t*)arena.address)->size = arena.size;
+	list_add(&arena.free, arena.address);
+
+	return arena;
 }
 
-void* m_push(memory_arena* arena, size_t size) {
+void core_use_allocator(core_allocator_t* arena) {
+	core_global_allocator = arena;
+}
+
+// void m_reserve(memory_arena* arena, size_t size, size_t pagesToCommit) {
+// 	assert(!(arena->flags & ARENA_STATIC));
+// 	arena->size = align64(size, PAGE_SIZE);
+// 	arena->address = core_reserve_virtual_memory(arena->size);
+// 	arena->commit = align64(pagesToCommit, PAGE_SIZE);
+// 	core_commit_virtual_memory(arena->address, arena->commit);
+// 	arena->stack = 0;
+// 	arena->flags |= ARENA_RESERVE;
+
+// 	if(arena->flags & ARENA_FREELIST) {
+// 		((core_memblock_t*)arena->address)->size = arena->commit;
+// 		list_add(&arena->free, arena->address);
+// 	}
+// }
+
+// Stacks
+// void* core_push_into_virtual(core_stack_t* arena, size_t size) {
+// 	if(arena->stack+size > arena->commit) {
+// 		size_t extra_commit = align64(arena->stack+size - arena->commit, PAGE_SIZE);
+// 		core_commit_virtual_memory((u8*)arena->address+arena->commit, extra_commit);
+// 		arena->commit += extra_commit;
+// 	}
+// 	arena->stack += size;
+// 	return (u8*)arena->address + arena->stack - size;
+// }
+
+void* core_push(core_stack_t* arena, size_t size) {
 	assert(arena->stack + size <= arena->size);
-	if(arena->flags & ARENA_RESERVE) {
-		return m_push_into_reserve(arena, size);
-	} else {
-		assert(arena->stack + size <= arena->size);
-		if(arena->stack + size <= arena->size) { // todo pointless?
-			void* result = (byte*)arena->address+arena->stack;
-			arena->stack += size;
-			return result;
+	if(is_arena_virtual(arena)) {
+		// return m_push_into_reserve(arena, size);
+		if(arena->stack+size > arena->commit) {
+			size_t extra_commit = align64(arena->stack+size - arena->commit, PAGE_SIZE);
+			core_commit_virtual_memory((u8*)arena->address+arena->commit, extra_commit);
+			arena->commit += extra_commit;
 		}
-		return 0;
 	}
+
+	if(arena->stack + size <= arena->size) {
+		void* result = (byte*)arena->address+arena->stack;
+		arena->stack += size;
+		return result;
+	}
+
+	return 0;
 }
 
-void m_pop(m_arena* arena, size_t size) {
-	zeroMemory(arena->address + arena->stack - size, size);
+void core_pop(core_stack_t* arena, size_t size) {
+	// TODO: Should we zero this?
+	core_zero(arena->address + arena->stack - size, size);
 	arena->stack -= size;
 }
 
-void m_pop_and_shift(m_arena* arena, size_t offset, size_t size) {
+void core_pop_and_shift(core_stack_t* arena, size_t offset, size_t size) {
 	assert(arena->stack >= offset + size);
-	m_copy(arena->address + offset, arena->address + offset + size, arena->stack - (offset+size));
-	m_pop(arena, size);
-	// arena->stack -= size;
+	core_copy(arena->address + offset, arena->address + offset + size, arena->stack - (offset+size));
+	core_pop(arena, size);
 }
 
-void* _m_alloc_into_free(memory_arena* arena, memory_block* free, size_t size) {
-	arena->stack += size;
+// Allocators
+void core_defrag_free_block(core_allocator_t* arena, core_memblock_t* block) {
+	core_memblock_t* free = arena->free.first;
+	while(free) {
+		core_memblock_t* next_free = ((list_node*)free)->next;
+
+		if (free != block) {
+			if ((u8*)free == (u8*)block + block->size) {
+				block->size += free->size;
+				list_remove(&arena->free, free);
+			}
+			if((u8*)free + free->size == (u8*)block) {
+				free->size += block->size;
+				list_remove(&arena->free, block);
+				block = free;
+			}
+		}
+
+		free = next_free;
+	}
+}
+
+void* _core_alloc_into_free(core_allocator_t* arena, core_memblock_t* free, size_t size) {
 	if(free->size > size) {
-		memory_block* newFree = (u8*)free + size;
+		core_memblock_t* newFree = (u8*)free + size;
 		newFree->size = free->size - size;
 		list_add(&arena->free, newFree);
 	}
 	list_remove(&arena->free, free);
 	free->size = size;
 	list_add(&arena->blocks, free);
-	return free+1;
+	return free + 1;
 }
 
-void*_m_alloc_into_virtual(memory_arena* arena, size_t size) {
-	memory_block* free = arena->free.first;
+// void* _core_alloc_into_virtual(core_allocator_t* arena, size_t size) {
+// 	core_memblock_t* free = arena->free.first;
+// 	while(free) {
+// 		if(free->size >= size) {
+// 			return _core_alloc_into_free(arena, free, size);
+// 		}
+// 		free = ((list_node*)free)->next;
+// 	}
+
+// 	u64 commit = align64(size, PAGE_SIZE);
+// 	core_memblock_t* new_memory = core_commit_virtual_memory((u8*)arena->address+arena->commit, commit);
+// 	arena->commit += commit;
+// 	new_memory->size = commit;
+// 	list_add(&arena->free, new_memory);
+// 	core_defrag_free_block(arena, new_memory);
+// 	return _core_alloc_into_free(arena, new_memory, size);
+// }
+
+void _core_virtual_allocator_commit(core_allocator_t* arena, size_t size) {
+	u64 commit = align64(size, PAGE_SIZE);
+	core_memblock_t* new_memory = core_commit_virtual_memory((u8*)arena->address+arena->commit, commit);
+	arena->commit += commit;
+	new_memory->size = commit;
+	list_add(&arena->free, new_memory);
+	core_defrag_free_block(arena, new_memory);
+}
+
+void* core_alloc_in(core_allocator_t* arena, size_t size) {
+	if (!arena) {
+		core_error(FALSE, "malloc");
+		return malloc(size);
+	}
+	assert(arena->address);
+	// This shouldnt be needed for alloc?
+	// It will be caught at the bottom
+	// assert(arena->stack + size <= arena->size);
+	size_t required_size = size + sizeof(core_memblock_t);
+	// if(is_arena_virtual(arena)) {
+	// 	return _core_alloc_into_virtual(arena, size);
+	// } else {
+		
+	// }
+
+	core_memblock_t* free = arena->free.first;
 	while(free) {
-		if(free->size >= size) {
-			return _m_alloc_into_free(arena, free, size);
+		if(free->size >= required_size) {
+			return _core_alloc_into_free(arena, free, required_size);
 		}
 		free = ((list_node*)free)->next;
 	}
 
-	u64 commit = align64(size, PAGE_SIZE);
-	memory_block* newMemory = core_commit_virtual_memory((u8*)arena->address+arena->commit, commit);
-	arena->commit += commit;
-	newMemory->size = commit;
-	list_add(&arena->free, newMemory);
-	return _m_alloc_into_free(arena, newMemory, size);
-}
+	if(is_arena_virtual(arena)) {
+		_core_virtual_allocator_commit(arena, required_size);
+		core_alloc_in(arena, required_size);
+	}
 
-// TODO maybe always use ->commit for size and rename ->size
-void* m_alloc(memory_arena* arena, size_t size) {
-	if (!arena) {
-		// core_print("malloc");
-		return malloc(size);
-	}
-	assert(arena->address);
-	assert(arena->stack + size <= arena->size);
-	size += sizeof(memory_block);
-	if(arena->flags & ARENA_RESERVE) {
-		return _m_alloc_into_virtual(arena, size);
-	} else {
-		memory_block* free = arena->free.first;
-		while(free) {
-			if(free->size >= size) {
-				return _m_alloc_into_free(arena, free, size);
-			}
-			free = ((list_node*)free)->next;
-		}
-	}
+#ifdef CORE_CRASHING_ASSERTS
 	assert(!"Failed to find a free block large enough");
-	return 0;
+#else
+	core_error(FALSE, "Failed to find a free block large enough");
+#endif
+	return NULL;
 }
 
-void m_free(memory_arena* arena, u8* block) {
+void* core_alloc(size_t size) {
+	return core_alloc_in(core_global_allocator, size);
+}
+
+void core_free_in(core_allocator_t* arena, u8* block) {
 	if (!arena) {
 		// core_print("free");
 		return free(block);
 	}
+	assert(block);
 	assert(block >= arena->address && block < arena->address+arena->size);
-	block -= sizeof(memory_block);
-	arena->stack -= ((memory_block*)block)->size;
+	block -= sizeof(core_memblock_t);
+	// arena->stack -= ((core_memblock_t*)block)->size;
 	list_remove(&arena->blocks, block);
 	list_add(&arena->free, block);
+
+	core_defrag_free_block(arena, block);
 }
 
-void m_clear(m_arena* arena) {
-	if (arena->flags & ARENA_RESERVE) {
-		m_zero(arena->address, arena->stack);
-		arena->stack = 0;
-		arena->blocks = (list){0};
+void core_free(u8* block) {
+	return core_free_in(core_global_allocator, block);
+}
 
-	} else {
-		m_zero(arena->address, arena->stack);
-		arena->stack = 0;
+void core_clear_allocator(core_allocator_t* arena) {
+	arena->blocks = (list){0};
+	arena->free = (list){0};
+	((core_memblock_t*)arena->address)->size = arena->commit;
+	list_add(&arena->free, arena->address);
+}
+
+void core_clear_global_allocator() {
+	core_clear_allocator(core_global_allocator);
+}
+
+// void m_clear(m_arena* arena) {
+// 	if (arena->flags & ARENA_RESERVE) {
+// 		m_zero(arena->address, arena->stack);
+// 		arena->stack = 0;
+// 		arena->blocks = (list){0};
+
+// 	} else {
+// 		m_zero(arena->address, arena->stack);
+// 		arena->stack = 0;
+// 	}
+
+// 	if(arena->flags & ARENA_FREELIST) {
+// 		arena->blocks = (list){0};
+// 		arena->free = (list){0};
+// 		((core_memblock_t*)arena->address)->size = arena->commit;
+// 		list_add(&arena->free, arena->address);
+// 	}
+// }
+
+// void* pushRollingMemory(memory_arena* arena, int size) {
+// 	if(arena->stack+size > arena->size) {
+// 		arena->stack = 0;
+// 	}
+// 	assert(arena->stack+size <= arena->size);
+// 	if(arena->stack+size <= arena->size) {
+// 		void* result = (byte*)arena->address+arena->stack;
+// 		arena->stack += size;
+// 		return result;
+// 	}
+// 	return 0;
+// }
+
+// void* pushAndCopyMemory(memory_arena* arena, byte* src, int size) {
+// 	void* result = pushMemory(arena, size);
+// 	if(result) {
+// 		copyMemory(result, src, size);
+// 	}
+// 	return result;
+// }
+// void* pushAndCopyRollingMemory(memory_arena* arena, byte* src, int size) {
+// 	void* result = pushRollingMemory(arena, size);
+// 	if(result) {
+// 		copyMemory(result, src, size);
+// 	}
+// 	return result;
+// }
+
+// void popMemory(memory_arena* arena, int size) {
+// 	zeroMemory((byte*)arena->address + arena->stack - size, size);
+// 	arena->stack -= size;
+// }
+
+// void clearMemoryArena(memory_arena* arena) {
+// 	zeroMemory(arena->address, arena->stack);
+// 	arena->stack = 0;
+// }
+
+// #define pushStruct(arena, a)\
+//     pushAndCopyMemory(arena, &a, sizeof(a))
+
+void print_core_memblock_t(core_memblock_t* block) {
+	for(int i=0; i< block->size-sizeof(core_memblock_t); ++i) {
+		char c = *((u8*)(block+1) + i);
+		if(c) {
+			if(c == '\n') {
+				printf("\\n");
+			} else {
+				printf("%c", c);
+			}
+		} else {
+			printf("_");
+		}
+	}
+}
+
+void core_print_arena(core_allocator_t* arena) {
+	u64 index = 0;
+	u64 arena_size = is_arena_virtual(arena) ? arena->commit : arena->size;
+	while(index < arena_size) {
+		core_memblock_t* b = arena->blocks.first;
+		while(b) {
+			if(arena->address+index == (void*)b) {
+				printf(TERM_RESET TERM_INVERTED);
+				char size[32];
+				snprintf(size, sizeof(size), "block %li", b->size);
+				printf(size);
+				for(int i=0; i<sizeof(core_memblock_t)-s_len(size); ++i) {
+					printf(" ");
+				}
+				printf(TERM_RESET TERM_BLUE_BG);
+				print_core_memblock_t(b);
+				index += b->size;
+				goto next;
+			}
+			b = ((list_node*)b)->next;
+		}
+
+		core_memblock_t* f = arena->free.first;
+		while(f) {
+			if(arena->address+index == (void*)f) {
+				printf(TERM_RESET TERM_INVERTED);
+				char size[32];
+				snprintf(size, sizeof(size), "free %li", f->size);
+				printf(size);
+				for(int i=0; i<sizeof(core_memblock_t)-s_len(size); ++i) {
+					printf(" ");
+				}
+				printf(TERM_RESET TERM_GREEN_BG);
+				print_core_memblock_t(f);
+				index += f->size;
+				goto next;
+			}
+			f = ((list_node*)f)->next;
+		}
+
+		printf(TERM_RED_BG "FATAL ERROR");
+		exit(1);
+next:
 	}
 
-	if(arena->flags & ARENA_FREELIST) {
-		arena->blocks = (list){0};
-		arena->free = (list){0};
-		((memory_block*)arena->address)->size = arena->commit;
-		list_add(&arena->free, arena->address);
-	}
+	assert(index == arena_size);
+	printf(TERM_RESET TERM_YELLOW_BG "END" TERM_RESET "\n");
 }
-
-// TODO m_defrag
-
-void* pushRollingMemory(memory_arena* arena, int size) {
-	if(arena->stack+size > arena->size) {
-		arena->stack = 0;
-	}
-	assert(arena->stack+size <= arena->size);
-	if(arena->stack+size <= arena->size) {
-		void* result = (byte*)arena->address+arena->stack;
-		arena->stack += size;
-		return result;
-	}
-	return 0;
-}
-
-void* pushAndCopyMemory(memory_arena* arena, byte* src, int size) {
-	void* result = pushMemory(arena, size);
-	if(result) {
-		copyMemory(result, src, size);
-	}
-	return result;
-}
-void* pushAndCopyRollingMemory(memory_arena* arena, byte* src, int size) {
-	void* result = pushRollingMemory(arena, size);
-	if(result) {
-		copyMemory(result, src, size);
-	}
-	return result;
-}
-
-void popMemory(memory_arena* arena, int size) {
-	zeroMemory((byte*)arena->address + arena->stack - size, size);
-	arena->stack -= size;
-}
-
-void clearMemoryArena(memory_arena* arena) {
-	zeroMemory(arena->address, arena->stack);
-	arena->stack = 0;
-}
-
-#define pushStruct(arena, a)\
-    pushAndCopyMemory(arena, &a, sizeof(a))
 
 
 // DYNAMIC ARRAY
 typedef struct {
-	m_arena arena;
+	core_stack_t arena;
 	int stride;
 	int max;
 	int count;
@@ -518,7 +719,7 @@ typedef struct {
 
 dynarr_t m_dynarr_static(u8* buffer, size_t size, int stride) {
 	dynarr_t result;
-	m_stack(&result.arena, buffer, size);
+	result.arena = core_stack(buffer, size);
 	result.stride = stride;
 	result.max = size / stride;
 	result.count = 0;
@@ -527,8 +728,7 @@ dynarr_t m_dynarr_static(u8* buffer, size_t size, int stride) {
 
 dynarr_t dynarr_reserve(size_t size, size_t pages_to_commit, int stride) {
 	dynarr_t result;
-	m_stack(&result.arena, 0, 0);
-	m_reserve(&result.arena, size, pages_to_commit);
+	result.arena = core_virtual_stack(size, pages_to_commit);
 	result.stride = stride;
 	result.max = size / stride;
 	result.count = 0;
@@ -540,13 +740,13 @@ dynarr_t dynarr(int stride) {
 }
 
 void dynarr_push(dynarr_t* arr, void* item) {
-	void* result = m_push(&arr->arena, arr->stride);
-	m_copy(result, item, arr->stride);
+	void* result = core_push(&arr->arena, arr->stride);
+	core_copy(result, item, arr->stride);
 	++arr->count;
 }
 
 void dynarr_pop(dynarr_t* arr, int index) {
-	m_pop_and_shift(&arr->arena, index*arr->stride, arr->stride);
+	core_pop_and_shift(&arr->arena, index*arr->stride, arr->stride);
 	--arr->count;
 }
 
@@ -591,19 +791,24 @@ typedef char* string;
 // typedef struct {
 // 	u8 buffer[1024*1024];
 // } string_pool;
-typedef memory_arena string_pool;
-string_pool* _s_active_pool = NULL;
+// typedef memory_arena string_pool;
+// string_pool* _s_active_pool = NULL;
 
-void s_create_pool(string_pool* pool, u8* buffer, u64 size) {
-	m_freelist(pool, buffer, size);
-}
+// void s_create_pool(string_pool* pool, u8* buffer, u64 size) {
+// 	m_freelist(pool, buffer, size);
+// }
 
-void s_pool(string_pool* pool) {
-	_s_active_pool = pool;
-}
+// void s_pool(string_pool* pool) {
+// 	_s_active_pool = pool;
+// }
 
-void s_pool_clear(string_pool* pool) {
-	m_clear(pool);
+// void s_pool_clear(string_pool* pool) {
+// 	m_clear(pool);
+// }
+
+char* core_allocate_string(size_t len) {
+	char* result = core_alloc(align64(len+1 + sizeof(core_memblock_t), 64));
+	return result;
 }
 
 u32 s_len(char* str) {
@@ -612,16 +817,19 @@ u32 s_len(char* str) {
 	return len;
 }
 
+// core_str
 string s_create(char* str) {
 	// assert(_s_active_pool);
 	u64 len = s_len(str);
-	char* result = m_alloc(_s_active_pool, align64(len+1, 64));
-	m_copy(result, str, len+1);
+	char* result = core_allocate_string(len);
+	if (result) {
+		core_copy(result, str, len+1);
+	}
 	return result;
 }
 
 void s_free(string str) {
-	m_free(_s_active_pool, str);
+	core_free(str);
 }
 
 char* s_format(char* fmt, ...) {
@@ -629,7 +837,7 @@ char* s_format(char* fmt, ...) {
 	va_start(args, fmt);
 	int len = vsnprintf(0, 0, fmt, args) + 1;
 	va_end(args);
-	char* result = m_alloc(_s_active_pool, align64(len+1, 64));
+	char* result = core_allocate_string(len);
 	va_list args2;
 	va_start(args2, fmt);
 	vsnprintf(result, len, fmt, args2);
@@ -641,7 +849,7 @@ char* core_convert_wide_string(wchar_t* str) {
 	int wlen = 0;
 	while (str[wlen]) wlen++;
 
-	char* result = m_alloc(_s_active_pool, align64(wlen+1, 64));
+	char* result = core_allocate_string(wlen);
 	for(int i=0; i<wlen+1; ++i) {
 		result[i] = str[i];
 	}
@@ -687,8 +895,8 @@ b32 s_ncompare(char* a, char* b, u64 n) {
 }
 
 b32 s_find(char* str, char* find, char** out) {
-	int len = slen(str);
-	int findLen = slen(find);
+	int len = s_len(str);
+	int findLen = s_len(find);
 	for(int i=0; i<len-findLen+1; ++i) {
 		if(s_ncompare(str+i, find, findLen)) {
 			if(out) *out = str+i;
@@ -700,8 +908,8 @@ b32 s_find(char* str, char* find, char** out) {
 
 int s_findn(string str, char* find) {
 	int result = 0;
-	int len = slen(str);
-	int findLen = slen(find);
+	int len = s_len(str);
+	int findLen = s_len(find);
 	for(int i=0; i<len-findLen+1; ++i) {
 		if(s_ncompare(str+i, find, findLen)) {
 			++result;
@@ -717,60 +925,60 @@ void s_append(string* str, char* append) {
 	u64 len2 = s_len(append);
 	u64 alen = align64(len+1, 64);
 	if(len + 1 + len2 > alen) {
-		string newStr = m_alloc(_s_active_pool, align64(len + len2 + 1, 64));
-		m_copy(newStr, *str, len);
-		m_free(_s_active_pool, *str);
+		string newStr = core_allocate_string(len + len2);
+		core_copy(newStr, *str, len);
+		core_free(*str);
 		*str = newStr;
 	}
-	m_copy(*str + len, append, len2+1);
+	core_copy(*str + len, append, len2+1);
 }
 
 void s_prepend(string* str, char* prepend) {
 	u64 len = s_len(*str);
 	u64 len2 = s_len(prepend);
-	memory_block* block = (memory_block*)*str - 1;
+	core_memblock_t* block = (core_memblock_t*)*str - 1;
 	u64 newLen = len + len2 + 1;
 	if(newLen > block->size) {
-		string newStr = m_alloc(_s_active_pool, align64(newLen, 64));
-		m_copy(newStr+len2, *str, len+1);
-		m_free(_s_active_pool, *str);
+		string newStr = core_allocate_string(newLen);
+		core_copy(newStr+len2, *str, len+1);
+		core_free(*str);
 		*str = newStr;
 	} else {
-		m_copy(*str+len2, *str, len+1);
+		core_copy(*str+len2, *str, len+1);
 	}
-	m_copy(*str, prepend, len2);
+	core_copy(*str, prepend, len2);
 }
 
 void s_insert(string* str, u64 index, char* insert) {
 	u64 len = s_len(*str);
 	assert(index < len);
 	u64 len2 = s_len(insert);
-	memory_block* block = (memory_block*)*str - 1;
+	core_memblock_t* block = (core_memblock_t*)*str - 1;
 	u64 newLen = len + len2 + 1;
 	if(newLen > block->size) {
-		string newStr = m_alloc(_s_active_pool, align64(newLen, 64));
-		m_copy(newStr+index+len2, *str+index, len+1);
-		m_free(_s_active_pool, *str);
+		string newStr = core_allocate_string(newLen);
+		core_copy(newStr+index+len2, *str+index, len+1);
+		core_free(*str);
 		*str = newStr;
 	} else {
-		m_copy(*str+index+len2, *str+index, len+1);
+		core_copy(*str+index+len2, *str+index, len+1);
 	}
-	m_copy(*str+index, insert, len2);
+	core_copy(*str+index, insert, len2);
 }
 // s_split()
 // s_trim()
 void s_replace(string* str, char* find, char* replace) {
-	memory_block* block = (memory_block*)*str - 1;
+	core_memblock_t* block = (core_memblock_t*)*str - 1;
 	int num = s_findn(*str, find);
 	int flen = s_len(find);
 	int rlen = s_len(replace);
 	u64 newSize = s_len(*str) + num*(rlen-s_len(find)) + 1;
-	string newStr = m_alloc(_s_active_pool, align64(newSize, 64));
+	string newStr = core_allocate_string(newSize);
 	char* s = *str;
 	char* o = newStr;
 	while(*s) {
 		if(s_ncompare(s, find, flen)) {
-			m_copy(o, replace, rlen);
+			core_copy(o, replace, rlen);
 			o += rlen;
 			s += flen;
 		} else {
@@ -780,35 +988,35 @@ void s_replace(string* str, char* find, char* replace) {
 		}
 	}
 	*o = 0;
-	m_free(_s_active_pool, *str);
+	core_free(*str);
 	*str = newStr;
 }
 
 void s_replace_single(string* str, char* find, char* replace) {
-	memory_block* block = (memory_block*)*str - 1;
+	core_memblock_t* block = (core_memblock_t*)*str - 1;
 	int len = s_len(*str);
 	int flen = s_len(find);
 	int rlen = s_len(replace);
 	u64 newSize = s_len(*str) + (rlen-s_len(find)) + 1;
-	string newStr = m_alloc(_s_active_pool, align64(newSize, 64));
+	string newStr = core_allocate_string(newSize);
 	char* s = *str;
 	char* o = newStr;
 	int i = 0;
 	while(*s) {
 		if(s_ncompare(s, find, flen)) {
-			m_copy(newStr, *str, i);
-			m_copy(o, replace, rlen);
+			core_copy(newStr, *str, i);
+			core_copy(o, replace, rlen);
 			s += flen;
 			o += rlen;
 			i += flen;
-			m_copy(o, s, len-i+1);
+			core_copy(o, s, len-i+1);
 			break;
 		}
 		++s;
 		++o;
 		++i;
 	}
-	m_free(_s_active_pool, *str);
+	core_free(*str);
 	*str = newStr;
 }
 
@@ -858,7 +1066,7 @@ u32 murmur3(u8* key) {
 	u32 k;
 
 	for(int i = len>>2; i; --i) {
-		m_copy(&k, key, sizeof(u32));
+		core_copy(&k, key, sizeof(u32));
 		key += sizeof(u32);
 		hash ^= murmur3_scramble(k);
 		hash = (hash << 13) | (hash >> 19);

@@ -462,7 +462,7 @@ b32 core_watch_directory_changes(core_directory_watcher_t* watcher, char** dir_p
 		return FALSE;
 	}
 	
-	m_zero(watcher, sizeof(core_directory_watcher_t));
+	core_zero(watcher, sizeof(core_directory_watcher_t));
 	watcher->filter = FILE_NOTIFY_CHANGE_LAST_WRITE;
 	// watcher->filter = 0b11111111;
 	watcher->directory_count = dir_count;
@@ -487,9 +487,9 @@ int core_wait_for_directory_changes(core_directory_watcher_t* watcher, f_info* o
 	
 	// Write out results
 	WaitForSingleObject(watcher->semaphore, INFINITE);
-	m_copy(output, watcher->results, min(watcher->result_count, output_size)*sizeof(f_info));
+	core_copy(output, watcher->results, min(watcher->result_count, output_size)*sizeof(f_info));
 	// TODO check output size first
-	m_zero(watcher->results, sizeof(watcher->results));
+	core_zero(watcher->results, sizeof(watcher->results));
 	int result = watcher->result_count;
 	watcher->result_count = 0;
 	ReleaseSemaphore(watcher->semaphore, 1, NULL);

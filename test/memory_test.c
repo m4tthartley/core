@@ -92,9 +92,8 @@ char* celestial_objects[] = {
 
 int main() {
     char buffer[0x800];
-    m_arena arena;
-    m_freelist(&arena, buffer, sizeof(buffer));
-    s_pool(&arena);
+    core_allocator_t arena = core_allocator(buffer, sizeof(buffer));
+    core_use_allocator(&arena);
 
     core_print(TERM_RESET);
 

@@ -74,8 +74,8 @@ typedef struct {
 
 
 // Platform functions
-void m_zero(byte* address, int size);
-void m_copy(byte* dest, byte* src, int size);
+void core_zero(byte* address, int size);
+void core_copy(byte* dest, byte* src, int size);
 void core_print(char* fmt, ...);
 void core_error(b32 fatal, char* fmt, ...);
 u32 s_len(char* str);
