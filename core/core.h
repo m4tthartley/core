@@ -3,25 +3,70 @@
 #define __CORE_HEADER__
 
 
-#define TRUE 1
-#define FALSE 0
-
-
 #include <stdint.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
-
 #ifdef CORE_CRT_ASSERT
 #	include <assert.h>
-#else
-#	define assert(exp) if(!(exp)) { printf("Assertion failed (" #exp ") in function \"%s\" \n", __FUNCTION__); fflush(stdout); (*(int*)0 = 0); }
 #endif
 
 
+// Define standard platform defs
+#ifdef _WIN32
+#	undef __WIN32__
+#	define __WIN32__
+#endif
+#ifdef __linux__
+#	define __LINUX__
+#endif
+#ifdef __APPLE__
+#	define __MACOS__
+#endif
+
+
+// Types
+#ifdef __WIN32__
+typedef __int64  i64;
+typedef unsigned __int64  u64;
+typedef __int32  i32;
+typedef unsigned __int32  u32;
+typedef __int16  i16;
+typedef unsigned __int16  u16;
+typedef __int8  i8;
+typedef unsigned __int8  u8;
+#endif
+
+#ifdef __LINUX__
+typedef signed long int  i64;
+typedef unsigned long int  u64;
+typedef signed int  i32;
+typedef unsigned int  u32;
+typedef signed short int  i16;
+typedef unsigned short int  u16;
+typedef signed char  i8;
+typedef unsigned char  u8;
+#endif
+
+#ifdef __MACOS__
+
+#endif
+
+typedef float f32;
+typedef double f64;
+
+typedef u32 b32;
+typedef u8 byte;
+// typedef u64 size_t;
+
+
+// General constants and macros
 #undef NULL
 #define NULL 0
+#define TRUE 1
+#define FALSE 0
+#define PAGE_SIZE 4096
 
 #define KILOBYTES(n) (n*1024)
 #define MEGABYTES(n) (n*1024*1024)
@@ -30,12 +75,102 @@
 #define MB MEGABYTES
 #define GB GIGABYTES
 
-#define PAGE_SIZE 4096
-
 #define array_size(a) (sizeof(a)/sizeof(a[0]))
 #define FOR(index, count) for(int index=0; index<count; ++index)
 #define FORSTATIC(index, arr) for(int index=0; index<(sizeof(arr)/sizeof(arr[0])); ++index)
 #define FORDYNARR(index, arr) for(int index=0; index<arr.count; ++index)
+#ifndef CORE_CRT_ASSERT
+#	define assert(exp) if(!(exp)) { printf("Assertion failed (" #exp ") in function \"%s\" \n", __FUNCTION__); fflush(stdout); (*(int*)0 = 0); }
+#endif
+
+
+// Printing definitions
+void core_print_inline(char* fmt, ...);
+void core_print(char* fmt, ...);
+void core_error(b32 fatal, char* fmt, ...);
+int core_print_to_buffer(char* buffer, size_t len, char* fmt, ...);
+int core_print_to_buffer_va(char* buffer, size_t len, char* fmt, va_list args);
+
+// Misc definitions
+u64 align64(u64 size, u64 align);
+f32 core_randf();
+f32 core_randf_range(f32 a, f32 b);
+int core_rand(int min, int max);
+
+// Linked list definitions
+typedef struct list_node list_node;
+struct list_node {
+	list_node* next;
+	list_node* prev;
+};
+typedef struct {
+	list_node* first;
+	list_node* last;
+} list;
+
+// Memory definitions
+typedef struct {
+	list_node node;
+	u64 size;
+} core_memblock_t;
+typedef struct {
+	u8* address;
+	u64 size;
+	u64 stack;
+	u64 commit;
+} core_stack_t;
+typedef struct {
+	u8* address;
+	u64 size;
+	u64 commit;
+	list blocks;
+	list free;
+} core_allocator_t;
+
+void core_zero(u8* address, int size);
+void core_copy(u8* dest, u8* src, int size);
+core_stack_t core_stack(u8* buffer, size_t size);
+core_stack_t core_virtual_stack(size_t size, size_t commit);
+core_allocator_t core_allocator(u8* buffer, size_t size);
+core_allocator_t core_virtual_allocator(size_t size, size_t commit);
+void core_use_allocator(core_allocator_t* arena);
+
+void* core_push_into_virtual(core_stack_t* arena, size_t size);
+void* core_push(core_stack_t* arena, size_t size);
+void  core_pop(core_stack_t* arena, size_t size);
+void  core_pop_and_shift(core_stack_t* arena, size_t offset, size_t size);
+
+void  core_defrag_free_block(core_allocator_t* arena, core_memblock_t* block);
+void* _core_alloc_into_free(core_allocator_t* arena, core_memblock_t* free, size_t size);
+void _core_virtual_allocator_commit(core_allocator_t* arena, size_t size);
+void* core_alloc_in(core_allocator_t* arena, size_t size);
+void* core_alloc(size_t size);
+void  core_free_in(core_allocator_t* arena, u8* block);
+void  core_free(u8* block);
+void  core_clear_allocator(core_allocator_t* arena);
+void  core_clear_global_allocator();
+
+// String definitions
+typedef char* core_string_t;
+core_string_t core_allocate_string(size_t len);
+int core_strlen(char* str);
+core_string_t core_str(char* str);
+core_string_t core_strf(char* fmt, ...);
+void core_strfree(core_string_t str);
+core_string_t core_convert_wide_string(wchar_t* str);
+void core_strcpy(core_string_t dest, core_string_t src);
+void core_strncpy(core_string_t dest, core_string_t src, int n);
+b32 core_strcmp(core_string_t a, core_string_t b);
+b32 core_strncmp(core_string_t a, core_string_t b, u64 n);
+b32 core_strfind(core_string_t str, core_string_t find, core_string_t* out);
+int core_strfindn(core_string_t str, core_string_t find);
+void core_strcat(core_string_t* str, core_string_t append);
+void core_strprecat(core_string_t* str, core_string_t prepend);
+void core_strinsert(core_string_t* str, u64 index, core_string_t insert);
+void core_strreplace(core_string_t* str, core_string_t find, core_string_t replace);
+void core_strreplace_single(core_string_t* str, core_string_t find, core_string_t replace);
+void core_strlower(core_string_t* str);
+void core_strupper(core_string_t* str);
 
 
 #include "platform.h"
@@ -82,12 +217,20 @@ typedef audio_buffer_t wave_t;
 
 
 // PRINTING
+void core_print_inline(char* fmt, ...) {
+	char str[1024];
+	va_list va;
+	va_start(va, fmt);
+	vsnprintf(str, 1024, fmt, va);
+	fputs(str, stdout);
+	va_end(va);
+}
 void core_print(char* fmt, ...) {
 	char str[1024];
 	va_list va;
 	va_start(va, fmt);
 	vsnprintf(str, 1024, fmt, va);
-	printf("%s\n", str);
+	puts(str);
 	va_end(va);
 }
 void core_error(b32 fatal, char* fmt, ...) {
@@ -95,57 +238,23 @@ void core_error(b32 fatal, char* fmt, ...) {
 	va_list va;
 	va_start(va, fmt);
 	vsnprintf(str, 1024, fmt, va);
-	printf(TERM_RED_FG "%s\n" TERM_RESET, str);
+	core_print(TERM_RED_FG "%s" TERM_RESET, str);
 	va_end(va);
 	if (fatal) {
 		exit(1);
 	}
 }
-
-
-// void core_error_console(b32 fatal, char* err, ...) {
-// 	char str[1024];
-// 	va_list va;
-// 	va_start(va, err);
-// 	vsnprintf(str, 1024, err, va);
-// 	print(REDF "%s\n" RESET, str);
-// 	va_end(va);
-// 	if (fatal) {
-// 		exit(1);
-// 	}
-// }
-
-// void core_win32_error(DWORD error_code, b32 fatal, char* err, ...) {
-// 	if (!error_code) {
-// 		error_code = GetLastError();
-// 	}
-// 	char usrstr[1024];
-// 	va_list va;
-// 	va_start(va, err);
-// 	vsnprintf(usrstr, 1024, err, va);
-
-// 	char* msg;
-// 	FormatMessage(
-// 		FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-// 		NULL,
-// 		error_code,
-// 		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-// 		&msg,
-// 		0,
-// 		NULL);
-
-// 	char str[1024];
-// 	snprintf(str, 1024, "%s\n%#08X %s\n", usrstr, error_code, msg);
-
-// 	printf(REDF "%s" RESET, str);
-// 	MessageBox(NULL, str, NULL, MB_OK);
-
-// 	va_end(va);
-// 	LocalFree(msg);
-// 	if (fatal) {
-// 		exit(1);
-// 	}
-// }
+int core_print_to_buffer(char* buffer, size_t len, char* fmt, ...) {
+	va_list va;
+	va_start(va, fmt);
+	int result = vsnprintf(buffer, len, fmt, va);
+	va_end(va);
+	return result;
+}
+int core_print_to_buffer_va(char* buffer, size_t len, char* fmt, va_list args) {
+	int result = vsnprintf(buffer, len, fmt, args);
+	return result;
+}
 
 
 // MISC
@@ -170,31 +279,22 @@ u64 align64(u64 size, u64 align) {
 // 	return target;
 // }
 
-f32 r_float() {
+f32 core_randf() {
 	f32 result = (f32)rand() / (f32)RAND_MAX;
 	return result;
 }
-f32 r_float_range(f32 a, f32 b) {
+f32 core_randf_range(f32 a, f32 b) {
 	f32 result = (f32)rand() / (f32)RAND_MAX;
 	result = a + (b-a)*result;
 	return result;
 }
-int r_int_range(int min, int max) {
+int core_rand(int min, int max) {
 	int result = rand() % (max-min);
 	return min + result;
 }
 
 
 // LINKED LISTS
-typedef struct list_node list_node;
-struct list_node {
-	list_node* next;
-	list_node* prev;
-};
-typedef struct {
-	list_node* first;
-	list_node* last;
-} list;
 void list_add(list* list, list_node* item) {
 	item->next = 0;
 	item->prev = 0;
@@ -278,51 +378,6 @@ void list_remove(list* list, list_node* item) {
 // 	list blocks;
 // 	list free;
 // } m_arena;
-
-typedef struct {
-	list_node node;
-	u64 size;
-} core_memblock_t;
-
-typedef struct {
-	u8* address;
-	u64 size;
-	u64 stack;
-	u64 commit;
-} core_stack_t;
-
-typedef struct {
-	u8* address;
-	u64 size;
-	u64 commit;
-	list blocks;
-	list free;
-} core_allocator_t;
-
-void core_zero(u8* address, int size);
-void core_copy(u8* dest, u8* src, int size);
-core_stack_t core_stack(u8* buffer, size_t size);
-core_stack_t core_virtual_stack(size_t size, size_t commit);
-core_allocator_t core_allocator(u8* buffer, size_t size);
-core_allocator_t core_virtual_allocator(size_t size, size_t commit);
-void core_use_allocator(core_allocator_t* arena);
-// void m_reserve(memory_arena* arena, size_t size, size_t pagesToCommit);
-
-void* core_push_into_virtual(core_stack_t* arena, size_t size);
-void* core_push(core_stack_t* arena, size_t size);
-void  core_pop(core_stack_t* arena, size_t size);
-void  core_pop_and_shift(core_stack_t* arena, size_t offset, size_t size);
-
-void  core_defrag_free_block(core_allocator_t* arena, core_memblock_t* block);
-void* _core_alloc_into_free(core_allocator_t* arena, core_memblock_t* free, size_t size);
-// void* _core_alloc_into_virtual(core_allocator_t* arena, size_t size);
-void _core_virtual_allocator_commit(core_allocator_t* arena, size_t size);
-void* core_alloc_in(core_allocator_t* arena, size_t size);
-void* core_alloc(size_t size);
-void  core_free_in(core_allocator_t* arena, u8* block);
-void  core_free(u8* block);
-void  core_clear_allocator(core_allocator_t* arena);
-void  core_clear_global_allocator();
 
 // memory_arena memoryInit(void* address, u64 size, u64 flags, u64 reserveSize) {
 // 	assert(flags&ARENA_STACK || flags&ARENA_FREELIST);
@@ -649,12 +704,12 @@ void print_core_memblock_t(core_memblock_t* block) {
 		char c = *((u8*)(block+1) + i);
 		if(c) {
 			if(c == '\n') {
-				printf("\\n");
+				core_print_inline("\\n");
 			} else {
-				printf("%c", c);
+				core_print_inline("%c", c);
 			}
 		} else {
-			printf("_");
+			core_print_inline("_");
 		}
 	}
 }
@@ -666,14 +721,14 @@ void core_print_arena(core_allocator_t* arena) {
 		core_memblock_t* b = arena->blocks.first;
 		while(b) {
 			if(arena->address+index == (void*)b) {
-				printf(TERM_RESET TERM_INVERTED);
+				core_print_inline(TERM_RESET TERM_INVERTED);
 				char size[32];
-				snprintf(size, sizeof(size), "block %li", b->size);
-				printf(size);
-				for(int i=0; i<sizeof(core_memblock_t)-s_len(size); ++i) {
-					printf(" ");
+				core_print_to_buffer(size, sizeof(size), "block %li", b->size);
+				core_print_inline(size);
+				for(int i=0; i<sizeof(core_memblock_t)-core_strlen(size); ++i) {
+					core_print_inline(" ");
 				}
-				printf(TERM_RESET TERM_BLUE_BG);
+				core_print_inline(TERM_RESET TERM_BLUE_BG);
 				print_core_memblock_t(b);
 				index += b->size;
 				goto next;
@@ -684,14 +739,14 @@ void core_print_arena(core_allocator_t* arena) {
 		core_memblock_t* f = arena->free.first;
 		while(f) {
 			if(arena->address+index == (void*)f) {
-				printf(TERM_RESET TERM_INVERTED);
+				core_print_inline(TERM_RESET TERM_INVERTED);
 				char size[32];
-				snprintf(size, sizeof(size), "free %li", f->size);
-				printf(size);
-				for(int i=0; i<sizeof(core_memblock_t)-s_len(size); ++i) {
-					printf(" ");
+				core_print_to_buffer(size, sizeof(size), "free %li", f->size);
+				core_print_inline(size);
+				for(int i=0; i<sizeof(core_memblock_t)-core_strlen(size); ++i) {
+					core_print_inline(" ");
 				}
-				printf(TERM_RESET TERM_GREEN_BG);
+				core_print_inline(TERM_RESET TERM_GREEN_BG);
 				print_core_memblock_t(f);
 				index += f->size;
 				goto next;
@@ -699,13 +754,13 @@ void core_print_arena(core_allocator_t* arena) {
 			f = ((list_node*)f)->next;
 		}
 
-		printf(TERM_RED_BG "FATAL ERROR");
+		core_print_inline(TERM_RED_BG "FATAL ERROR");
 		exit(1);
 next:
 	}
 
 	assert(index == arena_size);
-	printf(TERM_RESET TERM_YELLOW_BG "END" TERM_RESET "\n");
+	core_print_inline(TERM_RESET TERM_YELLOW_BG "END" TERM_RESET "\n");
 }
 
 
@@ -754,40 +809,25 @@ void* dynarr_get(dynarr_t* arr, int index) {
 	return arr->arena.address + (arr->stride * index);
 }
 
-// void dynarr_clear(dynarr_t* arr) {
-// 	m_clear
-// }
+void dynarr_clear(dynarr_t* arr) {
+	arr->arena.stack = 0;
+	arr->count = 0;
+}
 
 
 // STRINGS
 // TODO string pools
 // TODO string functions
 /*
-	s_create()					DONE
-	s_len()						DONE
-	s_format(char*fmt, ...)	    DONE
-	s_copy()					DONE
-	s_find()					DONE
-	s_compare()					DONE
-	s_append()					DONE
-	s_prepend()					DONE
-	s_insert()					DONE
 	s_split()
 	s_trim()
-	s_replace()					DONE
-	s_replaceSingle()			DONE
-	s_lower()					DONE
-	s_upper()					DONE
-
-	s_size()					X
-	s_free()					DONE
 	s_slice()
 */
 // typedef struct {
 // 	char* str;
 // 	u32 len;
 // } string;
-typedef char* string;
+
 // typedef struct {
 // 	u8 buffer[1024*1024];
 // } string_pool;
@@ -806,50 +846,50 @@ typedef char* string;
 // 	m_clear(pool);
 // }
 
-char* core_allocate_string(size_t len) {
-	char* result = core_alloc(align64(len+1 + sizeof(core_memblock_t), 64));
+core_string_t core_allocate_string(size_t len) {
+	core_string_t result = core_alloc(align64(len+1 + sizeof(core_memblock_t), 64));
 	return result;
 }
 
-u32 s_len(char* str) {
-	u32 len = 0;
+int core_strlen(char* str) {
+	int len = 0;
 	while(*str++) ++len;
 	return len;
 }
 
 // core_str
-string s_create(char* str) {
+core_string_t core_str(char* str) {
 	// assert(_s_active_pool);
-	u64 len = s_len(str);
-	char* result = core_allocate_string(len);
+	u64 len = core_strlen(str);
+	core_string_t result = core_allocate_string(len);
 	if (result) {
 		core_copy(result, str, len+1);
 	}
 	return result;
 }
 
-void s_free(string str) {
-	core_free(str);
-}
-
-char* s_format(char* fmt, ...) {
+core_string_t core_strf(char* fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
-	int len = vsnprintf(0, 0, fmt, args) + 1;
+	int len = core_print_to_buffer_va(0, 0, fmt, args) + 1;
 	va_end(args);
-	char* result = core_allocate_string(len);
+	core_string_t result = core_allocate_string(len);
 	va_list args2;
 	va_start(args2, fmt);
-	vsnprintf(result, len, fmt, args2);
+	core_print_to_buffer_va(result, len, fmt, args2);
 	va_end(args2);
 	return result;
 }
 
-char* core_convert_wide_string(wchar_t* str) {
+void core_strfree(core_string_t str) {
+	core_free(str);
+}
+
+core_string_t core_convert_wide_string(wchar_t* str) {
 	int wlen = 0;
 	while (str[wlen]) wlen++;
 
-	char* result = core_allocate_string(wlen);
+	core_string_t result = core_allocate_string(wlen);
 	for(int i=0; i<wlen+1; ++i) {
 		result[i] = str[i];
 	}
@@ -857,18 +897,18 @@ char* core_convert_wide_string(wchar_t* str) {
 	return result;
 }
 
-// char* s_copy(char* str) {
+// core_string_t s_copy(core_string_t str) {
 // 	return s_create(str);
 // }
 
-void s_copy(char* dest, char* src) {
+void core_strcpy(core_string_t dest, core_string_t src) {
 	while (*src) {
 		*dest++ = *src++;
 	}
 	*dest = *src;
 }
 
-void s_ncopy(char* dest, char* src, int n) {
+void core_strncpy(core_string_t dest, core_string_t src, int n) {
 	while (*src && n > 1) {
 		*dest++ = *src++;
 		--n;
@@ -876,8 +916,8 @@ void s_ncopy(char* dest, char* src, int n) {
 	*dest = *src;
 }
 
-b32 s_compare(char* a, char* b) {
-	if(s_len(a) != s_len(b)) return FALSE;
+b32 core_strcmp(core_string_t a, core_string_t b) {
+	if(core_strlen(a) != core_strlen(b)) return FALSE;
 	while(*a==*b) {
 		if(*a==0) return TRUE;
 		++a;
@@ -887,18 +927,18 @@ b32 s_compare(char* a, char* b) {
 	return FALSE;
 }
 
-b32 s_ncompare(char* a, char* b, u64 n) {
+b32 core_strncmp(core_string_t a, core_string_t b, u64 n) {
 	for(int i=0; i<n; ++i) {
 		if(a[i] != b[i]) return FALSE;
 	}
 	return TRUE;
 }
 
-b32 s_find(char* str, char* find, char** out) {
-	int len = s_len(str);
-	int findLen = s_len(find);
+b32 core_strfind(core_string_t str, core_string_t find, core_string_t* out) {
+	int len = core_strlen(str);
+	int findLen = core_strlen(find);
 	for(int i=0; i<len-findLen+1; ++i) {
-		if(s_ncompare(str+i, find, findLen)) {
+		if(core_strncmp(str+i, find, findLen)) {
 			if(out) *out = str+i;
 			return TRUE;
 		}
@@ -906,12 +946,12 @@ b32 s_find(char* str, char* find, char** out) {
 	return FALSE;
 }
 
-int s_findn(string str, char* find) {
+int core_strfindn(core_string_t str, core_string_t find) {
 	int result = 0;
-	int len = s_len(str);
-	int findLen = s_len(find);
+	int len = core_strlen(str);
+	int findLen = core_strlen(find);
 	for(int i=0; i<len-findLen+1; ++i) {
-		if(s_ncompare(str+i, find, findLen)) {
+		if(core_strncmp(str+i, find, findLen)) {
 			++result;
 		}
 	}
@@ -920,12 +960,12 @@ int s_findn(string str, char* find) {
 
 // TODO in string functions that create new allocations,
 // 		first check str is actually allocated in the current pool
-void s_append(string* str, char* append) {
-	u64 len = s_len(*str);
-	u64 len2 = s_len(append);
+void core_strcat(core_string_t* str, core_string_t append) {
+	u64 len = core_strlen(*str);
+	u64 len2 = core_strlen(append);
 	u64 alen = align64(len+1, 64);
 	if(len + 1 + len2 > alen) {
-		string newStr = core_allocate_string(len + len2);
+		core_string_t newStr = core_allocate_string(len + len2);
 		core_copy(newStr, *str, len);
 		core_free(*str);
 		*str = newStr;
@@ -933,13 +973,13 @@ void s_append(string* str, char* append) {
 	core_copy(*str + len, append, len2+1);
 }
 
-void s_prepend(string* str, char* prepend) {
-	u64 len = s_len(*str);
-	u64 len2 = s_len(prepend);
+void core_strprecat(core_string_t* str, core_string_t prepend) {
+	u64 len = core_strlen(*str);
+	u64 len2 = core_strlen(prepend);
 	core_memblock_t* block = (core_memblock_t*)*str - 1;
 	u64 newLen = len + len2 + 1;
 	if(newLen > block->size) {
-		string newStr = core_allocate_string(newLen);
+		core_string_t newStr = core_allocate_string(newLen);
 		core_copy(newStr+len2, *str, len+1);
 		core_free(*str);
 		*str = newStr;
@@ -949,14 +989,14 @@ void s_prepend(string* str, char* prepend) {
 	core_copy(*str, prepend, len2);
 }
 
-void s_insert(string* str, u64 index, char* insert) {
-	u64 len = s_len(*str);
+void core_strinsert(core_string_t* str, u64 index, core_string_t insert) {
+	u64 len = core_strlen(*str);
 	assert(index < len);
-	u64 len2 = s_len(insert);
+	u64 len2 = core_strlen(insert);
 	core_memblock_t* block = (core_memblock_t*)*str - 1;
 	u64 newLen = len + len2 + 1;
 	if(newLen > block->size) {
-		string newStr = core_allocate_string(newLen);
+		core_string_t newStr = core_allocate_string(newLen);
 		core_copy(newStr+index+len2, *str+index, len+1);
 		core_free(*str);
 		*str = newStr;
@@ -967,17 +1007,17 @@ void s_insert(string* str, u64 index, char* insert) {
 }
 // s_split()
 // s_trim()
-void s_replace(string* str, char* find, char* replace) {
+void core_strreplace(core_string_t* str, core_string_t find, core_string_t replace) {
 	core_memblock_t* block = (core_memblock_t*)*str - 1;
-	int num = s_findn(*str, find);
-	int flen = s_len(find);
-	int rlen = s_len(replace);
-	u64 newSize = s_len(*str) + num*(rlen-s_len(find)) + 1;
-	string newStr = core_allocate_string(newSize);
-	char* s = *str;
-	char* o = newStr;
+	int num = core_strfindn(*str, find);
+	int flen = core_strlen(find);
+	int rlen = core_strlen(replace);
+	u64 newSize = core_strlen(*str) + num*(rlen-core_strlen(find)) + 1;
+	core_string_t newStr = core_allocate_string(newSize);
+	core_string_t s = *str;
+	core_string_t o = newStr;
 	while(*s) {
-		if(s_ncompare(s, find, flen)) {
+		if(core_strncmp(s, find, flen)) {
 			core_copy(o, replace, rlen);
 			o += rlen;
 			s += flen;
@@ -992,18 +1032,18 @@ void s_replace(string* str, char* find, char* replace) {
 	*str = newStr;
 }
 
-void s_replace_single(string* str, char* find, char* replace) {
+void core_strreplace_single(core_string_t* str, core_string_t find, core_string_t replace) {
 	core_memblock_t* block = (core_memblock_t*)*str - 1;
-	int len = s_len(*str);
-	int flen = s_len(find);
-	int rlen = s_len(replace);
-	u64 newSize = s_len(*str) + (rlen-s_len(find)) + 1;
-	string newStr = core_allocate_string(newSize);
-	char* s = *str;
-	char* o = newStr;
+	int len = core_strlen(*str);
+	int flen = core_strlen(find);
+	int rlen = core_strlen(replace);
+	u64 newSize = core_strlen(*str) + (rlen-core_strlen(find)) + 1;
+	core_string_t newStr = core_allocate_string(newSize);
+	core_string_t s = *str;
+	core_string_t o = newStr;
 	int i = 0;
 	while(*s) {
-		if(s_ncompare(s, find, flen)) {
+		if(core_strncmp(s, find, flen)) {
 			core_copy(newStr, *str, i);
 			core_copy(o, replace, rlen);
 			s += flen;
@@ -1020,8 +1060,51 @@ void s_replace_single(string* str, char* find, char* replace) {
 	*str = newStr;
 }
 
-void s_lower(string* str) {
-	char* s = *str;
+int core_strsplit(core_string_t* buffer, size_t size, core_string_t str, core_string_t by) {
+	int len = core_strlen(str);
+	int by_len = core_strlen(by);
+	core_string_t str1 = str;
+	core_string_t str2 = str;
+	int num_results = 0;
+
+	while (*str2) {
+		if (core_strncmp(str2, by, by_len)) {
+			int chunk_size = str2-str1;
+			if (size && chunk_size > 0) {
+				core_string_t result = core_allocate_string(chunk_size);
+				core_copy(result, str1, chunk_size);
+				result[chunk_size] = NULL;
+				*buffer = result;
+				++buffer;
+				--size;
+				++num_results;
+			}
+			str2 += by_len;
+			str1 = str2;
+		} else {
+			++str2;
+		}
+	}
+
+	int chunk_size = str2-str1;
+	if (size && chunk_size > 0) {
+		core_string_t result = core_allocate_string(chunk_size);
+		core_copy(result, str1, chunk_size);
+		result[chunk_size] = NULL;
+		*buffer = result;
+		++buffer;
+		--size;
+		++num_results;
+	}
+
+	return num_results;
+}
+
+// s_trim()
+// s_slice()
+
+void core_strlower(core_string_t* str) {
+	core_string_t s = *str;
 	while(*s) {
 		if(*s >= 'A' && *s <= 'Z') {
 			*s += 32;
@@ -1030,8 +1113,8 @@ void s_lower(string* str) {
 	}
 }
 
-void s_upper(string* str) {
-	char* s = *str;
+void core_strupper(core_string_t* str) {
+	core_string_t s = *str;
 	while(*s) {
 		if(*s >= 'a' && *s <= 'z') {
 			*s -= 32;
@@ -1053,7 +1136,7 @@ u32 murmur3_scramble(u32 k) {
 
 // https://en.wikipedia.org/wiki/MurmurHash
 u32 murmur3(u8* key) {
-	u32 len = s_len((char*)key);
+	u32 len = core_strlen((char*)key);
 
 	u32 c1 = 0xcc9e2d51;
 	u32 c2 = 0x1b873593;

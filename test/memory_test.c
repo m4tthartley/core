@@ -97,14 +97,14 @@ int main() {
 
     core_print(TERM_RESET);
 
-    FOR (i, 10000) {
-        char* str = celestial_objects[r_int_range(0, array_size(celestial_objects))];
-        char* object = s_create(str);
+    FOR (i, 1000) {
+        char* str = celestial_objects[core_rand(0, array_size(celestial_objects))];
+        char* object = core_str(str);
         if (object) {
             core_print(object);
             // core_print_arena(&arena);
-            if (r_int_range(0, 1000) != 0) {
-                s_free(object);
+            if (core_rand(0, 1000) != 0) {
+                core_strfree(object);
             }
         }
     }
@@ -113,5 +113,12 @@ int main() {
     // core_print(str);
 
     core_print_arena(&arena);
+
+    char* string = "Hello, my name is Matt";
+    char* parts[10];
+    int num = core_strsplit(parts, 10, string, " ");
+    FOR (i, num) {
+        core_print(parts[i]);
+    }
     int x = 0;
 }
