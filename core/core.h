@@ -219,43 +219,4 @@ u32 murmur3(u8* key);
 #include "platform.h"
 #include "terminal.h"
 
-
-// BACKWARDS COMPATIBILITY
-// TODO move compatibility stuff into the program
-// #define pushMemory m_push
-// #define slen s_len
-// #define zeroMemory m_zero
-// #define copyMemory m_copy
-
-// #define memory_arena m_arena
-// #define core_memblock_t core_memblock_t
-
-
-// STRUCTURES
-typedef struct {
-	u32 size;
-	u32 width;
-	u32 height;
-	u32 data[];
-} bitmap_t;
-
-typedef struct {
-	union {
-		i16 channels[2];
-		struct {
-			i16 left;
-			i16 right;
-		};
-	};
-} audio_sample_t;
-
-typedef struct {
-	int channels;
-	int samples_per_second;
-	int bytes_per_sample;
-	size_t sample_count;
-	audio_sample_t data[];
-} audio_buffer_t;
-typedef audio_buffer_t wave_t;
-
 #endif

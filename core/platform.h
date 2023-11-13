@@ -109,7 +109,7 @@ char* core_format_time(core_time_t time);
 
 // File definitions
 core_handle_t core_open(char* path);
-core_handle_t core_create_file(char* path);
+core_handle_t core_create(char* path);
 core_handle_t core_open_dir(char* path);
 void core_create_dir(char* path);
 int core_dir_list(char* path, b32 recursive, core_stat_t* output, int length);

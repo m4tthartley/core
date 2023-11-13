@@ -8,6 +8,13 @@
 #include "font/default_font.h"
 
 typedef struct {
+	u32 size;
+	u32 width;
+	u32 height;
+	u32 data[];
+} bitmap_t;
+
+typedef struct {
 	GLuint handle;
 	f32 width;
 	f32 height;

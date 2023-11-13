@@ -1,4 +1,8 @@
 
+#include <winsock2.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
 #include "platform.h"
 
 // Errors
@@ -141,42 +145,45 @@ core_handle_t core_open(char* path) {
 	HANDLE handle = CreateFileA(path, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ,
 								0, OPEN_EXISTING, 0, 0);
 	if(handle==INVALID_HANDLE_VALUE) {
-		// DWORD error = GetLastError();
-		// LPTSTR msg;
-		// FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER|
-		// 			  FORMAT_MESSAGE_FROM_SYSTEM|
-		// 			  FORMAT_MESSAGE_IGNORE_INSERTS,
-		// 			  NULL, error,
-		// 			  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		// 			  (LPTSTR)&msg, 0, NULL);
-		// core_error("Failed to open file %s", path);
+		DWORD error = GetLastError();
+		if (error != ERROR_FILE_NOT_FOUND) {
+			char* err = core_win32_error(error);
+			core_error("%s: %s", path, err);
+			LocalFree(err);
+		}
 		return NULL;
 	}
 	return handle;
 }
 
-core_handle_t core_create_file(char* path) {
+core_handle_t core_create(char* path) {
 	assert(sizeof(HANDLE)<=sizeof(core_handle_t));
 	
 	HANDLE handle = CreateFileA(path, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ,
-								0, CREATE_ALWAYS, 0, 0);
+								0, OPEN_ALWAYS, 0, 0);
 	if(handle==INVALID_HANDLE_VALUE) {
-		// DWORD error = GetLastError();
-		// LPTSTR msg;
-		// FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER|
-		// 			  FORMAT_MESSAGE_FROM_SYSTEM|
-		// 			  FORMAT_MESSAGE_IGNORE_INSERTS,
-		// 			  NULL, error,
-		// 			  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		// 			  (LPTSTR)&msg, 0, NULL);
-		// core_win32_error(0, FALSE, "Failed to create file %s", path);
 		char* err = core_win32_error(NULL);
-		core_print(err);
+		core_error("%s: %s", path, err);
 		LocalFree(err);
-		return 0;
+		return NULL;
 	}
 	return handle;
 }
+
+// core_handle_t core_open_or_create(char* path) {
+// 	assert(sizeof(HANDLE)<=sizeof(core_handle_t));
+
+// 	if (core_strlen(path) >= MAX_PATH) {
+// 		core_error("Sorry, we don't support paths longer than %i", (int)MAX_PATH);
+// 		return NULL;
+// 	}
+	
+// 	HANDLE handle = CreateFileA(path, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ, 0, OPEN_ALWAYS, 0, 0);
+// 	if(handle==INVALID_HANDLE_VALUE) {
+// 		return NULL;
+// 	}
+// 	return handle;
+// }
 
 core_handle_t core_open_dir(char* path) {
 	assert(sizeof(HANDLE)<=sizeof(core_handle_t));
@@ -194,7 +201,9 @@ core_handle_t core_open_dir(char* path) {
 	HANDLE handle = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ,
 								0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, 0);
 	if(handle==INVALID_HANDLE_VALUE) {
-		// core_error("Failed to open directory %s", path);
+		char* err = core_win32_error(NULL);
+		core_error("%s: %s", path, err);
+		LocalFree(err);
 		return NULL;
 	}
 	return handle;
@@ -210,7 +219,7 @@ void core_create_dir(char* path) {
 			core_error("Directory path not found");
 		} else {
 			char* err = core_win32_error(NULL);
-			core_print(err);
+			core_error("%s: %s", path, err);
 			LocalFree(err);
 		}
 	}
@@ -263,29 +272,36 @@ int core_dir_list(char* path, b32 recursive, core_stat_t* output, int length) {
 	return output_index;
 }
 
-int core_read(core_handle_t file, size_t offset, void* output, size_t size) {
+b32 core_read(core_handle_t file, size_t offset, void* output, size_t size) {
 	DWORD bytesRead;
 	OVERLAPPED overlapped = {0};
 	overlapped.Offset = offset;
 	int result = ReadFile(file, output, size, &bytesRead, &overlapped);
 	if(!result || bytesRead!=size) {
-		char path[64];
-		GetFinalPathNameByHandleA(file, path, 64, FILE_NAME_OPENED);
-		MessageBox(NULL, core_strf("Failed to read file: %s", path), "File Error", MB_OK);
-		return 0;
-	} else {
-		return 1;
+		char path[CORE_MAX_PATH_LENGTH];
+		GetFinalPathNameByHandleA(file, path, CORE_MAX_PATH_LENGTH, FILE_NAME_OPENED);
+		char* err = core_win32_error(NULL);
+		core_error("%s: %s", path, err);
+		LocalFree(err);
+		return FALSE;
 	}
+	return TRUE;
 }
 
-void core_write(core_handle_t file, size_t offset, void* data, size_t size) {
+b32 core_write(core_handle_t file, size_t offset, void* data, size_t size) {
 	DWORD bytesWritten;
 	OVERLAPPED overlapped = {0};
 	overlapped.Offset = offset;
 	int result = WriteFile(file, data, size, &bytesWritten, &overlapped);
 	if(!result || bytesWritten!=size) {
-		MessageBox(NULL, "Failed to write file", "Error", MB_OK);
+		char path[CORE_MAX_PATH_LENGTH];
+		GetFinalPathNameByHandleA(file, path, CORE_MAX_PATH_LENGTH, FILE_NAME_OPENED);
+		char* err = core_win32_error(NULL);
+		core_error("%s: %s", path, err);
+		LocalFree(err);
+		return FALSE;
 	}
+	return TRUE;
 }
 
 core_stat_t core_stat(core_handle_t file) {
@@ -303,7 +319,11 @@ core_stat_t core_stat(core_handle_t file) {
 		result.size = info.nFileSizeLow;
 		result.is_directory = info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
 	} else {
-		MessageBox(NULL, "Failed to stat file", "Error", MB_OK);
+		char path[CORE_MAX_PATH_LENGTH];
+		GetFinalPathNameByHandleA(file, path, CORE_MAX_PATH_LENGTH, FILE_NAME_OPENED);
+		char* err = core_win32_error(NULL);
+		core_error("%s: %s", path, err);
+		LocalFree(err);
 	}
 	return result;
 }
