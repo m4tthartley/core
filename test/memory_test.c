@@ -90,7 +90,7 @@ char* celestial_objects[] = {
     // "NGC 6888",
 };
 
-int main() {
+void defrag() {
     char buffer[0x800];
     core_allocator_t arena = core_allocator(buffer, sizeof(buffer));
     core_use_allocator(&arena);
@@ -113,12 +113,37 @@ int main() {
     // core_print(str);
 
     core_print_arena(&arena);
+}
 
+void strings() {
     char* string = "Hello, my name is Matt";
     char* parts[10];
     int num = core_strsplit(parts, 10, string, " ");
     FOR (i, num) {
         core_print(parts[i]);
     }
+
+    char* padded = "     Hello World   \n";
+    core_print(padded);
+    core_strtrim(&padded);
+    core_print(padded);
+
+    char* sub = "Whatever is the matter, Bilbo?";
+    core_print(core_substr(sub, 16, 6));
+
+    char* insert = "Hello World";
+    core_strinsert(&insert, 5, " Stupid");
+    core_print(insert);
+
     int x = 0;
+}
+
+int main() {
+
+    u8 buffer[PAGE_SIZE];
+    core_allocator_t arena = core_allocator(buffer, sizeof(buffer));
+    core_use_allocator(&arena);
+
+    strings();
+    
 }

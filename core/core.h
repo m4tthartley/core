@@ -169,6 +169,9 @@ void core_strprecat(core_string_t* str, core_string_t prepend);
 void core_strinsert(core_string_t* str, u64 index, core_string_t insert);
 void core_strreplace(core_string_t* str, core_string_t find, core_string_t replace);
 void core_strreplace_single(core_string_t* str, core_string_t find, core_string_t replace);
+int core_strsplit(core_string_t* buffer, size_t size, core_string_t str, core_string_t by);
+core_string_t core_substr(core_string_t str, int start, int len);
+void core_strtrim(core_string_t* str);
 void core_strlower(core_string_t* str);
 void core_strupper(core_string_t* str);
 
@@ -569,10 +572,11 @@ void _core_virtual_allocator_commit(core_allocator_t* arena, size_t size) {
 }
 
 void* core_alloc_in(core_allocator_t* arena, size_t size) {
-	if (!arena) {
-		core_error(FALSE, "malloc");
-		return malloc(size);
-	}
+	// if (!arena) {
+	// 	core_error(FALSE, "malloc");
+	// 	return malloc(size);
+	// }
+	assert(arena);
 	assert(arena->address);
 	// This shouldnt be needed for alloc?
 	// It will be caught at the bottom
@@ -610,18 +614,21 @@ void* core_alloc(size_t size) {
 }
 
 void core_free_in(core_allocator_t* arena, u8* block) {
-	if (!arena) {
-		// core_print("free");
-		return free(block);
-	}
+	// if (!arena) {
+	// 	// core_print("free");
+	// 	return free(block);
+	// }
+	assert(arena);
 	assert(block);
-	assert(block >= arena->address && block < arena->address+arena->size);
-	block -= sizeof(core_memblock_t);
-	// arena->stack -= ((core_memblock_t*)block)->size;
-	list_remove(&arena->blocks, block);
-	list_add(&arena->free, block);
+	// assert(block >= arena->address && block < arena->address+arena->size);
+	if (block >= arena->address && block < arena->address+arena->size) {
+		block -= sizeof(core_memblock_t);
+		// arena->stack -= ((core_memblock_t*)block)->size;
+		list_remove(&arena->blocks, block);
+		list_add(&arena->free, block);
 
-	core_defrag_free_block(arena, block);
+		core_defrag_free_block(arena, block);
+	}
 }
 
 void core_free(u8* block) {
@@ -816,36 +823,6 @@ void dynarr_clear(dynarr_t* arr) {
 
 
 // STRINGS
-// TODO string pools
-// TODO string functions
-/*
-	s_split()
-	s_trim()
-	s_slice()
-*/
-// typedef struct {
-// 	char* str;
-// 	u32 len;
-// } string;
-
-// typedef struct {
-// 	u8 buffer[1024*1024];
-// } string_pool;
-// typedef memory_arena string_pool;
-// string_pool* _s_active_pool = NULL;
-
-// void s_create_pool(string_pool* pool, u8* buffer, u64 size) {
-// 	m_freelist(pool, buffer, size);
-// }
-
-// void s_pool(string_pool* pool) {
-// 	_s_active_pool = pool;
-// }
-
-// void s_pool_clear(string_pool* pool) {
-// 	m_clear(pool);
-// }
-
 core_string_t core_allocate_string(size_t len) {
 	core_string_t result = core_alloc(align64(len+1 + sizeof(core_memblock_t), 64));
 	return result;
@@ -857,9 +834,7 @@ int core_strlen(char* str) {
 	return len;
 }
 
-// core_str
 core_string_t core_str(char* str) {
-	// assert(_s_active_pool);
 	u64 len = core_strlen(str);
 	core_string_t result = core_allocate_string(len);
 	if (result) {
@@ -896,10 +871,6 @@ core_string_t core_convert_wide_string(wchar_t* str) {
 
 	return result;
 }
-
-// core_string_t s_copy(core_string_t str) {
-// 	return s_create(str);
-// }
 
 void core_strcpy(core_string_t dest, core_string_t src) {
 	while (*src) {
@@ -973,7 +944,8 @@ void core_strcat(core_string_t* str, core_string_t append) {
 	core_copy(*str + len, append, len2+1);
 }
 
-void core_strprecat(core_string_t* str, core_string_t prepend) {
+// TODO Check str is within allocator, or always reallocate
+void core_strcatb(core_string_t* str, core_string_t prepend) {
 	u64 len = core_strlen(*str);
 	u64 len2 = core_strlen(prepend);
 	core_memblock_t* block = (core_memblock_t*)*str - 1;
@@ -991,22 +963,20 @@ void core_strprecat(core_string_t* str, core_string_t prepend) {
 
 void core_strinsert(core_string_t* str, u64 index, core_string_t insert) {
 	u64 len = core_strlen(*str);
-	assert(index < len);
 	u64 len2 = core_strlen(insert);
-	core_memblock_t* block = (core_memblock_t*)*str - 1;
-	u64 newLen = len + len2 + 1;
-	if(newLen > block->size) {
-		core_string_t newStr = core_allocate_string(newLen);
-		core_copy(newStr+index+len2, *str+index, len+1);
-		core_free(*str);
-		*str = newStr;
-	} else {
-		core_copy(*str+index+len2, *str+index, len+1);
-	}
-	core_copy(*str+index, insert, len2);
+	u64 result_len = len + len2;
+	assert(index < len);
+
+	core_string_t result = core_allocate_string(result_len);
+	core_copy(result, *str, index);
+	core_copy(result+index, insert, len2);
+	core_copy(result+index+len2, *str+index, len-index);
+	result[result_len] = NULL;
+
+	core_free(*str);
+	*str = result;
 }
-// s_split()
-// s_trim()
+
 void core_strreplace(core_string_t* str, core_string_t find, core_string_t replace) {
 	core_memblock_t* block = (core_memblock_t*)*str - 1;
 	int num = core_strfindn(*str, find);
@@ -1060,6 +1030,7 @@ void core_strreplace_single(core_string_t* str, core_string_t find, core_string_
 	*str = newStr;
 }
 
+// TODO maybe do 1 allocation and store all parts in it
 int core_strsplit(core_string_t* buffer, size_t size, core_string_t str, core_string_t by) {
 	int len = core_strlen(str);
 	int by_len = core_strlen(by);
@@ -1100,8 +1071,26 @@ int core_strsplit(core_string_t* buffer, size_t size, core_string_t str, core_st
 	return num_results;
 }
 
-// s_trim()
-// s_slice()
+core_string_t core_substr(core_string_t str, int start, int len) {
+	core_string_t result = core_allocate_string(len);
+	core_copy(result, str+start, len);
+	result[len] = NULL;
+	return result;
+}
+
+void core_strtrim(core_string_t* str) {
+	int len = core_strlen(*str);
+	core_string_t result = core_allocate_string(len);
+	core_string_t start = *str;
+	core_string_t end = *str + len-1;
+	while (*start == ' ' || *start == '\t' || *start == '\r' || *start == '\n') ++start;
+	while (*end == ' ' || *end == '\t' || *end == '\r' || *end == '\n') --end;
+	len = end-start + 1;
+	core_copy(result, start, len);
+	result[len] = NULL;
+	core_free(*str);
+	*str = result;
+}
 
 void core_strlower(core_string_t* str) {
 	core_string_t s = *str;
