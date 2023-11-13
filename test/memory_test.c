@@ -1,4 +1,5 @@
 
+#define CORE_HEADERS_ONLY
 #include <core/core.h>
 
 char* celestial_objects[] = {
@@ -199,6 +200,6 @@ int main() {
     core_allocator_t arena = core_allocator(buffer, sizeof(buffer));
     core_use_allocator(&arena);
 
-    pool();
+    defrag();
     
 }

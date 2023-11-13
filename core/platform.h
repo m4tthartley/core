@@ -16,7 +16,7 @@ enum {
 typedef struct {
 	u64 sec;
 	u64 msec;
-} timestamp_t;
+} core_time_t;
 
 typedef struct {
 	u64 created;
@@ -24,7 +24,7 @@ typedef struct {
 	size_t size;
 	b32 is_directory;
 	char filename[CORE_MAX_PATH_LENGTH];
-} f_info;
+} core_stat_t;
 
 
 // Platform functions
@@ -44,7 +44,7 @@ typedef struct {
 // Threading
 typedef b32 core_barrier_t;
 
-void core_barrier_start(volatile core_barrier_t* barrier) {
+inline void core_barrier_start(volatile core_barrier_t* barrier) {
 	int num = 0;
 	while (!__sync_bool_compare_and_swap((long volatile*)barrier, TRUE, FALSE)) {
 		++num;
@@ -52,22 +52,94 @@ void core_barrier_start(volatile core_barrier_t* barrier) {
 	core_print("SPIN LOCK %i", num);
 }
 
-void core_barrier_end(volatile core_barrier_t* barrier) {
+inline void core_barrier_end(volatile core_barrier_t* barrier) {
 	__sync_lock_test_and_set((long volatile*)barrier, FALSE);
 }
 
 
 #ifdef __WIN32__
-#	include "platform_win32.h"
+
+#	include <winsock2.h>
+#	define WIN32_LEAN_AND_MEAN
+#	include <windows.h>
+// #include <mmeapi.h>
+
+#	define HANDLE_NULL INVALID_HANDLE_VALUE
+#	define HANDLE_STDOUT stdout
+// #define INVALID_SOCKET  (SOCKET)(~0)
+// #define SOCKET_ERROR            (-1)
+typedef void* core_handle_t; // HANDLE
+typedef SOCKET core_socket_t;
+
+char* core_win32_error(DWORD error_code);
+
 #endif
 
-#ifdef __LINUX__
-#	include "platform_linux.h"
-#endif
 
-#ifdef __MACOS__
-#	include "platform_macos.h"
+// Misc definitions
+void core_message_box(char* msg, char* caption, int type);
+
+// Memory definitions
+void* core_reserve_virtual_memory(size_t size);
+void* core_commit_virtual_memory(void* addr, size_t size);
+void* core_allocate_virtual_memory(size_t size);
+void core_free_virtual_memory(void* addr, size_t size);
+void core_zero_memory(void* addr, size_t size);
+void core_copy_memory(void* dest, void* source, size_t size);
+
+// Atomic definitions
+typedef struct {
+#ifdef __WIN32__
+	CRITICAL_SECTION handle;
 #endif
+} core_critical_section_t;
+
+void core_init_critical_section(core_critical_section_t* section);
+void core_enter_critical_section(core_critical_section_t* section);
+void core_exit_critical_section(core_critical_section_t* section);
+int core_swap32(void *ptr, int swap);
+b32 core_compare_swap32(void *ptr, int cmp, int swap);
+int core_add32(void *ptr, int value);
+int core_sub32(void *ptr, int value);
+int core_read32(void *ptr);
+
+// Time definitions
+core_time_t core_system_time();
+char* core_format_time(core_time_t time);
+
+// File definitions
+core_handle_t core_open(char* path);
+core_handle_t core_create_file(char* path);
+core_handle_t core_open_dir(char* path);
+void core_create_dir(char* path);
+int core_dir_list(char* path, b32 recursive, core_stat_t* output, int length);
+int core_read(core_handle_t file, size_t offset, void* output, size_t size);
+void core_write(core_handle_t file, size_t offset, void* data, size_t size);
+core_stat_t core_stat(core_handle_t file);
+void core_close(core_handle_t file);
+void core_current_dir(char* output, size_t size);
+void core_change_dir(char* path);
+
+// Directory watcher definitions
+typedef struct {
+	core_handle_t handle;
+	char path[CORE_MAX_PATH_LENGTH];
+	struct core_directory_watcher_t* watcher;
+} core_watcher_thread_t;
+
+typedef struct {
+	core_handle_t semaphore;
+	core_handle_t ready_event;
+	core_watcher_thread_t threads[64];
+	int directory_count;
+	DWORD filter;
+
+	core_stat_t results[64];
+	int result_count;
+} core_directory_watcher_t;
+
+b32 core_watch_directory_changes(core_directory_watcher_t* watcher, char** dir_paths, int dir_count);
+int core_wait_for_directory_changes(core_directory_watcher_t* watcher, core_stat_t* output, int output_size);
 
 
 #endif
