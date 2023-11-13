@@ -3,16 +3,6 @@
 #define __CORE_HEADER__
 
 
-#include <stdint.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stddef.h>
-#ifdef CORE_CRT_ASSERT
-#	include <assert.h>
-#endif
-
-
 // Define standard platform defs
 #ifdef _WIN32
 #	undef __WIN32__
@@ -23,6 +13,18 @@
 #endif
 #ifdef __APPLE__
 #	define __MACOS__
+#endif
+
+
+#ifdef __LINUX__
+#	include <stdint.h>
+#	include <stdarg.h>
+#	include <stdlib.h>
+#endif
+#include <stddef.h>
+#include <stdio.h>
+#ifdef CORE_CRT_ASSERT
+#	include <assert.h>
 #endif
 
 
@@ -64,8 +66,8 @@ typedef u8 byte;
 // General constants and macros
 #undef NULL
 #define NULL 0
-#define TRUE 1
-#define FALSE 0
+#define TRUE ((int)1)
+#define FALSE ((int)0)
 #define PAGE_SIZE 4096
 
 #define KILOBYTES(n) (n*1024)
@@ -87,7 +89,7 @@ typedef u8 byte;
 // Printing definitions
 void core_print_inline(char* fmt, ...);
 void core_print(char* fmt, ...);
-void core_error(b32 fatal, char* fmt, ...);
+void core_error(char* fmt, ...);
 int core_print_to_buffer(char* buffer, size_t len, char* fmt, ...);
 int core_print_to_buffer_va(char* buffer, size_t len, char* fmt, va_list args);
 
@@ -150,6 +152,22 @@ void  core_free(u8* block);
 void  core_clear_allocator(core_allocator_t* arena);
 void  core_clear_global_allocator();
 
+// Dynarr definitions
+typedef struct {
+	core_stack_t arena;
+	int stride;
+	int max;
+	int count;
+} core_dynarr_t;
+
+core_dynarr_t core_dynarr_static(u8* buffer, size_t size, int stride);
+core_dynarr_t core_dynarr_virtual(size_t size, size_t pages_to_commit, int stride);
+core_dynarr_t core_dynarr(int stride);
+void core_dynarr_push(core_dynarr_t* arr, void* item);
+void core_dynarr_pop(core_dynarr_t* arr, int index);
+void* core_dynarr_get(core_dynarr_t* arr, int index);
+void core_dynarr_clear(core_dynarr_t* arr);
+
 // String definitions
 typedef char* core_string_t;
 core_string_t core_allocate_string(size_t len);
@@ -174,6 +192,9 @@ core_string_t core_substr(core_string_t str, int start, int len);
 void core_strtrim(core_string_t* str);
 void core_strlower(core_string_t* str);
 void core_strupper(core_string_t* str);
+
+// Murmur hash definitions
+u32 murmur3(u8* key);
 
 
 #include "platform.h"
@@ -219,6 +240,9 @@ typedef struct {
 typedef audio_buffer_t wave_t;
 
 
+#ifndef CORE_HEADERS_ONLY
+
+
 // PRINTING
 void core_print_inline(char* fmt, ...) {
 	char str[1024];
@@ -236,16 +260,14 @@ void core_print(char* fmt, ...) {
 	puts(str);
 	va_end(va);
 }
-void core_error(b32 fatal, char* fmt, ...) {
+void core_error(char* fmt, ...) {
+	assert(fmt > (char*)TRUE); // Might be using old format with boolean as first parameter
 	char str[1024];
 	va_list va;
 	va_start(va, fmt);
 	vsnprintf(str, 1024, fmt, va);
 	core_print(TERM_RED_FG "%s" TERM_RESET, str);
 	va_end(va);
-	if (fatal) {
-		exit(1);
-	}
 }
 int core_print_to_buffer(char* buffer, size_t len, char* fmt, ...) {
 	va_list va;
@@ -573,7 +595,7 @@ void _core_virtual_allocator_commit(core_allocator_t* arena, size_t size) {
 
 void* core_alloc_in(core_allocator_t* arena, size_t size) {
 	// if (!arena) {
-	// 	core_error(FALSE, "malloc");
+	// 	core_error("malloc");
 	// 	return malloc(size);
 	// }
 	assert(arena);
@@ -604,7 +626,7 @@ void* core_alloc_in(core_allocator_t* arena, size_t size) {
 #ifdef CORE_CRASHING_ASSERTS
 	assert(!"Failed to find a free block large enough");
 #else
-	core_error(FALSE, "Failed to find a free block large enough");
+	core_error("Failed to find a free block large enough");
 #endif
 	return NULL;
 }
@@ -772,15 +794,8 @@ next:
 
 
 // DYNAMIC ARRAY
-typedef struct {
-	core_stack_t arena;
-	int stride;
-	int max;
-	int count;
-} dynarr_t;
-
-dynarr_t m_dynarr_static(u8* buffer, size_t size, int stride) {
-	dynarr_t result;
+core_dynarr_t core_dynarr_static(u8* buffer, size_t size, int stride) {
+	core_dynarr_t result;
 	result.arena = core_stack(buffer, size);
 	result.stride = stride;
 	result.max = size / stride;
@@ -788,8 +803,8 @@ dynarr_t m_dynarr_static(u8* buffer, size_t size, int stride) {
 	return result;
 }
 
-dynarr_t dynarr_reserve(size_t size, size_t pages_to_commit, int stride) {
-	dynarr_t result;
+core_dynarr_t core_dynarr_virtual(size_t size, size_t pages_to_commit, int stride) {
+	core_dynarr_t result;
 	result.arena = core_virtual_stack(size, pages_to_commit);
 	result.stride = stride;
 	result.max = size / stride;
@@ -797,29 +812,50 @@ dynarr_t dynarr_reserve(size_t size, size_t pages_to_commit, int stride) {
 	return result;
 }
 
-dynarr_t dynarr(int stride) {
-	return dynarr_reserve(GB(1), PAGE_SIZE, stride);
+core_dynarr_t core_dynarr(int stride) {
+	return core_dynarr_virtual(GB(1), PAGE_SIZE, stride);
 }
 
-void dynarr_push(dynarr_t* arr, void* item) {
+void core_dynarr_push(core_dynarr_t* arr, void* item) {
 	void* result = core_push(&arr->arena, arr->stride);
 	core_copy(result, item, arr->stride);
 	++arr->count;
 }
 
-void dynarr_pop(dynarr_t* arr, int index) {
+void core_dynarr_pop(core_dynarr_t* arr, int index) {
 	core_pop_and_shift(&arr->arena, index*arr->stride, arr->stride);
 	--arr->count;
 }
 
-void* dynarr_get(dynarr_t* arr, int index) {
+void* core_dynarr_get(core_dynarr_t* arr, int index) {
 	return arr->arena.address + (arr->stride * index);
 }
 
-void dynarr_clear(dynarr_t* arr) {
+void core_dynarr_clear(core_dynarr_t* arr) {
 	arr->arena.stack = 0;
 	arr->count = 0;
 }
+
+
+// POOL
+// #define core_pool_t(type, size) \
+// 	type
+
+#define core_pool_add(array, item) \
+	FOR (i, array_size(array)) {\
+		if (!(array)[i].used) {\
+			(item).used = TRUE;\
+			(array)[i] = (item);\
+			break;\
+		}\
+	}
+
+#define core_pool_for(array, code) \
+	FOR (i, array_size(array)) {\
+		if ((array)[i].used) {\
+			{code}\
+		}\
+	}
 
 
 // STRINGS
@@ -1163,4 +1199,4 @@ u32 murmur3(u8* key) {
 
 
 #endif
-
+#endif

@@ -138,12 +138,67 @@ void strings() {
     int x = 0;
 }
 
+void dynarrs() {
+    u8 buffer[PAGE_SIZE];
+    core_dynarr_t arr = core_dynarr_static(buffer, sizeof(buffer), sizeof(int));
+
+    FOR (i, 100) {
+        int num = core_rand(0, 100);
+        core_dynarr_push(&arr, &num);
+    }
+
+    FOR (i, arr.count) {
+        int* num = core_dynarr_get(&arr, i);
+        core_print("%i", *num);
+    }
+
+    core_print("clear");
+    core_dynarr_clear(&arr);
+
+    FOR (i, 10) {
+        int num = core_rand(0, 100);
+        core_dynarr_push(&arr, &num);
+    }
+
+    FOR (i, arr.count) {
+        int* num = core_dynarr_get(&arr, i);
+        core_print("%i", *num);
+    }
+
+    core_print("pop");
+    core_dynarr_pop(&arr, 0);
+    core_dynarr_pop(&arr, 1);
+
+    FOR (i, arr.count) {
+        int* num = core_dynarr_get(&arr, i);
+        core_print("%i", *num);
+    }
+}
+
+void pool() {
+    struct {
+        b32 used;
+        int value;
+    } numbers[64] = {0};
+
+    typeof(numbers[0]) a = {0, core_rand(1, 100)};
+    core_pool_add(numbers, a);
+    typeof(numbers[0]) b = {0, core_rand(1, 100)};
+    core_pool_add(numbers, b);
+    typeof(numbers[0]) c = {0, core_rand(1, 100)};
+    core_pool_add(numbers, c);
+
+    core_pool_for(numbers, {
+        core_print("%i", numbers[i].value);
+    })
+}
+
 int main() {
 
     u8 buffer[PAGE_SIZE];
     core_allocator_t arena = core_allocator(buffer, sizeof(buffer));
     core_use_allocator(&arena);
 
-    strings();
+    pool();
     
 }

@@ -58,7 +58,7 @@ int build(char* filename) {
 		core_print("file changed %s \n", filename);
 	}
 
-	int result = system(s_format("sh %s", build_command));
+	int result = system(core_strf("sh %s", build_command));
 
 	if(!result) {
 		core_print(TERM_BRIGHT_GREEN_FG "build successful" TERM_RESET);
@@ -74,10 +74,10 @@ void file_changes(f_info* files, int count) {
 		f_info* file = files + i;
 		char* filename = files[i].filename;
 
-		if( s_find(filename, ".c", 0) ||
-			s_find(filename, ".h", 0) ||
-			s_find(filename, ".txt", 0) ||
-			s_find(filename, ".sh", 0)) {
+		if( core_strfind(filename, ".c", 0) ||
+			core_strfind(filename, ".h", 0) ||
+			core_strfind(filename, ".txt", 0) ||
+			core_strfind(filename, ".sh", 0)) {
 			f_info* saved_file = getFile(filename);
 
 			if(saved_file) {
@@ -109,10 +109,8 @@ int main(int argc, char **argv) {
 	// u8 strBuffer[PAGE_SIZE/8];
 	// string_pool spool;
 	// s_create_pool(&spool, strBuffer, sizeof(strBuffer));
-	m_arena arena;
-	m_freelist(&arena, NULL, 0);
-	m_reserve(&arena, GB(1), 0x1000);
-	s_pool(&arena);
+	core_allocator_t arena = core_virtual_allocator(NULL, 0);
+	core_use_allocator(&arena);
 
 	for (int i=1; i<argc; ++i) {
 		char* arg = argv[i];

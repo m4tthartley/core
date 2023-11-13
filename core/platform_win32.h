@@ -15,6 +15,7 @@ typedef SOCKET socket_t;
 
 
 // Errors
+// This needs to be freed manually with LocalFree, if you care
 char* core_win32_error(DWORD error_code) {
 	if (!error_code) {
 		error_code = GetLastError();
@@ -152,7 +153,7 @@ f_handle f_open(char* path) {
 
 	// TODO: do this for all functions
 	if (core_strlen(path) >= MAX_PATH) {
-		core_error(FALSE, "Sorry, we don't support paths longer than %i", (int)MAX_PATH);
+		core_error("Sorry, we don't support paths longer than %i", (int)MAX_PATH);
 		return NULL;
 	}
 	
@@ -167,7 +168,7 @@ f_handle f_open(char* path) {
 		// 			  NULL, error,
 		// 			  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
 		// 			  (LPTSTR)&msg, 0, NULL);
-		// core_error(FALSE, "Failed to open file %s", path);
+		// core_error("Failed to open file %s", path);
 		return NULL;
 	}
 	return handle;
@@ -201,18 +202,18 @@ f_handle f_open_directory(char* path) {
 	
 	DWORD attributes = GetFileAttributesA(path);
 	if (attributes == INVALID_FILE_ATTRIBUTES) {
-		core_error(FALSE, "Failed to open directory %s", path);
+		core_error("Failed to open directory %s", path);
 		return NULL;
 	}
 	if (!(attributes & FILE_ATTRIBUTE_DIRECTORY)) {
-		core_error(FALSE, "Path is not a directory %s", path);
+		core_error("Path is not a directory %s", path);
 		return NULL;
 	}
 
 	HANDLE handle = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ,
 								0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, 0);
 	if(handle==INVALID_HANDLE_VALUE) {
-		// core_error(FALSE, "Failed to open directory %s", path);
+		// core_error("Failed to open directory %s", path);
 		return NULL;
 	}
 	return handle;
@@ -223,9 +224,9 @@ void f_create_directory(char* path) {
 	if(!success) {
 		DWORD err = GetLastError();
 		if (err == ERROR_ALREADY_EXISTS) {
-			core_error(FALSE, "Directory already exists");
+			core_error("Directory already exists");
 		} else if (err == ERROR_PATH_NOT_FOUND) {
-			core_error(FALSE, "Directory path not found");
+			core_error("Directory path not found");
 		} else {
 			char* err = core_win32_error(NULL);
 			core_print(err);
@@ -240,7 +241,7 @@ int f_directory_list(char* path, b32 recursive, f_info* output, int length) {
 	WIN32_FIND_DATAA find_data;
 	HANDLE find_handle = FindFirstFileA(wildcard, &find_data);
 	if (find_handle == INVALID_HANDLE_VALUE) {
-		core_error(FALSE, "Failed to open directory: %s", path);
+		core_error("Failed to open directory: %s", path);
 		return 0;
 	}
 	do {
@@ -372,7 +373,7 @@ DWORD WINAPI core_watcher_thread_proc(core_watcher_thread_t* thread) {
 		NULL
 	);
 	if (thread->handle == INVALID_HANDLE_VALUE) {
-		core_error(FALSE, "Failed to open directory %s", thread->path);
+		core_error("Failed to open directory %s", thread->path);
 		return NULL;
 	}
 
@@ -392,7 +393,7 @@ DWORD WINAPI core_watcher_thread_proc(core_watcher_thread_t* thread) {
 			NULL
 		);
 		if (!rdc) {
-			core_error(FALSE, "ReadDirectoryChangesW failed: %s", core_win32_error(NULL));
+			core_error("ReadDirectoryChangesW failed: %s", core_win32_error(NULL));
 			continue;
 		}
 
@@ -453,7 +454,7 @@ DWORD WINAPI core_watcher_thread_proc(core_watcher_thread_t* thread) {
 
 b32 core_watch_directory_changes(core_directory_watcher_t* watcher, char** dir_paths, int dir_count) {
 	if (dir_count > array_size(watcher->threads)) {
-		core_error(FALSE, "Maximum of %i directories", array_size(watcher->threads));
+		core_error("Maximum of %i directories", array_size(watcher->threads));
 		return FALSE;
 	}
 	
