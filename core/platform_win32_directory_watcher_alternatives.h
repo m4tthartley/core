@@ -56,7 +56,7 @@
 // 			NULL
 // 		);
 // 		if (!rdc) {
-// 			core_error(FALSE, "ReadDirectoryChangesW failed");
+// 			core_error("ReadDirectoryChangesW failed");
 // 			continue;
 // 		}
 
@@ -105,10 +105,10 @@ b32 core_watch_directory_changes(core_directory_watcher_t* watcher, char** dir_p
 	handles[1] = FindFirstChangeNotification(directories[1].path, TRUE, filter);
 
 	if (handles[0] == INVALID_HANDLE_VALUE) {
-		core_error(TRUE, "FindFirstChangeNotification");
+		core_error("FindFirstChangeNotification");
 	}
 	if (handles[1] == INVALID_HANDLE_VALUE) {
-		core_error(TRUE, "FindFirstChangeNotification");
+		core_error("FindFirstChangeNotification");
 	}
 
 	for (;;) {
@@ -160,13 +160,13 @@ b32 core_watch_directory_changes(core_directory_watcher_t* watcher, char** dir_p
 			}
 
 		} else {
-			core_error(FALSE, "wait %i", wait-WAIT_OBJECT_0);
+			core_error("wait %i", wait-WAIT_OBJECT_0);
 		}
 
 		// m_zero(change_buffer, sizeof(change_buffer));
 
 		if(!FindNextChangeNotification(handles[wait-WAIT_OBJECT_0])) {
-			core_error(TRUE, "FindNextChangeNotification");
+			core_error("FindNextChangeNotification");
 		}
 	}
 }
@@ -228,7 +228,7 @@ void dir_read_changes(core_watcher_thread_t* thread) {
 		completion_routine
 	);
 	if (!rdc) {
-		core_error(FALSE, "ReadDirectoryChangesW failed");
+		core_error("ReadDirectoryChangesW failed");
 	}
 }
 
@@ -304,7 +304,7 @@ DWORD WINAPI core_watcher_thread_proc(core_watcher_thread_t* thread) {
 		NULL
 	);
 	if (thread->handle == INVALID_HANDLE_VALUE) {
-		core_error(FALSE, "Failed to open directory %s", thread->path);
+		core_error("Failed to open directory %s", thread->path);
 		return NULL;
 	}
 	// thread->handle = watcher->handles[i];
@@ -337,7 +337,7 @@ DWORD WINAPI core_watcher_thread_proc(core_watcher_thread_t* thread) {
 
 b32 core_watch_directory_changes(core_directory_watcher_t* watcher, char** dir_paths, int dir_count) {
 	if (dir_count > array_size(watcher->handles)) {
-		core_error(FALSE, "You can't have more than %i directories", array_size(watcher->handles));
+		core_error("You can't have more than %i directories", array_size(watcher->handles));
 		return FALSE;
 	}
 	
@@ -399,7 +399,7 @@ typedef struct {
 
 b32 core_watch_directory_changes(core_directory_watcher_t* watcher, char** dir_paths, int dir_count) {
 	if (dir_count > array_size(watcher->handles)) {
-		core_error(FALSE, "You can't have more than %i directories", array_size(watcher->handles));
+		core_error("You can't have more than %i directories", array_size(watcher->handles));
 		return FALSE;
 	}
 	
@@ -409,7 +409,7 @@ b32 core_watch_directory_changes(core_directory_watcher_t* watcher, char** dir_p
 	FOR (i, dir_count) {
 		watcher->handles[i] = FindFirstChangeNotification(dir_paths[i], TRUE, watcher->filter);
 		if (watcher->handles[i] == INVALID_HANDLE_VALUE) {
-			core_error(FALSE, "Failed to open directory %s", dir_paths[i]);
+			core_error("Failed to open directory %s", dir_paths[i]);
 			return NULL;
 		}
 	}
@@ -424,7 +424,7 @@ void core_wait_for_directory_changes(core_directory_watcher_t* watcher, f_info* 
 	DWORD wait  = WaitForMultipleObjects(watcher->directory_count, watcher->handles, FALSE, INFINITE);
 
 	if (wait < WAIT_OBJECT_0 || wait >= WAIT_OBJECT_0+watcher->directory_count) {
-		core_error(FALSE, "wait %i", wait-WAIT_OBJECT_0);
+		core_error("wait %i", wait-WAIT_OBJECT_0);
 	}
 
 	u8 change_buffer[512] = {0};
@@ -441,7 +441,7 @@ void core_wait_for_directory_changes(core_directory_watcher_t* watcher, f_info* 
 		NULL
 	);
 	if (!rdc) {
-		core_error(FALSE, "ReadDirectoryChangesW failed");
+		core_error("ReadDirectoryChangesW failed");
 		return;
 	}
 
@@ -475,7 +475,7 @@ void core_wait_for_directory_changes(core_directory_watcher_t* watcher, f_info* 
 	printf("\n\n");
 
 	if(!FindNextChangeNotification(watcher->handles[wait-WAIT_OBJECT_0])) {
-		core_error(TRUE, "FindNextChangeNotification");
+		core_error("FindNextChangeNotification");
 	}
 }
 #endif

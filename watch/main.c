@@ -42,7 +42,7 @@ f_info* addFile(char* filename, f_info info) {
 		*file = info;
 		return file;
 	} else {
-		core_error(FALSE, "Failed to add file");
+		core_error("Failed to add file");
 	}
 	return NULL;
 }
@@ -128,13 +128,13 @@ int main(int argc, char **argv) {
 
 				f_handle handle = f_open_directory(dir->path);
 				if (!handle) {
-					core_error(FALSE, "Unable to find directory \"%s\"", dir->path);
+					core_error("Unable to find directory \"%s\"", dir->path);
 					print_usage();
 					exit(1);
 				}
 				f_close(handle);
 			} else {
-				core_error(FALSE, "too many directories");
+				core_error("too many directories");
 				print_usage();
 				exit(1);
 			}
@@ -151,7 +151,7 @@ int main(int argc, char **argv) {
 	}
 
 	if (!directory_count) {
-		core_error(FALSE, "no directories specified");
+		core_error("no directories specified");
 		print_usage();
 		exit(1);
 	}

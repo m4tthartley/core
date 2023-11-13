@@ -223,7 +223,7 @@ char* core_format_time(timestamp_t timestamp) {
 
 // Files
 #define core_print_file_error()\
-	core_error(FALSE, "%s: %s", path, strerror(errno))
+	core_error("%s: %s", path, strerror(errno))
 
 f_handle f_open(char* path) {
 	int handle = open(path, O_RDWR);
@@ -348,10 +348,10 @@ int f_directory_list(char* path, b32 recursive, f_info* output, int length) {
 int f_read(f_handle file, size_t offset, void* buffer, size_t size) {
 	int result = pread(file, buffer, size, offset);
 	if (result == -1) {
-		core_error(FALSE, strerror(errno));
+		core_error(strerror(errno));
 	}
 	if (result != size) {
-		core_error(FALSE, strerror(errno));
+		core_error(strerror(errno));
 	}
 	return result;
 }
@@ -359,10 +359,10 @@ int f_read(f_handle file, size_t offset, void* buffer, size_t size) {
 int f_write(f_handle file, size_t offset, void* buffer, size_t size) {
 	int result = pwrite(file, buffer, size, offset);
 	if (result == -1) {
-		core_error(FALSE, strerror(errno));
+		core_error(strerror(errno));
 	}
 	if (result != size) {
-		core_error(FALSE, strerror(errno));
+		core_error(strerror(errno));
 	}
 	return result;
 }
@@ -372,7 +372,7 @@ f_info f_stat(f_handle file) {
 	struct stat stats;
 	int stat_result = fstat(file, &stats);
 	if (stat_result == -1) {
-		core_error(FALSE, strerror(errno));
+		core_error(strerror(errno));
 	}
 	result.created = 0;
 	result.modified = stats.st_mtim.tv_sec*1000 + (stats.st_mtim.tv_nsec/1000000);

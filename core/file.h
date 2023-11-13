@@ -48,7 +48,7 @@ bitmap_t* f_load_bitmap(memory_arena* arena, char* filename) {
 
 	fontFile = fopen(filename, "r"); // todo: this stuff crashes when file not found
 	if(!fontFile) {
-		core_error(FALSE, "Unable to open file: %s", filename);
+		core_error("Unable to open file: %s", filename);
 		return NULL;
 	}
 	fseek(fontFile, 0, SEEK_END);
@@ -221,7 +221,7 @@ wave_t* f_load_wave(memory_arena* arena, char* filename) {
 	FILE* file;
 	file = fopen(filename, "r");
 	if(!file) {
-		core_error(FALSE, "Unable to open file: %s", filename);
+		core_error("Unable to open file: %s", filename);
 		return NULL;
 	}
 	fseek(file, 0, SEEK_END);
