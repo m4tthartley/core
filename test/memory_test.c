@@ -2,6 +2,8 @@
 #define CORE_HEADERS_ONLY
 #include <core/core.h>
 
+#include <core/math.h>
+
 char* celestial_objects[] = {
     "Andromeda Galaxy",
     "Pleiades Star Cluster",
@@ -91,6 +93,7 @@ char* celestial_objects[] = {
     // "NGC 6888",
 };
 
+#if 1
 void defrag() {
     char buffer[0x800];
     core_allocator_t arena = core_allocator(buffer, sizeof(buffer));
@@ -203,3 +206,4 @@ int main() {
     defrag();
     
 }
+#endif

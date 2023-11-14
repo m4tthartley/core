@@ -94,9 +94,11 @@ int core_print_to_buffer(char* buffer, size_t len, char* fmt, ...);
 int core_print_to_buffer_va(char* buffer, size_t len, char* fmt, va_list args);
 
 // Misc definitions
+int valign(int n, int stride);
 u64 align64(u64 size, u64 align);
+u32 align32(u32 size, u32 align);
 f32 core_randf();
-f32 core_randf_range(f32 a, f32 b);
+f32 core_randfr(f32 a, f32 b);
 int core_rand(int min, int max);
 
 // Linked list definitions

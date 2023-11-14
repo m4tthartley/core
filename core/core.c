@@ -55,32 +55,11 @@ int core_print_to_buffer_va(char* buffer, size_t len, char* fmt, va_list args) {
 
 
 // MISC
-// Power of 2 align
-u64 align64(u64 size, u64 align) {
-	if(!(size & (align-1))) {
-		return size;
-	} else {
-		return (size & ~(align-1)) + align;
-	}
-}
-
-// int align_pow2_round_down(int value) {
-// 	int l = log2(value);
-// 	int target = 0x1 << l;
-// 	return target;
-// }
-//
-// int align_pow2_round_up(int value) {
-// 	int l = log2(value) + 1;
-// 	int target = 0x1 << l;
-// 	return target;
-// }
-
 f32 core_randf() {
 	f32 result = (f32)rand() / (f32)RAND_MAX;
 	return result;
 }
-f32 core_randf_range(f32 a, f32 b) {
+f32 core_randfr(f32 a, f32 b) {
 	f32 result = (f32)rand() / (f32)RAND_MAX;
 	result = a + (b-a)*result;
 	return result;
@@ -89,6 +68,45 @@ int core_rand(int min, int max) {
 	int result = rand() % (max-min);
 	return min + result;
 }
+
+
+// ALIGNMENT
+// non power of 2 align
+int valign(int n, int stride) {
+	return (n/stride + 1)*stride;
+}
+/*int roundUp(int n, int stride) {
+	return (n/stride + 1)*stride;
+}
+int roundDown(int n, int stride) {
+	return (n/stride)*stride;
+}*/
+
+// Power of 2 align
+u64 align64(u64 size, u64 align) {
+	if(!(size & (align-1))) {
+		return size;
+	} else {
+		return (size & ~(align-1)) + align;
+	}
+}
+u32 align32(u32 size, u32 align) {
+	if(!(size & (align-1))) {
+		return size;
+	} else {
+		return (size & ~(align-1)) + align;
+	}
+}
+// int align_pow2_round_down(int value) {
+// 	int l = log2(value);
+// 	int target = 0x1 << l;
+// 	return target;
+// }
+// int align_pow2_round_up(int value) {
+// 	int l = log2(value) + 1;
+// 	int target = 0x1 << l;
+// 	return target;
+// }
 
 
 // LINKED LISTS
