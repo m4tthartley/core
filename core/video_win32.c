@@ -24,7 +24,11 @@ b32 core_window(core_window_t* window, char* title, int width, int height, int f
 	windowClass.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
 	windowClass.lpfnWndProc = _core_wndproc;
 	// TODO: Test, apparently getting the hInstance this way can cause issues if used in a dll
-	HMODULE hInstance = GetModuleHandle(NULL);
+	HMODULE hinstance = GetModuleHandle(NULL);
+	if (!hinstance) {
+		core_error("GetModuleHandle: %s", core_win32_error(NULL));
+		return FALSE;
+	}
 	// windowClass.hInstance = hInstance;
 	windowClass.lpszClassName = "CoreWindowClass";
 	windowClass.hCursor = LoadCursor(0, IDC_ARROW);
@@ -73,11 +77,12 @@ b32 core_window(core_window_t* window, char* title, int width, int height, int f
 		adjusted.y,
 		0,
 		0,
-		hInstance,
+		hinstance,
 		0);
 
 	if(!hwnd) {
-		core_win32_error(0, TRUE, "CreateWindowA failed");
+		core_error("CreateWindowExA: %s", core_win32_error(NULL));
+		return FALSE;
 	}
 
 	SetWindowLong(hwnd, GWL_STYLE, style);
@@ -96,14 +101,14 @@ b32 core_window(core_window_t* window, char* title, int width, int height, int f
 	mouse_raw_input.dwFlags = 0;
 	mouse_raw_input.hwndTarget = window->hwnd;
 	if(!RegisterRawInputDevices(&mouse_raw_input, 1, sizeof(mouse_raw_input))) {
-		core_win32_error(0, FALSE, "RegisterRawInputDevices failed");
+		core_error("RegisterRawInputDevices: %s", core_win32_error(NULL));
 	}
 
 	window->quit = FALSE;
 	SetWindowLongPtrA(hwnd, GWLP_USERDATA, (LONG_PTR)window);
 	SetFocus(hwnd);
 
-	return;
+	return TRUE;
 }
 
 LRESULT CALLBACK _core_wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
@@ -112,8 +117,6 @@ LRESULT CALLBACK _core_wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
 	LRESULT result = 0;
 	switch (message) {
 		case WM_DESTROY: {
-			// rain->quit = true;
-			print("WM_DESTROY");
 			exit(0);
 		} break;
 		case WM_INPUT: {
@@ -192,7 +195,7 @@ wglCreateContextAttribsARB_proc *wglCreateContextAttribsARB;
 typedef BOOL WINAPI wglChoosePixelFormatARB_proc(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
 wglChoosePixelFormatARB_proc *wglChoosePixelFormatARB;
 
-void core_opengl(core_window_t* window) {
+b32 core_opengl(core_window_t* window) {
 	HDC hdc = window->hdc;
 	PIXELFORMATDESCRIPTOR pixelFormat = {0};
 	pixelFormat.nSize = sizeof(PIXELFORMATDESCRIPTOR);
@@ -205,20 +208,24 @@ void core_opengl(core_window_t* window) {
 
 	int suggestedIndex = ChoosePixelFormat(hdc, &pixelFormat);
 	if (!suggestedIndex) {
-		core_win32_error(0, FALSE, "OpenGL initialisation failed: ChoosePixelFormat");
+		core_error("ChoosePixelFormat: %s", core_win32_error(NULL));
+		return FALSE;
 	}
 	PIXELFORMATDESCRIPTOR suggested;
 	DescribePixelFormat(hdc, suggestedIndex, sizeof(PIXELFORMATDESCRIPTOR), &suggested);
 	if (!SetPixelFormat(hdc, suggestedIndex, &suggested)) {
-		core_win32_error(0, FALSE, "OpenGL initialisation failed: SetPixelFormat");
+		core_error("SetPixelFormat: %s", core_win32_error(NULL));
+		return FALSE;
 	}
 
 	HGLRC glContext = wglCreateContext(hdc);
 	if (!glContext) {
-		core_win32_error(0, FALSE, "OpenGL initialisation failed: wglCreateContext");
+		core_error("wglCreateContext: %s", core_win32_error(NULL));
+		return FALSE;
 	}
 	if (!wglMakeCurrent(hdc, glContext)) {
-		core_win32_error(0, FALSE, "OpenGL initialisation failed: wglMakeCurrent");
+		core_error("wglMakeCurrent: %s", core_win32_error(NULL));
+		return FALSE;
 	}
 
 	// Upgrade to extended context
@@ -241,7 +248,11 @@ void core_opengl(core_window_t* window) {
 	};
 	int format;
 	int num_formats;
-	wglChoosePixelFormatARB(hdc, format_attribs, NULL, 1, &format, &num_formats);
+	BOOL choose_format_result = wglChoosePixelFormatARB(hdc, format_attribs, NULL, 1, &format, &num_formats);
+	if (!choose_format_result) {
+		core_error("wglChoosePixelFormatARB: %s", core_win32_error(NULL));
+		return FALSE;
+	}
 
 	int attribs[] = {
 		WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
@@ -251,7 +262,16 @@ void core_opengl(core_window_t* window) {
 		0
 	};
 	HGLRC context = wglCreateContextAttribsARB(hdc, 0, attribs);
-	wglMakeCurrent(hdc, context);
+	if (!context) {
+		core_error("wglCreateContextAttribsARB: %s", core_win32_error(NULL));
+		return FALSE;
+	}
+
+	BOOL make_current_result = wglMakeCurrent(hdc, context);
+	if (!make_current_result) {
+		core_error("wglMakeCurrent: %s", core_win32_error(NULL));
+		return FALSE;
+	}
 
 	const char* gl_extensions = glGetString(GL_EXTENSIONS);
 
