@@ -1,6 +1,6 @@
 
 #include "core.h"
-#include "math.c"
+#include "video.h"
 
 #include <gl/gl.h>
 
@@ -10,72 +10,6 @@
 // #define double __DONT_USE_DOUBLE__
 // #define float __DONT_USE_FLOAT__
 
-#define KEY_F1 0x70
-#define KEY_F2 0x71
-#define KEY_F3 0x72
-#define KEY_F4 0x73
-#define KEY_F5 0x74
-#define KEY_F6 0x75
-#define KEY_F7 0x76
-#define KEY_F8 0x77
-#define KEY_F9 0x78
-#define KEY_F10 0x79
-#define KEY_F11 0x7A
-#define KEY_F12 0x7B
-#define KEY_LEFT 0x25
-#define KEY_UP 0x26
-#define KEY_RIGHT 0x27
-#define KEY_DOWN 0x28
-#define KEY_BACK 0x08
-#define KEY_TAB 0x09
-#define KEY_RETURN 0x0D
-#define KEY_SHIFT 0x10
-#define KEY_CONTROL 0x11
-#define KEY_MENU 0x12
-#define KEY_ESC 0x1B
-#define KEY_SPACE 0x20
-
-typedef BOOL (*wglSwapIntervalEXT_proc)(int interval);
-typedef int (*wglGetSwapIntervalEXT_proc)(void);
-
-enum {
-	WINDOW_DEFAULT = (1<<0),
-	WINDOW_CENTERED = (1<<1),
-	WINDOW_BORDERED = (1<<2),
-	WINDOW_BORDERLESS = (1<<3),
-};
-
-typedef struct {
-	b32 down;
-	b32 pressed;
-	b32 released;
-} core_button_t;
-
-typedef struct {
-} core_keyboard_t;
-
-typedef struct {
-	vec2_t pos;
-	vec2_t pos_dt;
-	core_button_t left;
-	core_button_t right;
-	int wheel_dt;
-} core_mouse_t;
-
-typedef struct {
-	HWND hwnd;
-	HDC hdc;
-	int width;
-	int height;
-	b32 quit;
-	core_button_t keyboard[256];
-	core_mouse_t mouse;
-
-	// GL
-	wglSwapIntervalEXT_proc wglSwapIntervalEXT;
-	wglGetSwapIntervalEXT_proc wglGetSwapIntervalEXT;
-} core_window_t;
-
 LRESULT CALLBACK _core_wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
 
 void _core_update_button(core_button_t *button, b32 new_state) {
@@ -84,7 +18,7 @@ void _core_update_button(core_button_t *button, b32 new_state) {
 	button->down = new_state;
 }
 
-void core_window(core_window_t* window, char* title, int width, int height, int flags) {
+b32 core_window(core_window_t* window, char* title, int width, int height, int flags) {
 	// HINSTANCE hinstance = __ImageBase;
 	WNDCLASS windowClass = {0};
 	windowClass.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
@@ -111,7 +45,8 @@ void core_window(core_window_t* window, char* title, int width, int height, int 
 	// }
 
 	if(!RegisterClassA(&windowClass)) {
-		core_win32_error(0, TRUE, "RegisterClassA failed");
+		core_error("RegisterClassA: %s", core_win32_error(NULL));
+		return FALSE;
 	}
 
 	POINTS adjusted = {

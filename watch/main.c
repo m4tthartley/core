@@ -10,7 +10,7 @@
 // #define VERSION "0.6.1"
 #define SIMULATE_MULTIPLE_DIRECTORY 0
 
-f_info files[256];
+core_stat_t files[256];
 int file_count = 0;
 
 typedef struct {
@@ -27,7 +27,7 @@ int directory_count = 0;
 b32 verbose_mode = FALSE;
 char* build_command = "./build.sh";
 
-f_info* getFile(char* filename) {
+core_stat_t* getFile(char* filename) {
 	for(int i=0; i<file_count; ++i) {
 		if(!strcmp(files[i].filename, filename)) {
 			return files + i;
@@ -36,9 +36,9 @@ f_info* getFile(char* filename) {
 	return NULL;
 }
 
-f_info* addFile(char* filename, f_info info) {
+core_stat_t* addFile(char* filename, core_stat_t info) {
 	if (file_count < 256) {
-		f_info* file = files + file_count++;
+		core_stat_t* file = files + file_count++;
 		*file = info;
 		return file;
 	} else {
@@ -69,16 +69,16 @@ int build(char* filename) {
 	return result;
 }
 
-void file_changes(f_info* files, int count) {
+void file_changes(core_stat_t* files, int count) {
 	FOR (i, count) {
-		f_info* file = files + i;
+		core_stat_t* file = files + i;
 		char* filename = files[i].filename;
 
 		if( core_strfind(filename, ".c", 0) ||
 			core_strfind(filename, ".h", 0) ||
 			core_strfind(filename, ".txt", 0) ||
 			core_strfind(filename, ".sh", 0)) {
-			f_info* saved_file = getFile(filename);
+			core_stat_t* saved_file = getFile(filename);
 
 			if(saved_file) {
 				if(file->modified - saved_file->modified < 1000) {
@@ -126,13 +126,13 @@ int main(int argc, char **argv) {
 					GetFullPathNameA(argv[i], CORE_MAX_PATH_LENGTH, dir->path, NULL);
 				}
 
-				f_handle handle = f_open_directory(dir->path);
+				core_handle_t handle = core_open_dir(dir->path);
 				if (!handle) {
 					core_error("Unable to find directory \"%s\"", dir->path);
 					print_usage();
 					exit(1);
 				}
-				f_close(handle);
+				core_close(handle);
 			} else {
 				core_error("too many directories");
 				print_usage();
@@ -174,7 +174,7 @@ int main(int argc, char **argv) {
 	core_directory_watcher_t watcher;
 	core_watch_directory_changes(&watcher, dirpaths, directory_count);
 	for (;;) {
-		f_info changes[64];
+		core_stat_t changes[64];
 		int count = core_wait_for_directory_changes(&watcher, changes, 64);
 		// FOR (i, count) {
 		// 	// core_print("%s %llu", changes[i].filename, changes[i].modified);

@@ -1,7 +1,7 @@
 
 #define CORE_HEADERS_ONLY
 #include <core/core.h>
-
+#include <core/video.h>
 #include <core/math.h>
 
 char* celestial_objects[] = {
