@@ -102,19 +102,25 @@ f32 core_randfr(f32 a, f32 b);
 int core_rand(int min, int max);
 
 // Linked list definitions
-typedef struct list_node list_node;
-struct list_node {
-	list_node* next;
-	list_node* prev;
+typedef struct core_node_t core_node_t;
+struct core_node_t {
+	core_node_t* next;
+	core_node_t* prev;
 };
 typedef struct {
-	list_node* first;
-	list_node* last;
-} list;
+	core_node_t* first;
+	core_node_t* last;
+} core_list_t;
+
+void list_add(core_list_t* list, core_node_t* item);
+void list_add_beginning(core_list_t* list, core_node_t* item);
+void list_add_after(core_list_t* list, core_node_t* node, core_node_t* item);
+void list_add_before(core_list_t* list, core_node_t* node, core_node_t* item);
+void list_remove(core_list_t* list, core_node_t* item);
 
 // Memory definitions
 typedef struct {
-	list_node node;
+	core_node_t node;
 	u64 size;
 } core_memblock_t;
 typedef struct {
@@ -127,8 +133,8 @@ typedef struct {
 	u8* address;
 	u64 size;
 	u64 commit;
-	list blocks;
-	list free;
+	core_list_t blocks;
+	core_list_t free;
 } core_allocator_t;
 
 void core_zero(u8* address, int size);

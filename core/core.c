@@ -110,7 +110,7 @@ u32 align32(u32 size, u32 align) {
 
 
 // LINKED LISTS
-void list_add(list* list, list_node* item) {
+void list_add(core_list_t* list, core_node_t* item) {
 	item->next = 0;
 	item->prev = 0;
 	if(list->last) {
@@ -122,7 +122,7 @@ void list_add(list* list, list_node* item) {
 		list->last = item;
 	}
 }
-void list_add_beginning(list* list, list_node* item) {
+void list_add_beginning(core_list_t* list, core_node_t* item) {
 	item->next = 0;
 	item->prev = 0;
 	if(list->first) {
@@ -134,7 +134,7 @@ void list_add_beginning(list* list, list_node* item) {
 		list->last = item;
 	}
 }
-void list_add_after(list* list, list_node* node, list_node* item) {
+void list_add_after(core_list_t* list, core_node_t* node, core_node_t* item) {
 	item->prev = node;
 	if(node->next) {
 		item->next = node->next;
@@ -145,7 +145,7 @@ void list_add_after(list* list, list_node* node, list_node* item) {
 		item->next = 0;
 	}
 }
-void list_add_before(list* list, list_node* node, list_node* item) {
+void list_add_before(core_list_t* list, core_node_t* node, core_node_t* item) {
 	item->next = node;
 	if(node->prev) {
 		item->prev = node->prev;
@@ -156,7 +156,7 @@ void list_add_before(list* list, list_node* node, list_node* item) {
 		item->prev = 0;
 	}
 }
-void list_remove(list* list, list_node* item) {
+void list_remove(core_list_t* list, core_node_t* item) {
 	if(!item->prev) {
 		list->first = item->next;
 	} else {
@@ -326,7 +326,7 @@ void core_pop_and_shift(core_stack_t* arena, size_t offset, size_t size) {
 void core_defrag_free_block(core_allocator_t* arena, core_memblock_t* block) {
 	core_memblock_t* free = arena->free.first;
 	while(free) {
-		core_memblock_t* next_free = ((list_node*)free)->next;
+		core_memblock_t* next_free = ((core_node_t*)free)->next;
 
 		if (free != block) {
 			if ((u8*)free == (u8*)block + block->size) {
@@ -405,7 +405,7 @@ void* core_alloc_in(core_allocator_t* arena, size_t size) {
 		if(free->size >= required_size) {
 			return _core_alloc_into_free(arena, free, required_size);
 		}
-		free = ((list_node*)free)->next;
+		free = ((core_node_t*)free)->next;
 	}
 
 	if(is_arena_virtual(arena)) {
@@ -448,8 +448,8 @@ void core_free(u8* block) {
 }
 
 void core_clear_allocator(core_allocator_t* arena) {
-	arena->blocks = (list){0};
-	arena->free = (list){0};
+	arena->blocks = (core_list_t){0};
+	arena->free = (core_list_t){0};
 	((core_memblock_t*)arena->address)->size = arena->commit;
 	list_add(&arena->free, arena->address);
 }
@@ -552,7 +552,7 @@ void core_print_arena(core_allocator_t* arena) {
 				index += b->size;
 				goto next;
 			}
-			b = ((list_node*)b)->next;
+			b = ((core_node_t*)b)->next;
 		}
 
 		core_memblock_t* f = arena->free.first;
@@ -570,7 +570,7 @@ void core_print_arena(core_allocator_t* arena) {
 				index += f->size;
 				goto next;
 			}
-			f = ((list_node*)f)->next;
+			f = ((core_node_t*)f)->next;
 		}
 
 		core_print_inline(TERM_RED_BG "FATAL ERROR");
