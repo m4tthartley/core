@@ -1,4 +1,10 @@
-// General system platform specific api 
+//
+//  platform.h
+//  Core
+//
+//  Created by Matt Hartley on 16/09/2023.
+//  Copyright 2023 GiantJelly. All rights reserved.
+//
 
 #ifndef __CORE_PLATFORM_HEADER__
 #define __CORE_PLATFORM_HEADER__

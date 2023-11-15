@@ -1,5 +1,10 @@
-//#define GL_GLEXT_PROTOTYPES
-//#include "w:/lib/glext.h"
+//
+//  gfx.c
+//  Core
+//
+//  Created by Matt Hartley on 22/08/2023.
+//  Copyright 2023 GiantJelly. All rights reserved.
+//
 
 #define WIN32_LEAN_AND_MEAN
 #include <WINDOWS.H>

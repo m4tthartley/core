@@ -1,8 +1,13 @@
+//
+//  video_win32.c
+//  Core
+//
+//  Created by Matt Hartley on 26/10/2023.
+//  Copyright 2023 GiantJelly. All rights reserved.
+//
 
 #include "core.h"
 #include "video.h"
-
-#include <gl/gl.h>
 
 
 // #include "audio.h"

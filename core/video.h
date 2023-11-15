@@ -1,6 +1,6 @@
 //
 //  video.h
-//  pong
+//  Core
 //
 //  Created by Matt Hartley on 14/11/2023.
 //  Copyright 2023 GiantJelly. All rights reserved.
@@ -11,6 +11,8 @@
 
 
 #include "core.h"
+
+#include <gl/gl.h>
 
 
 #define KEY_F1 0x70

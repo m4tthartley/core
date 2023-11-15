@@ -1,3 +1,10 @@
+//
+//  platform_linux.h
+//  Core
+//
+//  Created by Matt Hartley on 26/10/2023.
+//  Copyright 2023 GiantJelly. All rights reserved.
+//
 
 #include <sys/mman.h>
 #include <fcntl.h>

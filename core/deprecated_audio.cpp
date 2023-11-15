@@ -1,3 +1,10 @@
+//
+//  audio.cpp
+//  Core
+//
+//  Created by Matt Hartley on 22/09/2023.
+//  Copyright 2023 GiantJelly. All rights reserved.
+//
 
 // Win32 audio using WASAPI
 

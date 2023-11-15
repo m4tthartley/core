@@ -1,3 +1,11 @@
+//
+//  terminal.h
+//  Core
+//
+//  Created by Matt Hartley on 15/09/2023.
+//  Copyright 2023 GiantJelly. All rights reserved.
+//
+
 // ANSI ESCAPE SEQUENCES
 // typedef enum {
 // 	EC_DEFAULT = 0,

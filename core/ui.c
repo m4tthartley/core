@@ -1,4 +1,11 @@
-/* date = October 24th 2022 9:16 pm */
+//
+//  ui.c
+//  Core
+//
+//  Created by Matt Hartley on 22/08/2023.
+//  Original date from JingleCats October 24th 2022
+//  Copyright 2023 GiantJelly. All rights reserved.
+//
 
 #ifdef _UI_HEADER
 #undef _UI_HEADER

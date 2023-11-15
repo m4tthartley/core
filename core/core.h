@@ -1,3 +1,10 @@
+//
+//  core.h
+//  Core
+//
+//  Created by Matt Hartley on 13/11/2023.
+//  Copyright 2023 GiantJelly. All rights reserved.
+//
 
 #ifndef __CORE_HEADER__
 #define __CORE_HEADER__

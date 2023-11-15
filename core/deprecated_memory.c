@@ -1,3 +1,10 @@
+//
+//  memory.c
+//  Core
+//
+//  Created by Matt Hartley on 22/08/2023.
+//  Copyright 2023 GiantJelly. All rights reserved.
+//
 
 #define COREAPI
 

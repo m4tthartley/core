@@ -1,5 +1,11 @@
+//
+//  audio.h
+//  Core
+//
+//  Created by Matt Hartley on 22/09/2023.
+//  Copyright 2023 GiantJelly. All rights reserved.
+//
 
-// C interface for cpp wasapi stuff
 #include "core.h"
 #include "math.c"
 

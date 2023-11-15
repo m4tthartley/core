@@ -1,3 +1,10 @@
+//
+//  math.h
+//  Core
+//
+//  Created by Matt Hartley on 26/10/2023.
+//  Copyright 2023 GiantJelly. All rights reserved.
+//
 
 #include <stdlib.h>
 #include <math.h>

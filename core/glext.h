@@ -1,3 +1,11 @@
+//
+//  glext.h
+//  Core
+//
+//  Created by Matt Hartley on 22/08/2023.
+//  Copyright 2023 GiantJelly. All rights reserved.
+//
+
 typedef GLuint (GLDECL *CreateShaderProc)(GLenum type);
 typedef void (GLDECL *ShaderSourceProc)(GLuint shader, GLsizei count, const GLchar * const *string, const GLint *length);
 typedef void (GLDECL *CompileShaderProc)(GLuint shader);

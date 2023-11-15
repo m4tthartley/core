@@ -1,3 +1,10 @@
+//
+//  platform_win32_directory_watcher_alternatives.h
+//  Core
+//
+//  Created by Matt Hartley on 30/10/2023.
+//  Copyright 2023 GiantJelly. All rights reserved.
+//
 
 // void core_watcher_handle_change(core_directory_watcher_t* watcher, u8* change_buffer) {
 // 	printf("ReadDirectoryChangesW bytes %i %lu, ", directory_index, bytes);
