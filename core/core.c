@@ -1,9 +1,3 @@
-/**
- * @Author: Your name
- * @Date:   2023-09-02 14:38:03
- * @Last Modified by:   Your name
- * @Last Modified time: 2023-11-16 07:46:14
- */
 //
 //  core.c
 //  Core
