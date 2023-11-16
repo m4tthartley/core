@@ -2,9 +2,13 @@
 //  im.c
 //  Core
 //
-//  Created by Matt Hartley on 15/11/2023.
+//  Created by Matt Hartley on 16/11/2023.
 //  Copyright 2023 GiantJelly. All rights reserved.
 //
+
+#include "video.h"
+#include "im.h"
+#include "font/default_font.h"
 
 gfx_texture_t* _gfx_active_texture = NULL;
 vec2_t _gfx_coord_system = {1.0f, 1.0f};

@@ -43,7 +43,7 @@ typedef struct {
 	bmp_header* header;
 } bmp;
 
-bitmap_t* f_load_bitmap(memory_arena* arena, char* filename) {
+bitmap_t* f_load_bitmap(char* filename) {
 	// TODO replace with platform functions
 	FILE* fontFile;
 	long fileSize;
@@ -71,7 +71,7 @@ bitmap_t* f_load_bitmap(memory_arena* arena, char* filename) {
 	rowSize = ((header->colorDepth*header->bitmapWidth+31) / 32) * 4;
 
 	// Possibly check whether to alloc or push
-	bitmap_t* result = m_alloc(arena, sizeof(bitmap_t) + sizeof(u32)*header->bitmapWidth*header->bitmapHeight);
+	bitmap_t* result = core_alloc(sizeof(bitmap_t) + sizeof(u32)*header->bitmapWidth*header->bitmapHeight);
 	result->size = header->size;
 	result->width = header->bitmapWidth;
 	result->height = header->bitmapHeight;
@@ -119,8 +119,8 @@ bitmap_t* f_load_bitmap(memory_arena* arena, char* filename) {
 	return result;
 }
 
-bitmap_t* f_load_font_file(m_arena* arena, char*filename) {
-	bitmap_t* bitmap = f_load_bitmap(arena, filename);
+bitmap_t* f_load_font_file(char*filename) {
+	bitmap_t* bitmap = f_load_bitmap(filename);
 	if (bitmap) {
 		u32* pixels = bitmap + 1;
 		FOR (i, bitmap->width * bitmap->height) {
@@ -164,7 +164,7 @@ typedef struct {
 } WavDataChunk;
 #pragma pack(pop)
 
-wave_t* f_load_wave_from_memory(m_arena* arena, u8* data, size_t file_size) {
+wave_t* f_load_wave_from_memory(u8* data, size_t file_size) {
 	WavHeader *header = (WavHeader*)data;
 	WavFormatChunk *format = NULL;
 	WavDataChunk *dataChunk = NULL;
@@ -198,7 +198,7 @@ wave_t* f_load_wave_from_memory(m_arena* arena, u8* data, size_t file_size) {
 			wave_t* wave;
 			if(format->channels == 1) {
 				// TODO this is temporary solution
-				wave = m_alloc(arena, sizeof(wave_t) + dataChunk->size*2);
+				wave = core_alloc(sizeof(wave_t) + dataChunk->size*2);
 				wave->channels = 2;
 				wave->samples_per_second = format->samplesPerSec;
 				wave->bytes_per_sample = format->bitsPerSample / 8;
@@ -210,7 +210,7 @@ wave_t* f_load_wave_from_memory(m_arena* arena, u8* data, size_t file_size) {
 					output[i].right = raw_data[i];
 				}
 			} else {
-				wave = m_alloc(arena, sizeof(wave_t) + dataChunk->size);
+				wave = core_alloc(sizeof(wave_t) + dataChunk->size);
 				memcpy(wave+1, dataChunk->data, dataChunk->size);
 				wave->channels = format->channels;
 				wave->samples_per_second = format->samplesPerSec;
@@ -224,7 +224,7 @@ wave_t* f_load_wave_from_memory(m_arena* arena, u8* data, size_t file_size) {
 	return NULL;
 }
 
-wave_t* f_load_wave(memory_arena* arena, char* filename) {
+wave_t* f_load_wave(char* filename) {
 	FILE* file;
 	file = fopen(filename, "r");
 	if(!file) {
@@ -238,7 +238,7 @@ wave_t* f_load_wave(memory_arena* arena, char* filename) {
 	fread(data, 1, size, file);
 	fclose(file);
 
-	wave_t* wave = f_load_wave_from_memory(arena, data, size);
+	wave_t* wave = f_load_wave_from_memory(data, size);
 	free(data);
 	return wave;
 }

@@ -103,11 +103,11 @@ typedef struct {
 void core_init_critical_section(core_critical_section_t* section);
 void core_enter_critical_section(core_critical_section_t* section);
 void core_exit_critical_section(core_critical_section_t* section);
-int core_swap32(void *ptr, int swap);
-b32 core_compare_swap32(void *ptr, int cmp, int swap);
-int core_add32(void *ptr, int value);
-int core_sub32(void *ptr, int value);
-int core_read32(void *ptr);
+int core_sync_swap32(void *ptr, int swap);
+b32 core_sync_compare_swap32(void *ptr, int cmp, int swap);
+int core_sync_add32(void *ptr, int value);
+int core_sync_sub32(void *ptr, int value);
+int core_sync_read32(void *ptr);
 
 // Time definitions
 core_time_t core_system_time();

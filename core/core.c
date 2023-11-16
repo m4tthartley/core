@@ -1,3 +1,9 @@
+/**
+ * @Author: Your name
+ * @Date:   2023-09-02 14:38:03
+ * @Last Modified by:   Your name
+ * @Last Modified time: 2023-11-16 07:46:14
+ */
 //
 //  core.c
 //  Core
@@ -261,7 +267,7 @@ core_allocator_t core_virtual_allocator(size_t size, size_t commit) {
 	arena.blocks.first = NULL;
 	arena.blocks.last = NULL;
 	
-	((core_memblock_t*)arena.address)->size = arena.size;
+	((core_memblock_t*)arena.address)->size = arena.commit;
 	list_add(&arena.free, arena.address);
 
 	return arena;
@@ -417,7 +423,7 @@ void* core_alloc_in(core_allocator_t* arena, size_t size) {
 
 	if(is_arena_virtual(arena)) {
 		_core_virtual_allocator_commit(arena, required_size);
-		core_alloc_in(arena, required_size);
+		return core_alloc_in(arena, required_size);
 	}
 
 #ifdef CORE_CRASHING_ASSERTS
