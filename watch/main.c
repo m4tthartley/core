@@ -1,3 +1,10 @@
+//
+//  main.c
+//  Core Watch
+//
+//  Created by Matt Hartley on 01/09/2023.
+//  Copyright 2023 GiantJelly. All rights reserved.
+//
 
 #include <core/core.h>
 

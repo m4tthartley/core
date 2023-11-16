@@ -1,3 +1,10 @@
+#
+#  build.sh
+#  Core Test
+#
+#  Created by Matt Hartley on 12/11/2023.
+#  Copyright 2023 GiantJelly. All rights reserved.
+#
 
 mkdir -p build
 

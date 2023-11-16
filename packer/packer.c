@@ -1,3 +1,10 @@
+//
+//  packer.c
+//  Core Packer
+//
+//  Created by Matt Hartley on 28/09/2023.
+//  Copyright 2023 GiantJelly. All rights reserved.
+//
 
 #include <core.h>
 #include <stdio.h>

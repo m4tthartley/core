@@ -1,3 +1,10 @@
+//
+//  font_generator.c
+//  Core Font
+//
+//  Created by Matt Hartley on 29/09/2023.
+//  Copyright 2023 GiantJelly. All rights reserved.
+//
 
 #include "../file.h"
 #include <stdio.h>
