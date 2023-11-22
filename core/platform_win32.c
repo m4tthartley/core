@@ -410,20 +410,25 @@ DWORD WINAPI core_watcher_thread_proc(core_watcher_thread_t* thread) {
 				// 	}
 				// }
 
-				core_handle_t file = core_open(result->filename);
-				int loopcount = 0;
-				while (!file && loopcount < 10) {
-					++loopcount;
-					Sleep(10);
-					file = core_open(result->filename);
-				}
-				// core_print("%s loop count %i", result->filename, loopcount);
-				
-				if (file) {
-					core_stat_t info = core_stat(file);
-					core_strncpy(info.filename, result->filename, CORE_MAX_PATH_LENGTH);
-					*result = info;
-					core_close(file);
+				DWORD attr = GetFileAttributesA(result->filename);
+
+				if (!(attr & FILE_ATTRIBUTE_DIRECTORY)) {
+					Sleep(100);
+					core_handle_t file = core_open(result->filename);
+					int loopcount = 0;
+					while (!file && loopcount < 10) {
+						++loopcount;
+						Sleep(100);
+						file = core_open(result->filename);
+					}
+					// core_print("%s loop count %i", result->filename, loopcount);
+					
+					if (file) {
+						core_stat_t info = core_stat(file);
+						core_strncpy(info.filename, result->filename, CORE_MAX_PATH_LENGTH);
+						*result = info;
+						core_close(file);
+					}
 				}
 			} else {
 				break;

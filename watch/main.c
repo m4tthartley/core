@@ -10,7 +10,7 @@
 
 #define VERSION_MAJOR 0
 #define VERSION_MINOR 6
-#define VERSION_PATCH 1
+#define VERSION_PATCH 2
 #define VERSION_CREATEB(major, minor, patch) (#major "." #minor "." #patch)
 #define VERSION_CREATEA(major, minor, patch) VERSION_CREATEB(major, minor, patch)
 #define VERSION VERSION_CREATEA(VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH)
@@ -111,12 +111,14 @@ void print_usage() {
 }
 
 int main(int argc, char **argv) {
+	// SetConsoleMode(originMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+
 	core_print(TERM_BRIGHT_YELLOW_FG "core watch (version %s) \n" TERM_RESET, VERSION);
 
 	// u8 strBuffer[PAGE_SIZE/8];
 	// string_pool spool;
 	// s_create_pool(&spool, strBuffer, sizeof(strBuffer));
-	core_allocator_t arena = core_virtual_allocator(NULL, 0);
+	core_allocator_t arena = core_virtual_allocator(MB(1), PAGE_SIZE);
 	core_use_allocator(&arena);
 
 	for (int i=1; i<argc; ++i) {
