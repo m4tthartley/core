@@ -72,6 +72,8 @@ typedef u8 byte;
 
 // General constants and macros
 #undef NULL
+#undef TRUE
+#undef FALSE
 #define NULL 0
 #define TRUE ((int)1)
 #define FALSE ((int)0)
