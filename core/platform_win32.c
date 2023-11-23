@@ -114,20 +114,20 @@ core_time_t core_system_time() {
 	GetSystemTimeAsFileTime(&time);
 	u64 result2 = ((u64)time.dwHighDateTime << 32) | time.dwLowDateTime;
 	u64 nsec100 = *(u64*)&time;
-	core_time_t result = {
-		nsec100 / 10000
-	};
+	core_time_t result = nsec100/10000;
+	// result.sec = nsec100 / 10000000;
+	// result.msec = (nsec100/10000) - (result.sec*1000);
 	return result;
 }
 
 char* core_format_time(core_time_t time) {
 	char d[64];
 	char t[64];
-	if (!time.msec) {
+	if (!time) {
 		GetDateFormatA(LOCALE_SYSTEM_DEFAULT, 0, NULL, "ddd, dd MMM yyyy", d, 64);
 		GetTimeFormatA(LOCALE_SYSTEM_DEFAULT, 0, NULL, "HH:mm:ss", t, 64);
 	} else {
-		u64 nsec100 = time.msec * 10000;
+		u64 nsec100 = time * 10000;
 		FILETIME ft = *(FILETIME*)&nsec100;
 		SYSTEMTIME st;
 		FileTimeToSystemTime(&ft, &st);
@@ -399,37 +399,39 @@ DWORD WINAPI core_watcher_thread_proc(core_watcher_thread_t* thread) {
 			char* filename = core_convert_wide_string(change->FileName);
 
 			if (watcher->result_count < array_size(watcher->results)) {
-				core_stat_t* result = watcher->results + watcher->result_count++;
+				core_file_change_t* result = watcher->results + watcher->result_count++;
 				char* fullpath = core_strf("%s/%s", thread->path, filename);
-				core_strncpy(result->filename, fullpath, CORE_MAX_PATH_LENGTH);
+				GetFullPathNameA(fullpath, sizeof(result->filename), result->filename, NULL);
+				// core_strncpy(result->filename, fullpath, CORE_MAX_PATH_LENGTH);
 				core_strfree(fullpath);
-
-				// FOR (i, s_len(result->filename)) {
-				// 	if (result->filename[i] == '\\') {
-				// 		result->filename[i] = '/';
-				// 	}
-				// }
 
 				DWORD attr = GetFileAttributesA(result->filename);
 
-				if (!(attr & FILE_ATTRIBUTE_DIRECTORY)) {
-					Sleep(100);
-					core_handle_t file = core_open(result->filename);
-					int loopcount = 0;
-					while (!file && loopcount < 10) {
-						++loopcount;
-						Sleep(100);
-						file = core_open(result->filename);
-					}
-					// core_print("%s loop count %i", result->filename, loopcount);
+				// if (!(attr & FILE_ATTRIBUTE_DIRECTORY)) {
+				// 	Sleep(100);
+				// 	core_handle_t file = core_open(result->filename);
+				// 	int loopcount = 0;
+				// 	while (!file && loopcount < 10) {
+				// 		++loopcount;
+				// 		Sleep(100);
+				// 		file = core_open(result->filename);
+				// 	}
 					
-					if (file) {
-						core_stat_t info = core_stat(file);
-						core_strncpy(info.filename, result->filename, CORE_MAX_PATH_LENGTH);
-						*result = info;
-						core_close(file);
-					}
-				}
+				// 	if (file) {
+				// 		core_stat_t info = core_stat(file);
+				// 		core_strncpy(info.filename, result->filename, CORE_MAX_PATH_LENGTH);
+				// 		*result = info;
+				// 		core_close(file);
+				// 	}
+				// }
+
+				// core_handle_t file = core_open(result->filename);
+				// if (file) {
+					// core_stat_t info = core_stat(file);
+					// core_close(file);
+					core_time_t time = core_system_time();
+					result->modified = time;
+				// }
 			} else {
 				break;
 			}
@@ -472,14 +474,14 @@ b32 core_watch_directory_changes(core_directory_watcher_t* watcher, char** dir_p
 	}
 }
 
-int core_wait_for_directory_changes(core_directory_watcher_t* watcher, core_stat_t* output, int output_size) {
+int core_wait_for_directory_changes(core_directory_watcher_t* watcher, core_file_change_t* output, int output_size) {
 	assert(output_size > 0);
 	WaitForSingleObject(watcher->ready_event, INFINITE);
 	ResetEvent(watcher->ready_event);
 	
 	// Write out results
 	WaitForSingleObject(watcher->semaphore, INFINITE);
-	core_copy(output, watcher->results, min(watcher->result_count, output_size)*sizeof(core_stat_t));
+	core_copy(output, watcher->results, min(watcher->result_count, output_size)*sizeof(*output));
 	// TODO check output size first
 	core_zero(watcher->results, sizeof(watcher->results));
 	int result = watcher->result_count;

@@ -183,6 +183,11 @@ void gfx_line(vec2_t start, vec2_t end) {
 }
 
 void gfx_text(core_window_t* window, vec2_t pos, float scale, char* str, ...) {
+	if (!_gfx_active_texture) {
+		core_error("gfx_text: No active texture");
+		return;
+	}
+
 	char b[1024];
 	va_list args;
 	va_start(args, str);

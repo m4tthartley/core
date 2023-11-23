@@ -9,15 +9,15 @@
 #include <core/core.h>
 
 #define VERSION_MAJOR 0
-#define VERSION_MINOR 6
-#define VERSION_PATCH 2
+#define VERSION_MINOR 7
+#define VERSION_PATCH 0
 #define VERSION_CREATEB(major, minor, patch) (#major "." #minor "." #patch)
 #define VERSION_CREATEA(major, minor, patch) VERSION_CREATEB(major, minor, patch)
 #define VERSION VERSION_CREATEA(VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH)
 // #define VERSION "0.6.1"
 #define SIMULATE_MULTIPLE_DIRECTORY 0
 
-core_stat_t files[256];
+core_file_change_t files[256];
 int file_count = 0;
 
 typedef struct {
@@ -34,7 +34,7 @@ int directory_count = 0;
 b32 verbose_mode = FALSE;
 char* build_command = "./build.sh";
 
-core_stat_t* getFile(char* filename) {
+core_file_change_t* getFile(char* filename) {
 	for(int i=0; i<file_count; ++i) {
 		if(!strcmp(files[i].filename, filename)) {
 			return files + i;
@@ -43,10 +43,10 @@ core_stat_t* getFile(char* filename) {
 	return NULL;
 }
 
-core_stat_t* addFile(char* filename, core_stat_t info) {
+core_file_change_t* addFile(char* filename, core_file_change_t change) {
 	if (file_count < 256) {
-		core_stat_t* file = files + file_count++;
-		*file = info;
+		core_file_change_t* file = files + file_count++;
+		*file = change;
 		return file;
 	} else {
 		core_error("Failed to add file");
@@ -65,27 +65,29 @@ int build(char* filename) {
 		core_print("file changed %s \n", filename);
 	}
 
+	core_print_inline(TERM_BRIGHT_YELLOW_FG "building..." TERM_RESET);
+
 	int result = system(core_strf("sh %s", build_command));
 
 	if(!result) {
-		core_print(TERM_BRIGHT_GREEN_FG "build successful" TERM_RESET);
+		core_print("\r" TERM_BRIGHT_GREEN_FG "build successful" TERM_RESET);
 	} else {
-		core_print(TERM_BRIGHT_RED_FG "build failed" TERM_RESET);
+		core_print("\r" TERM_BRIGHT_RED_FG "build failed" TERM_RESET);
 	}
 
 	return result;
 }
 
-void file_changes(core_stat_t* files, int count) {
+void file_changes(core_file_change_t* files, int count) {
 	FOR (i, count) {
-		core_stat_t* file = files + i;
+		core_file_change_t* file = files + i;
 		char* filename = files[i].filename;
 
 		if( core_strfind(filename, ".c", 0) ||
 			core_strfind(filename, ".h", 0) ||
 			core_strfind(filename, ".txt", 0) ||
 			core_strfind(filename, ".sh", 0)) {
-			core_stat_t* saved_file = getFile(filename);
+			core_file_change_t* saved_file = getFile(filename);
 
 			if(saved_file) {
 				if(file->modified - saved_file->modified < 1000) {
@@ -183,7 +185,7 @@ int main(int argc, char **argv) {
 	core_directory_watcher_t watcher;
 	core_watch_directory_changes(&watcher, dirpaths, directory_count);
 	for (;;) {
-		core_stat_t changes[64];
+		core_file_change_t changes[64];
 		int count = core_wait_for_directory_changes(&watcher, changes, 64);
 		// FOR (i, count) {
 		// 	// core_print("%s %llu", changes[i].filename, changes[i].modified);

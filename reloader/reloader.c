@@ -147,12 +147,15 @@ DWORD dir_listen_thread(void* lp) {
 	char* dirs[] = {state->dir_path};
 	core_watch_directory_changes(&watcher, dirs, 1);
 
-	core_stat_t changes[8];
-	while (core_wait_for_directory_changes(&watcher, changes, 8)) {
-		core_print(changes[8].filename);
-		if(core_strcmp(changes[8].filename, state->dll_filename)) {
-			printf("RELOAD \n");
-			core_sync_swap32(&do_reload, TRUE);
+	core_file_change_t changes[8];
+	for (;;) {
+		int count = core_wait_for_directory_changes(&watcher, changes, 8);
+		FOR (i, count) {
+			core_print(changes[i].filename);
+			if(core_strcmp(changes[i].filename, state->dll_path)) {
+				printf("RELOAD \n");
+				core_sync_swap32(&do_reload, TRUE);
+			}
 		}
 	}
 
@@ -202,7 +205,11 @@ int main(int argc, char** argv) {
 	// char dir_buffer[MAX_PATH] = {0};
 	// PathCchRemoveFileSpec(dir_buffer, MAX_PATH);
 	// printf("dir %s \n", dir_buffer);
-	state.dll_path = core_str(argv[1]);
+	
+	char absolute_path[CORE_MAX_PATH_LENGTH];
+	GetFullPathNameA(argv[1], sizeof(absolute_path), absolute_path, NULL);
+	state.dll_path = core_str(absolute_path);
+
 	char* c = argv[1] + core_strlen(argv[1]);
 	while(*c != '/' && c >= argv[1]) {
 		// *c = 0;

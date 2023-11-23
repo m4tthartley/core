@@ -19,10 +19,14 @@ enum {
 	CORE_MB_YES_NO = (1<<1), // TODO
 };
 
-typedef struct {
-	u64 sec;
-	u64 msec;
-} core_time_t;
+// typedef struct {
+// 	u64 sec;
+// 	u64 msec;
+// } core_time_t;
+
+typedef u64 core_time_t; // Milliseconds
+typedef u64 core_time_micro_t;
+typedef u64 core_time_nano_t;
 
 typedef struct {
 	u64 created;
@@ -128,6 +132,11 @@ void core_change_dir(char* path);
 
 // Directory watcher definitions
 typedef struct {
+	u64 modified;
+	char filename[CORE_MAX_PATH_LENGTH];
+} core_file_change_t;
+
+typedef struct {
 	core_handle_t handle;
 	char path[CORE_MAX_PATH_LENGTH];
 	struct core_directory_watcher_t* watcher;
@@ -140,12 +149,12 @@ typedef struct {
 	int directory_count;
 	DWORD filter;
 
-	core_stat_t results[64];
+	core_file_change_t results[64];
 	int result_count;
 } core_directory_watcher_t;
 
 b32 core_watch_directory_changes(core_directory_watcher_t* watcher, char** dir_paths, int dir_count);
-int core_wait_for_directory_changes(core_directory_watcher_t* watcher, core_stat_t* output, int output_size);
+int core_wait_for_directory_changes(core_directory_watcher_t* watcher, core_file_change_t* output, int output_size);
 
 
 #endif
