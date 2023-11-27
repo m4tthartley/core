@@ -211,6 +211,7 @@ int core_strlen(char* str);
 core_string_t core_str(char* str);
 core_string_t core_strf(char* fmt, ...);
 void core_strfree(core_string_t str);
+void core_str_wide_to_char(core_string_t dest, wchar_t* str, int n);
 core_string_t core_convert_wide_string(wchar_t* str);
 void core_strcpy(core_string_t dest, core_string_t src);
 void core_strncpy(core_string_t dest, core_string_t src, int n);

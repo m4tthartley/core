@@ -65,14 +65,16 @@ int build(char* filename) {
 		core_print("file changed %s \n", filename);
 	}
 
-	core_print_inline(TERM_BRIGHT_YELLOW_FG "building..." TERM_RESET);
+	core_print_inline(TERM_BRIGHT_YELLOW_FG "building... \r" TERM_RESET);
 
-	int result = system(core_strf("sh %s", build_command));
+	char* cmd = core_strf("sh %s", build_command);
+	int result = system(cmd);
+	core_free(cmd);
 
 	if(!result) {
-		core_print("\r" TERM_BRIGHT_GREEN_FG "build successful" TERM_RESET);
+		core_print(TERM_BRIGHT_GREEN_FG "build successful" TERM_RESET);
 	} else {
-		core_print("\r" TERM_BRIGHT_RED_FG "build failed" TERM_RESET);
+		core_print(TERM_BRIGHT_RED_FG "build failed" TERM_RESET);
 	}
 
 	return result;
@@ -120,7 +122,9 @@ int main(int argc, char **argv) {
 	// u8 strBuffer[PAGE_SIZE/8];
 	// string_pool spool;
 	// s_create_pool(&spool, strBuffer, sizeof(strBuffer));
-	core_allocator_t arena = core_virtual_allocator(MB(1), PAGE_SIZE);
+	u8 buffer[256];
+	core_allocator_t arena = core_allocator(buffer, sizeof(buffer));
+	// core_allocator_t arena = core_virtual_allocator(MB(1), PAGE_SIZE);
 	core_use_allocator(&arena);
 
 	for (int i=1; i<argc; ++i) {

@@ -396,14 +396,21 @@ DWORD WINAPI core_watcher_thread_proc(core_watcher_thread_t* thread) {
 
 		FILE_NOTIFY_INFORMATION *change = change_buffer;
 		while (change) {
-			char* filename = core_convert_wide_string(change->FileName);
+			char filename[CORE_MAX_PATH_LENGTH];
+			core_str_wide_to_char(filename, change->FileName, CORE_MAX_PATH_LENGTH);
 
 			if (watcher->result_count < array_size(watcher->results)) {
 				core_file_change_t* result = watcher->results + watcher->result_count++;
-				char* fullpath = core_strf("%s/%s", thread->path, filename);
-				GetFullPathNameA(fullpath, sizeof(result->filename), result->filename, NULL);
+
+				char fullpath_buffer[CORE_MAX_PATH_LENGTH] = {0};
+				core_strncpy(fullpath_buffer, thread->path, CORE_MAX_PATH_LENGTH);
+				strncat(fullpath_buffer, "/", CORE_MAX_PATH_LENGTH-core_strlen(fullpath_buffer));
+				strncat(fullpath_buffer, filename, CORE_MAX_PATH_LENGTH-core_strlen(fullpath_buffer));
+
+ 				// char* fullpath = core_strf("%s/%s", thread->path, filename);
+				GetFullPathNameA(fullpath_buffer, sizeof(result->filename), result->filename, NULL);
 				// core_strncpy(result->filename, fullpath, CORE_MAX_PATH_LENGTH);
-				core_strfree(fullpath);
+				// core_strfree(fullpath);
 
 				DWORD attr = GetFileAttributesA(result->filename);
 

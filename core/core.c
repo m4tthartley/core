@@ -409,7 +409,12 @@ void* core_alloc_in(core_allocator_t* arena, size_t size) {
 
 	core_memblock_t* free = arena->free.first;
 	while(free) {
-		if(free->size >= required_size) {
+		// If the free block's size isn't exactly the same,
+		// it will need to split the free block.
+		// The new split free block must be at least the size of core_memblock_t
+		// to store the block header.
+		if(free->size == required_size
+			|| free->size >= (required_size+sizeof(core_memblock_t))) {
 			return _core_alloc_into_free(arena, free, required_size);
 		}
 		free = ((core_node_t*)free)->next;
@@ -672,6 +677,16 @@ void core_strfree(core_string_t str) {
 	core_free(str);
 }
 
+void core_str_wide_to_char(core_string_t dest, wchar_t* str, int n) {
+	int wlen = 0;
+	while (wlen < (n-1) && str[wlen]) wlen++;
+
+	// core_string_t result = core_allocate_string(wlen);
+	for(int i=0; i<wlen+1; ++i) {
+		dest[i] = str[i];
+	}
+}
+
 core_string_t core_convert_wide_string(wchar_t* str) {
 	int wlen = 0;
 	while (str[wlen]) wlen++;
@@ -684,6 +699,7 @@ core_string_t core_convert_wide_string(wchar_t* str) {
 	return result;
 }
 
+// TODO should these write a null terminator?
 void core_strcpy(core_string_t dest, core_string_t src) {
 	while (*src) {
 		*dest++ = *src++;
