@@ -7,9 +7,10 @@
 //
 
 #include <core/core.h>
+#include <core/timer.h>
 
 #define VERSION_MAJOR 0
-#define VERSION_MINOR 7
+#define VERSION_MINOR 8
 #define VERSION_PATCH 0
 #define VERSION_CREATEB(major, minor, patch) (#major "." #minor "." #patch)
 #define VERSION_CREATEA(major, minor, patch) VERSION_CREATEB(major, minor, patch)
@@ -33,6 +34,8 @@ int directory_count = 0;
 
 b32 verbose_mode = FALSE;
 char* build_command = "./build.sh";
+
+core_timer_t timer;
 
 core_file_change_t* getFile(char* filename) {
 	for(int i=0; i<file_count; ++i) {
@@ -65,16 +68,19 @@ int build(char* filename) {
 		core_print("file changed %s \n", filename);
 	}
 
-	core_print_inline(TERM_BRIGHT_YELLOW_FG "building... \r" TERM_RESET);
+	core_print_inline(TERM_BRIGHT_MAGENTA_FG "build \r" TERM_RESET);
 
 	char* cmd = core_strf("sh %s", build_command);
+	f64 start = core_time(&timer);
 	int result = system(cmd);
+	f64 end = core_time(&timer);
 	core_free(cmd);
 
+	float time = (end-start) / 1000.0f;
 	if(!result) {
-		core_print(TERM_BRIGHT_GREEN_FG "build successful" TERM_RESET);
+		core_print(TERM_BRIGHT_GREEN_FG "build successful (%.2fs)" TERM_RESET, time);
 	} else {
-		core_print(TERM_BRIGHT_RED_FG "build failed" TERM_RESET);
+		core_print(TERM_BRIGHT_RED_FG "build failed (%.2fs)" TERM_RESET, time);
 	}
 
 	return result;
@@ -178,6 +184,9 @@ int main(int argc, char **argv) {
 	core_print(TERM_BRIGHT_YELLOW_FG"build command:");
 	core_print(TERM_BRIGHT_BLUE_FG"    %s", build_command);
 	printf("\n"TERM_RESET);
+
+
+	core_timer(&timer);
 
 
 	// Watch

@@ -548,6 +548,8 @@ void print_core_memblock_t(core_memblock_t* block) {
 void core_print_arena(core_allocator_t* arena) {
 	u64 index = 0;
 	u64 arena_size = is_arena_virtual(arena) ? arena->commit : arena->size;
+
+next:
 	while(index < arena_size) {
 		core_memblock_t* b = arena->blocks.first;
 		while(b) {
@@ -587,7 +589,6 @@ void core_print_arena(core_allocator_t* arena) {
 
 		core_print_inline(TERM_RED_BG "FATAL ERROR");
 		exit(1);
-next:
 	}
 
 	assert(index == arena_size);

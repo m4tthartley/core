@@ -12,7 +12,7 @@ mkdir -p build
 core="${USERPROFILE}/code/core/core"
 
 warnings="-Wno-incompatible-pointer-types"
-gcc main.c $core/core.c -o build/watch_debug.exe -I.. -g $warnings -std=c99
+gcc main.c $core/core.c $core/timer.c -o build/watch_debug.exe -I.. -g $warnings -std=c99
 
 result=$?
 
