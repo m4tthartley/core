@@ -641,18 +641,28 @@ void core_dynarr_clear(core_dynarr_t* arr) {
 
 
 // STRINGS
+int str_get_aligned_size(int size) {
+	// NOTE: don't think adding sizeof memblock at this point is needed
+	return align64(size+1 /*+ sizeof(core_memblock_t)*/, 64);
+}
+
 core_string_t core_allocate_string(size_t len) {
-	core_string_t result = core_alloc(align64(len+1 + sizeof(core_memblock_t), 64));
+	core_string_t result = core_alloc(str_get_aligned_size(len));
 	return result;
 }
 
-int core_strlen(char* str) {
+void str_check_inside_allocator(core_string_t str) {
+	assert(str >= core_global_allocator->address &&
+			str < (core_global_allocator->address+core_global_allocator->size));
+}
+
+int str_len(char* str) {
 	int len = 0;
 	while(*str++) ++len;
 	return len;
 }
 
-core_string_t core_str(char* str) {
+core_string_t strasd(char* str) {
 	u64 len = core_strlen(str);
 	core_string_t result = core_allocate_string(len);
 	if (result) {
@@ -660,8 +670,7 @@ core_string_t core_str(char* str) {
 	}
 	return result;
 }
-
-core_string_t core_strf(char* fmt, ...) {
+core_string_t strf(char* fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
 	int len = core_print_to_buffer_va(0, 0, fmt, args) + 1;
@@ -673,12 +682,11 @@ core_string_t core_strf(char* fmt, ...) {
 	va_end(args2);
 	return result;
 }
-
-void core_strfree(core_string_t str) {
+void str_free(core_string_t str) {
 	core_free(str);
 }
 
-void core_str_wide_to_char(core_string_t dest, wchar_t* str, int n) {
+void str_wide_to_char(char* dest, wchar_t* str, int n) {
 	int wlen = 0;
 	while (wlen < (n-1) && str[wlen]) wlen++;
 
@@ -687,8 +695,7 @@ void core_str_wide_to_char(core_string_t dest, wchar_t* str, int n) {
 		dest[i] = str[i];
 	}
 }
-
-core_string_t core_convert_wide_string(wchar_t* str) {
+core_string_t strd_wide_to_char(wchar_t* str) {
 	int wlen = 0;
 	while (str[wlen]) wlen++;
 
@@ -701,22 +708,36 @@ core_string_t core_convert_wide_string(wchar_t* str) {
 }
 
 // TODO should these write a null terminator?
-void core_strcpy(core_string_t dest, core_string_t src) {
-	while (*src) {
+// void core_strcpy(core_string_t dest, core_string_t src) {
+// 	while (*src) {
+// 		*dest++ = *src++;
+// 	}
+// 	*dest = *src;
+// }
+void str_copy(char* dest, char* src, int buf_size) {
+	while (*src && buf_size > 1) {
 		*dest++ = *src++;
+		--buf_size;
 	}
-	*dest = *src;
+	*dest = NULL;
+}
+void strd_copy(core_string_t* dest, core_string_t src) {
+	str_check_inside_allocator(*dest);
+
+	u64 destlen = str_len(*dest);
+	u64 srclen = str_len(src);
+	u64 alen = str_get_aligned_size(destlen);
+	if(srclen + 1 > alen) {
+		core_string_t newStr = core_allocate_string(srclen);
+		core_copy(newStr, src, srclen+1);
+		str_free(*dest);
+		*dest = newStr;
+	} else {
+		core_copy(*dest, src, srclen+1);
+	}
 }
 
-void core_strncpy(core_string_t dest, core_string_t src, int n) {
-	while (*src && n > 1) {
-		*dest++ = *src++;
-		--n;
-	}
-	*dest = *src;
-}
-
-b32 core_strcmp(core_string_t a, core_string_t b) {
+b32 str_compare(core_string_t a, core_string_t b) {
 	if(core_strlen(a) != core_strlen(b)) return FALSE;
 	while(*a==*b) {
 		if(*a==0) return TRUE;
@@ -726,27 +747,26 @@ b32 core_strcmp(core_string_t a, core_string_t b) {
 	if(*a==0 || *b==0) return TRUE;
 	return FALSE;
 }
-
-b32 core_strncmp(core_string_t a, core_string_t b, u64 n) {
+b32 str_ncompare(core_string_t a, core_string_t b, u64 n) {
 	for(int i=0; i<n; ++i) {
 		if(a[i] != b[i]) return FALSE;
 	}
 	return TRUE;
 }
 
-b32 core_strfind(core_string_t str, core_string_t find, core_string_t* out) {
-	int len = core_strlen(str);
-	int findLen = core_strlen(find);
+char* str_find(core_string_t str, core_string_t find, core_string_t* out) {
+	int len = str_len(str);
+	int findLen = str_len(find);
 	for(int i=0; i<len-findLen+1; ++i) {
-		if(core_strncmp(str+i, find, findLen)) {
-			if(out) *out = str+i;
-			return TRUE;
+		if(str_ncompare(str+i, find, findLen)) {
+			// if(out) *out = str+i;
+			// return TRUE;
+			return str+i;
 		}
 	}
-	return FALSE;
+	return NULL;
 }
-
-int core_strfindn(core_string_t str, core_string_t find) {
+int str_find_num(core_string_t str, core_string_t find) {
 	int result = 0;
 	int len = core_strlen(str);
 	int findLen = core_strlen(find);

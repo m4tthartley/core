@@ -205,21 +205,44 @@ void core_dynarr_clear(core_dynarr_t* arr);
 	}
 
 // String definitions
+#ifndef CORE_STRING_PROC_PREFIX
+#	define CORE_STRING_PROC_PREFIX core_
+#endif
+#define CORE_STR_PROC(name) CORE_STRING_PROC_PREFIX##name
+
+#define CORE_STRING_TYPE_NAME CORE_STR_PROC(str_t)
 typedef char* core_string_t;
-core_string_t core_allocate_string(size_t len);
-int core_strlen(char* str);
-core_string_t core_str(char* str);
-core_string_t core_strf(char* fmt, ...);
-void core_strfree(core_string_t str);
-void core_str_wide_to_char(core_string_t dest, wchar_t* str, int n);
-core_string_t core_convert_wide_string(wchar_t* str);
-void core_strcpy(core_string_t dest, core_string_t src);
-void core_strncpy(core_string_t dest, core_string_t src, int n);
-b32 core_strcmp(core_string_t a, core_string_t b);
-b32 core_strncmp(core_string_t a, core_string_t b, u64 n);
-b32 core_strfind(core_string_t str, core_string_t find, core_string_t* out);
-int core_strfindn(core_string_t str, core_string_t find);
-void core_strcat(core_string_t* str, core_string_t append);
+typedef core_string_t CORE_STRING_TYPE_NAME;
+
+// typedef char* core_string_t;
+
+// void core_strcpy(core_string_t dest, core_string_t src);
+
+// typedef char* core_string_t;
+
+int 			str_len(char* str);
+
+core_string_t 	strasd(char* str);
+core_string_t 	strf(char* fmt, ...);
+void 			str_free(core_string_t str);
+
+void 			str_wide_to_char(core_string_t dest, wchar_t* str, int n);
+core_string_t 	strd_wide_to_char(wchar_t* str);
+
+void 			str_copy(char* dest, char* src, int buf_size);
+void 			strd_copy(core_string_t dest, core_string_t src);
+
+b32				str_compare(core_string_t a, core_string_t b);
+b32				str_ncompare(core_string_t a, core_string_t b, u64 n);
+
+char*			str_find(core_string_t str, core_string_t find);
+int				str_find_num(core_string_t str, core_string_t find);
+
+void			str_append(core_string_t* str, core_string_t append, int buf_size);
+void			strd_append(core_string_t* str, core_string_t append);
+
+// void core_strncpy(core_string_t dest, core_string_t src, int n);
+
 void core_strprecat(core_string_t* str, core_string_t prepend);
 void core_strinsert(core_string_t* str, u64 index, core_string_t insert);
 void core_strreplace(core_string_t* str, core_string_t find, core_string_t replace);
