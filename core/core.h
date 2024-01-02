@@ -241,10 +241,14 @@ int				str_find_num(core_string_t str, core_string_t find);
 void			str_append(core_string_t* str, core_string_t append, int buf_size);
 void			strd_append(core_string_t* str, core_string_t append);
 
+void			str_prepend(char* dest, char* src, int buf_size);
+void			strd_prepend(core_string_t* str, core_string_t prepend);
+
+void			str_insert(char* str, int index, char* insert, int buf_size);
+void			strd_insert(core_string_t* str, int index, core_string_t insert);
+
 // void core_strncpy(core_string_t dest, core_string_t src, int n);
 
-void core_strprecat(core_string_t* str, core_string_t prepend);
-void core_strinsert(core_string_t* str, u64 index, core_string_t insert);
 void core_strreplace(core_string_t* str, core_string_t find, core_string_t replace);
 void core_strreplace_single(core_string_t* str, core_string_t find, core_string_t replace);
 int core_strsplit(core_string_t* buffer, size_t size, core_string_t str, core_string_t by);

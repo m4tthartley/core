@@ -780,7 +780,18 @@ int str_find_num(core_string_t str, core_string_t find) {
 
 // TODO in string functions that create new allocations,
 // 		first check str is actually allocated in the current pool
-void core_strcat(core_string_t* str, core_string_t append) {
+void str_append(char* dest, char* src, int buf_size) {
+	while (*dest && buf_size > 1) {
+		--buf_size;
+		++dest;
+	}
+	while (*src && buf_size > 1) {
+		--buf_size;
+		*dest++ = *src++;
+	}
+	*dest = NULL;
+}
+void strd_append(core_string_t* str, core_string_t append) {
 	u64 len = core_strlen(*str);
 	u64 len2 = core_strlen(append);
 	u64 alen = align64(len+1, 64);
@@ -793,8 +804,30 @@ void core_strcat(core_string_t* str, core_string_t append) {
 	core_copy(*str + len, append, len2+1);
 }
 
-// TODO Check str is within allocator, or always reallocate
-void core_strcatb(core_string_t* str, core_string_t prepend) {
+void str_prepend(char* dest, char* src, int buf_size) {
+	int destlen = str_len(dest);
+	int srclen = str_len(src);
+	int end = min(destlen+srclen, buf_size-1);
+	dest[end--] = NULL;
+
+	while (destlen) {
+		dest[end--] = dest[destlen-- -1];
+	}
+	core_copy(dest, src, srclen);
+
+	// while (*src && buf_size > 1) {
+	// 	--buf_size;
+	// 	++dest;
+	// }
+	// while (*src && buf_size > 1) {
+	// 	--buf_size;
+	// 	*dest++ = *src++;
+	// }
+	// *dest = NULL;
+}
+void strd_prepend(core_string_t* str, core_string_t prepend) {
+	// TODO Check str is within allocator, or always reallocate
+	// dunno what that means
 	u64 len = core_strlen(*str);
 	u64 len2 = core_strlen(prepend);
 	core_memblock_t* block = (core_memblock_t*)*str - 1;
@@ -810,7 +843,18 @@ void core_strcatb(core_string_t* str, core_string_t prepend) {
 	core_copy(*str, prepend, len2);
 }
 
-void core_strinsert(core_string_t* str, u64 index, core_string_t insert) {
+void str_insert(char* dest, int index, char* src, int buf_size) {
+	int destlen = str_len(dest);
+	int srclen = str_len(src);
+	int end = min(destlen+srclen, buf_size-1);
+	dest[end--] = NULL;
+
+	while (destlen >= index) {
+		dest[end--] = dest[destlen-- -1];
+	}
+	core_copy(dest+index, src, srclen);
+}
+void strd_insert(core_string_t* str, int index, core_string_t insert) {
 	u64 len = core_strlen(*str);
 	u64 len2 = core_strlen(insert);
 	u64 result_len = len + len2;
