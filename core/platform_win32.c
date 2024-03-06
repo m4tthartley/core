@@ -134,7 +134,7 @@ char* core_format_time(core_time_t time) {
 		GetDateFormatA(LOCALE_SYSTEM_DEFAULT, 0, &st, "ddd, dd MMM yyyy", d, 64);
 		GetTimeFormatA(LOCALE_SYSTEM_DEFAULT, 0, &st, "HH:mm:ss", t, 64);
 	}
-	char* result = core_strf("%s %s GMT", d, t);
+	char* result = strdf("%s %s GMT", d, t);
 	return result;
 }
 
@@ -144,7 +144,7 @@ core_handle_t core_open(char* path) {
 	assert(sizeof(HANDLE)<=sizeof(core_handle_t));
 
 	// TODO: do this for all functions
-	if (core_strlen(path) >= MAX_PATH) {
+	if (str_len(path) >= MAX_PATH) {
 		core_error("Sorry, we don't support paths longer than %i", (int)MAX_PATH);
 		return NULL;
 	}
@@ -180,7 +180,7 @@ core_handle_t core_create(char* path) {
 // core_handle_t core_open_or_create(char* path) {
 // 	assert(sizeof(HANDLE)<=sizeof(core_handle_t));
 
-// 	if (core_strlen(path) >= MAX_PATH) {
+// 	if (str_len(path) >= MAX_PATH) {
 // 		core_error("Sorry, we don't support paths longer than %i", (int)MAX_PATH);
 // 		return NULL;
 // 	}
@@ -234,7 +234,7 @@ void core_create_dir(char* path) {
 
 int core_dir_list(char* path, b32 recursive, core_stat_t* output, int length) {
 	int output_index = 0;
-	char* wildcard = core_strf("%s/*", path);
+	char* wildcard = strdf("%s/*", path);
 	WIN32_FIND_DATAA find_data;
 	HANDLE find_handle = FindFirstFileA(wildcard, &find_data);
 	if (find_handle == INVALID_HANDLE_VALUE) {
@@ -242,18 +242,18 @@ int core_dir_list(char* path, b32 recursive, core_stat_t* output, int length) {
 		return 0;
 	}
 	do {
-		if (!core_strcmp(find_data.cFileName, ".") && !core_strcmp(find_data.cFileName, "..")) {
+		if (!str_compare(find_data.cFileName, ".") && !str_compare(find_data.cFileName, "..")) {
 			if (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
 				if (recursive) {
 					output_index += core_dir_list(
-						core_strf("%s/%s", path, find_data.cFileName),
+						strdf("%s/%s", path, find_data.cFileName),
 						TRUE,
 						output+output_index,
 						length-output_index);
 				} else {
 					core_stat_t* file = output + output_index++;
-					assert(core_strlen(find_data.cFileName) < sizeof(output->filename));
-					core_strcpy(file->filename, find_data.cFileName);
+					assert(str_len(find_data.cFileName) < sizeof(output->filename));
+					str_copy(file->filename, find_data.cFileName, sizeof(file->filename));
 					file->created = find_data.ftCreationTime.dwLowDateTime;
 					file->created |= (u64)find_data.ftCreationTime.dwHighDateTime<<32;
 					file->modified = find_data.ftLastWriteTime.dwLowDateTime;
@@ -264,8 +264,8 @@ int core_dir_list(char* path, b32 recursive, core_stat_t* output, int length) {
 				// char* filename = s_copy(find_data.cFileName);
 				if (output_index < length) {
 					core_stat_t* file = output + output_index++;
-					assert(core_strlen(find_data.cFileName) < sizeof(output->filename));
-					core_strcpy(file->filename, find_data.cFileName);
+					assert(str_len(find_data.cFileName) < sizeof(output->filename));
+					str_copy(file->filename, find_data.cFileName, sizeof(file->filename));
 					file->created = find_data.ftCreationTime.dwLowDateTime;
 					file->created |= (u64)find_data.ftCreationTime.dwHighDateTime<<32;
 					file->modified = find_data.ftLastWriteTime.dwLowDateTime;
@@ -397,15 +397,15 @@ DWORD WINAPI core_watcher_thread_proc(core_watcher_thread_t* thread) {
 		FILE_NOTIFY_INFORMATION *change = change_buffer;
 		while (change) {
 			char filename[CORE_MAX_PATH_LENGTH];
-			core_str_wide_to_char(filename, change->FileName, CORE_MAX_PATH_LENGTH);
+			str_wide_to_char(filename, change->FileName, CORE_MAX_PATH_LENGTH);
 
 			if (watcher->result_count < array_size(watcher->results)) {
 				core_file_change_t* result = watcher->results + watcher->result_count++;
 
 				char fullpath_buffer[CORE_MAX_PATH_LENGTH] = {0};
-				core_strncpy(fullpath_buffer, thread->path, CORE_MAX_PATH_LENGTH);
-				strncat(fullpath_buffer, "/", CORE_MAX_PATH_LENGTH-core_strlen(fullpath_buffer));
-				strncat(fullpath_buffer, filename, CORE_MAX_PATH_LENGTH-core_strlen(fullpath_buffer));
+				str_copy(fullpath_buffer, thread->path, CORE_MAX_PATH_LENGTH);
+				str_append(fullpath_buffer, "/", CORE_MAX_PATH_LENGTH);
+				str_append(fullpath_buffer, filename, CORE_MAX_PATH_LENGTH);
 
  				// char* fullpath = core_strf("%s/%s", thread->path, filename);
 				GetFullPathNameA(fullpath_buffer, sizeof(result->filename), result->filename, NULL);
@@ -479,6 +479,8 @@ b32 core_watch_directory_changes(core_directory_watcher_t* watcher, char** dir_p
 		thread->watcher = watcher;
 		CreateThread(NULL, 0, core_watcher_thread_proc, thread, 0, NULL);
 	}
+
+	return TRUE;
 }
 
 int core_wait_for_directory_changes(core_directory_watcher_t* watcher, core_file_change_t* output, int output_size) {
