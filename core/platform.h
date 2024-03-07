@@ -136,13 +136,13 @@ typedef struct {
 	char filename[CORE_MAX_PATH_LENGTH];
 } core_file_change_t;
 
-typedef struct {
+typedef struct core_watcher_thread_t {
 	core_handle_t handle;
 	char path[CORE_MAX_PATH_LENGTH];
 	struct core_directory_watcher_t* watcher;
 } core_watcher_thread_t;
 
-typedef struct {
+typedef struct core_directory_watcher_t {
 	core_handle_t semaphore;
 	core_handle_t ready_event;
 	core_watcher_thread_t threads[64];

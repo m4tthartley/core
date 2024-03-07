@@ -252,6 +252,7 @@ core_allocator_t core_allocator(u8* buffer, size_t size) {
 }
 
 core_allocator_t core_virtual_allocator(size_t size, size_t commit) {
+	assert(size >= commit);
 	core_allocator_t arena = {0};
 	arena.size = size;
 	arena.commit = align64(commit, PAGE_SIZE);
@@ -652,8 +653,8 @@ core_string_t core_allocate_string(size_t len) {
 }
 
 void str_check_inside_allocator(core_string_t str) {
-	assert(str >= core_global_allocator->address &&
-			str < (core_global_allocator->address+core_global_allocator->size));
+	assert((u8*)str >= core_global_allocator->address &&
+			(u8*)str < (core_global_allocator->address+core_global_allocator->size));
 }
 
 int str_len(char* str) {

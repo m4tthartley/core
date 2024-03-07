@@ -11,7 +11,7 @@
 
 #define VERSION_MAJOR 0
 #define VERSION_MINOR 8
-#define VERSION_PATCH 1
+#define VERSION_PATCH 2
 #define VERSION_CREATEB(major, minor, patch) (#major "." #minor "." #patch)
 #define VERSION_CREATEA(major, minor, patch) VERSION_CREATEB(major, minor, patch)
 #define VERSION VERSION_CREATEA(VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH)
@@ -185,7 +185,7 @@ int main(int argc, char **argv) {
 	core_print(TERM_BRIGHT_BLUE_FG"    %s", build_command);
 	printf("\n"TERM_RESET"\n");
 
-	system("vcvars64.bat");
+	// system("vcvars64.bat");
 
 	core_timer(&timer);
 
