@@ -1028,7 +1028,7 @@ void strd_trim(core_string_t* str) {
 void str_strip(char* str, int start, int n) {
 	int len = str_len(str);
 	int i;
-	for (i=0; i<n; ++i) {
+	for (i=0; i<len-n; ++i) {
 		if (start+n+i > len) break;
 		str[start+i] = str[start+n+i];
 	}

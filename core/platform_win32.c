@@ -221,7 +221,8 @@ void core_create_dir(char* path) {
 	if(!success) {
 		DWORD err = GetLastError();
 		if (err == ERROR_ALREADY_EXISTS) {
-			core_error("Directory already exists");
+			// don't think it matters
+			// core_error("Directory already exists");
 		} else if (err == ERROR_PATH_NOT_FOUND) {
 			core_error("Directory path not found");
 		} else {
