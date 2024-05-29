@@ -351,6 +351,20 @@ void change_dir(char* path) {
 }
 
 
+// Dynamic libraries
+dylib_t load_dynamic_library(char *file) {
+	dylib_t lib;
+	char path[MAX_PATH];
+	snprintf(path, MAX_PATH-1, "%s.dll", file);
+	lib.handle = LoadLibraryA(path);
+	return lib;
+}
+
+void *load_library_proc(dylib_t lib, char *proc) {
+	return GetProcAddress(lib.handle, proc);
+}
+
+
 // Watching directory changes
 DWORD WINAPI watcher_thread_proc(watcher_thread_t* thread) {
 	directory_watcher_t* watcher = thread->watcher;

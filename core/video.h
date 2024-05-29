@@ -80,7 +80,9 @@ typedef struct {
 } mouse_t;
 
 typedef struct {
-#ifdef __WIN32__
+#if defined(__SDL__)
+	void* sdl_window; // SDL_Window*
+#elif defined(__WIN32__)
 	HWND hwnd;
 	HDC hdc;
     wglSwapIntervalEXT_proc wglSwapIntervalEXT;
@@ -100,6 +102,12 @@ b32 start_window(window_t* window, char* title, int width, int height, int flags
 b32 start_opengl(window_t* window);
 void update_window(window_t* window);
 void opengl_swap_buffers(window_t* window);
+
+inline void _update_button(button_t *button, b32 new_state) {
+	button->pressed = new_state && !button->down;
+	button->released = !new_state && button->down;
+	button->down = new_state;
+}
 
 
 #endif

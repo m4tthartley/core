@@ -130,6 +130,17 @@ void 		close_file(handle_t file);
 void 		current_dir(char* output, size_t size);
 void 		change_dir(char* path);
 
+// Dynamic libraries
+typedef struct {
+#if defined(__WIN32__)
+	HMODULE handle;
+#elif defined(__MACOS__)
+	void* handle;
+#endif
+} dylib_t;
+dylib_t load_dynamic_library(char *file);
+void *load_library_proc(dylib_t lib, char *proc);
+
 // Directory watcher definitions
 typedef struct {
 	u64 modified;

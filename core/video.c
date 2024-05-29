@@ -1,26 +1,23 @@
 //
-//  video.h
+//  video.c
 //  Core
 //
 //  Created by Matt Hartley on 29/05/2024.
 //  Copyright 2024 GiantJelly. All rights reserved.
 //
 
-#ifndef __CORE_VIDEO_HEADER__
-#define __CORE_VIDEO_HEADER__
+#include "video.h"
 
+// #define __LINUX__
 
-#ifdef __WIN32__
+#if defined(__SDL__)
+#	include "video_sdl.c"
+#elif defined(__WIN32__)
 #	include "video_win32.c"
-#endif
-
-#ifdef __LINUX__
+#elif defined(__LINUX__)
 #	include "video_linux.c"
-#endif
-
-#ifdef __MACOS__
+#elif defined(__MACOS__)
 #	include "video_macos.c"
-#endif
-
-
+#else
+#   error "NO PLATFORM IS DEFINED"
 #endif

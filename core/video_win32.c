@@ -17,11 +17,11 @@
 
 LRESULT CALLBACK _core_wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
 
-void _core_update_button(button_t *button, b32 new_state) {
-	button->pressed = new_state && !button->down;
-	button->released = !new_state && button->down;
-	button->down = new_state;
-}
+// void _update_button(button_t *button, b32 new_state) {
+// 	button->pressed = new_state && !button->down;
+// 	button->released = !new_state && button->down;
+// 	button->down = new_state;
+// }
 
 b32 start_window(window_t* window, char* title, int width, int height, int flags) {
 	// HINSTANCE hinstance = __ImageBase;
@@ -135,13 +135,13 @@ LRESULT CALLBACK _core_wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
 
 				USHORT flags = raw.data.mouse.usButtonFlags;
 				if(flags & RI_MOUSE_LEFT_BUTTON_DOWN)
-					_core_update_button(&window->mouse.left, TRUE);
+					_update_button(&window->mouse.left, TRUE);
 				if(flags & RI_MOUSE_LEFT_BUTTON_UP)
-					_core_update_button(&window->mouse.left, FALSE);
+					_update_button(&window->mouse.left, FALSE);
 				if(flags & RI_MOUSE_RIGHT_BUTTON_DOWN)
-					_core_update_button(&window->mouse.right, TRUE);
+					_update_button(&window->mouse.right, TRUE);
 				if(flags & RI_MOUSE_RIGHT_BUTTON_UP)
-					_core_update_button(&window->mouse.right, FALSE);
+					_update_button(&window->mouse.right, FALSE);
 
 				if (flags & RI_MOUSE_WHEEL) {
 					SHORT w = raw.data.mouse.usButtonData;
@@ -296,7 +296,7 @@ void update_window(window_t* window) {
 	BYTE keyboard[256] = {0};
 	GetKeyboardState(keyboard);
 	for (int i = 0; i < 256; ++i) {
-		_core_update_button(&window->keyboard[i], keyboard[i]>>7);
+		_update_button(&window->keyboard[i], keyboard[i]>>7);
 	}
 
 	POINT mouse;
