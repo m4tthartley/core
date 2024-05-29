@@ -7,8 +7,9 @@
 //
 
 #include "video.h"
+#include "math.h"
 #include "im.h"
-#include "font/default_font.h"
+#include "../font/default_font.h"
 
 gfx_texture_t* _gfx_active_texture = NULL;
 vec2_t _gfx_coord_system = {1.0f, 1.0f};
@@ -99,7 +100,7 @@ void gfx_quad(vec2_t pos, vec2_t size) {
 	glEnd();
 }
 
-void gfx_sprite(core_window_t* window, vec2_t pos, int px, int py, int pxs, int pys, float scale) {
+void gfx_sprite(window_t* window, vec2_t pos, int px, int py, int pxs, int pys, float scale) {
 	vec2_t percent_of_screen = vec2(1.0f/((f32)window->width/pxs), 1.0f/((f32)window->height/pys));
 	vec2_t s = {
 		(percent_of_screen.x/_gfx_coord_system.x) * (f32)scale,
@@ -122,7 +123,7 @@ void gfx_sprite(core_window_t* window, vec2_t pos, int px, int py, int pxs, int 
 
 }
 
-void gfx_sprite_tile(core_window_t* window, gfx_sprite_t sprite, vec2_t pos, int tile) {
+void gfx_sprite_tile(window_t* window, gfx_sprite_t sprite, vec2_t pos, int tile) {
 	gfx_texture(sprite.texture);
 	int tiles_per_row = sprite.texture->width / sprite.tile_size;
 	int tiles_per_column = sprite.texture->height / sprite.tile_size;
@@ -182,9 +183,9 @@ void gfx_line(vec2_t start, vec2_t end) {
 	glEnd();
 }
 
-void gfx_text(core_window_t* window, vec2_t pos, float scale, char* str, ...) {
+void gfx_text(window_t* window, vec2_t pos, float scale, char* str, ...) {
 	if (!_gfx_active_texture) {
-		core_error("gfx_text: No active texture");
+		print_error("gfx_text: No active texture");
 		return;
 	}
 

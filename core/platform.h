@@ -10,13 +10,13 @@
 #define __CORE_PLATFORM_HEADER__
 
 
-#define CORE_MAX_PATH_LENGTH 256
+#define MAX_PATH_LENGTH 256
 
 
 // Structures
 enum {
-	CORE_MB_OK = (1<<0),
-	CORE_MB_YES_NO = (1<<1), // TODO
+	MESSAGE_BOX_OK = (1<<0),
+	MESSAGE_BOX_YES_NO = (1<<1), // TODO
 };
 
 // typedef struct {
@@ -24,17 +24,17 @@ enum {
 // 	u64 msec;
 // } core_time_t;
 
-typedef u64 core_time_t; // Milliseconds
-typedef u64 core_time_micro_t;
-typedef u64 core_time_nano_t;
+// typedef u64 time_t; // Milliseconds
+// typedef u64 core_time_micro_t;
+// typedef u64 core_time_nano_t;
 
 typedef struct {
 	u64 created;
 	u64 modified;
 	size_t size;
 	b32 is_directory;
-	char filename[CORE_MAX_PATH_LENGTH];
-} core_stat_t;
+	char filename[MAX_PATH_LENGTH];
+} stat_t;
 
 
 // Platform functions
@@ -52,17 +52,17 @@ typedef struct {
 
 
 // Threading
-typedef b32 core_barrier_t;
+typedef b32 barrier_t;
 
-inline void core_barrier_start(volatile core_barrier_t* barrier) {
+inline void barrier_start(volatile barrier_t* barrier) {
 	int num = 0;
 	while (!__sync_bool_compare_and_swap((long volatile*)barrier, TRUE, FALSE)) {
 		++num;
 	}
-	core_print("SPIN LOCK %i", num);
+	print("SPIN LOCK %i", num);
 }
 
-inline void core_barrier_end(volatile core_barrier_t* barrier) {
+inline void barrier_end(volatile barrier_t* barrier) {
 	__sync_lock_test_and_set((long volatile*)barrier, FALSE);
 }
 
@@ -78,83 +78,83 @@ inline void core_barrier_end(volatile core_barrier_t* barrier) {
 #	define HANDLE_STDOUT stdout
 // #define INVALID_SOCKET  (SOCKET)(~0)
 // #define SOCKET_ERROR            (-1)
-typedef void* core_handle_t; // HANDLE
-typedef SOCKET core_socket_t;
+typedef void* handle_t; // HANDLE
+typedef SOCKET socket_t;
 
-char* core_win32_error(DWORD error_code);
+char* _win32_error(DWORD error_code);
 
 #endif
 
 
 // Misc definitions
-void core_message_box(char* msg, char* caption, int type);
+void message_box(char* msg, char* caption, int type);
 
 // Memory definitions
-void* core_reserve_virtual_memory(size_t size);
-void* core_commit_virtual_memory(void* addr, size_t size);
-void* core_allocate_virtual_memory(size_t size);
-void core_free_virtual_memory(void* addr, size_t size);
-void core_zero_memory(void* addr, size_t size);
-void core_copy_memory(void* dest, void* source, size_t size);
+void* reserve_virtual_memory(size_t size);
+void* commit_virtual_memory(void* addr, size_t size);
+void* allocate_virtual_memory(size_t size);
+void free_virtual_memory(void* addr, size_t size);
+void zero_memory(void* addr, size_t size);
+void copy_memory(void* dest, void* source, size_t size);
 
 // Atomic definitions
 typedef struct {
 #ifdef __WIN32__
 	CRITICAL_SECTION handle;
 #endif
-} core_critical_section_t;
+} critical_section_t;
 
-void core_init_critical_section(core_critical_section_t* section);
-void core_enter_critical_section(core_critical_section_t* section);
-void core_exit_critical_section(core_critical_section_t* section);
-int core_sync_swap32(void *ptr, int swap);
-b32 core_sync_compare_swap32(void *ptr, int cmp, int swap);
-int core_sync_add32(void *ptr, int value);
-int core_sync_sub32(void *ptr, int value);
-int core_sync_read32(void *ptr);
+void init_critical_section(critical_section_t* section);
+void enter_critical_section(critical_section_t* section);
+void exit_critical_section(critical_section_t* section);
+int sync_swap32(void *ptr, int swap);
+b32 sync_compare_swap32(void *ptr, int cmp, int swap);
+int sync_add32(void *ptr, int value);
+int sync_sub32(void *ptr, int value);
+int sync_read32(void *ptr);
 
 // Time definitions
-core_time_t core_system_time();
-char* core_format_time(core_time_t time);
+time_t system_time();
+char* format_time(time_t time);
 
 // File definitions
-core_handle_t core_open(char* path);
-core_handle_t core_create(char* path);
-core_handle_t core_open_dir(char* path);
-void core_create_dir(char* path);
-int core_dir_list(char* path, b32 recursive, core_stat_t* output, int length);
-b32 core_read(core_handle_t file, size_t offset, void* output, size_t size);
-b32 core_write(core_handle_t file, size_t offset, void* data, size_t size);
-core_stat_t core_stat(core_handle_t file);
-void core_close(core_handle_t file);
-void core_current_dir(char* output, size_t size);
-void core_change_dir(char* path);
+handle_t 	open_file(char* path);
+handle_t 	create_file(char* path);
+handle_t 	open_dir(char* path);
+void 		create_dir(char* path);
+int 		dir_list(char* path, b32 recursive, stat_t* output, int length);
+b32 		read_file(handle_t file, size_t offset, void* output, size_t size);
+b32 		write_file(handle_t file, size_t offset, void* data, size_t size);
+stat_t 		stat_file(handle_t file);
+void 		close_file(handle_t file);
+void 		current_dir(char* output, size_t size);
+void 		change_dir(char* path);
 
 // Directory watcher definitions
 typedef struct {
 	u64 modified;
-	char filename[CORE_MAX_PATH_LENGTH];
-} core_file_change_t;
+	char filename[MAX_PATH_LENGTH];
+} file_change_t;
 
-typedef struct core_watcher_thread_t {
-	core_handle_t handle;
-	char path[CORE_MAX_PATH_LENGTH];
-	struct core_directory_watcher_t* watcher;
-} core_watcher_thread_t;
+typedef struct watcher_thread_t {
+	handle_t handle;
+	char path[MAX_PATH_LENGTH];
+	struct directory_watcher_t* watcher;
+} watcher_thread_t;
 
-typedef struct core_directory_watcher_t {
-	core_handle_t semaphore;
-	core_handle_t ready_event;
-	core_watcher_thread_t threads[64];
+typedef struct directory_watcher_t {
+	handle_t semaphore;
+	handle_t ready_event;
+	watcher_thread_t threads[64];
 	int directory_count;
 	DWORD filter;
 
-	core_file_change_t results[64];
+	file_change_t results[64];
 	int result_count;
-} core_directory_watcher_t;
+} directory_watcher_t;
 
-b32 core_watch_directory_changes(core_directory_watcher_t* watcher, char** dir_paths, int dir_count);
-int core_wait_for_directory_changes(core_directory_watcher_t* watcher, core_file_change_t* output, int output_size);
+b32 watch_directory_changes(directory_watcher_t* watcher, char** dir_paths, int dir_count);
+int wait_for_directory_changes(directory_watcher_t* watcher, file_change_t* output, int output_size);
 
 
 #endif

@@ -17,13 +17,13 @@
 
 LRESULT CALLBACK _core_wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
 
-void _core_update_button(core_button_t *button, b32 new_state) {
+void _core_update_button(button_t *button, b32 new_state) {
 	button->pressed = new_state && !button->down;
 	button->released = !new_state && button->down;
 	button->down = new_state;
 }
 
-b32 core_window(core_window_t* window, char* title, int width, int height, int flags) {
+b32 start_window(window_t* window, char* title, int width, int height, int flags) {
 	// HINSTANCE hinstance = __ImageBase;
 	WNDCLASS windowClass = {0};
 	windowClass.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
@@ -31,7 +31,7 @@ b32 core_window(core_window_t* window, char* title, int width, int height, int f
 	// TODO: Test, apparently getting the hInstance this way can cause issues if used in a dll
 	HMODULE hinstance = GetModuleHandle(NULL);
 	if (!hinstance) {
-		core_error("GetModuleHandle: %s", core_win32_error(NULL));
+		print_error("GetModuleHandle: %s", _win32_error(NULL));
 		return FALSE;
 	}
 	// windowClass.hInstance = hInstance;
@@ -54,7 +54,7 @@ b32 core_window(core_window_t* window, char* title, int width, int height, int f
 	// }
 
 	if(!RegisterClassA(&windowClass)) {
-		core_error("RegisterClassA: %s", core_win32_error(NULL));
+		print_error("RegisterClassA: %s", _win32_error(NULL));
 		return FALSE;
 	}
 
@@ -86,7 +86,7 @@ b32 core_window(core_window_t* window, char* title, int width, int height, int f
 		0);
 
 	if(!hwnd) {
-		core_error("CreateWindowExA: %s", core_win32_error(NULL));
+		print_error("CreateWindowExA: %s", _win32_error(NULL));
 		return FALSE;
 	}
 
@@ -106,7 +106,7 @@ b32 core_window(core_window_t* window, char* title, int width, int height, int f
 	mouse_raw_input.dwFlags = 0;
 	mouse_raw_input.hwndTarget = window->hwnd;
 	if(!RegisterRawInputDevices(&mouse_raw_input, 1, sizeof(mouse_raw_input))) {
-		core_error("RegisterRawInputDevices: %s", core_win32_error(NULL));
+		print_error("RegisterRawInputDevices: %s", _win32_error(NULL));
 	}
 
 	window->quit = FALSE;
@@ -117,7 +117,7 @@ b32 core_window(core_window_t* window, char* title, int width, int height, int f
 }
 
 LRESULT CALLBACK _core_wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
-	core_window_t* window = (core_window_t*)GetWindowLongPtrA(hwnd, GWLP_USERDATA);
+	window_t* window = (window_t*)GetWindowLongPtrA(hwnd, GWLP_USERDATA);
 
 	LRESULT result = 0;
 	switch (message) {
@@ -200,7 +200,7 @@ wglCreateContextAttribsARB_proc *wglCreateContextAttribsARB;
 typedef BOOL WINAPI wglChoosePixelFormatARB_proc(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
 wglChoosePixelFormatARB_proc *wglChoosePixelFormatARB;
 
-b32 core_opengl(core_window_t* window) {
+b32 start_opengl(window_t* window) {
 	HDC hdc = window->hdc;
 	PIXELFORMATDESCRIPTOR pixelFormat = {0};
 	pixelFormat.nSize = sizeof(PIXELFORMATDESCRIPTOR);
@@ -213,23 +213,23 @@ b32 core_opengl(core_window_t* window) {
 
 	int suggestedIndex = ChoosePixelFormat(hdc, &pixelFormat);
 	if (!suggestedIndex) {
-		core_error("ChoosePixelFormat: %s", core_win32_error(NULL));
+		print_error("ChoosePixelFormat: %s", _win32_error(NULL));
 		return FALSE;
 	}
 	PIXELFORMATDESCRIPTOR suggested;
 	DescribePixelFormat(hdc, suggestedIndex, sizeof(PIXELFORMATDESCRIPTOR), &suggested);
 	if (!SetPixelFormat(hdc, suggestedIndex, &suggested)) {
-		core_error("SetPixelFormat: %s", core_win32_error(NULL));
+		print_error("SetPixelFormat: %s", _win32_error(NULL));
 		return FALSE;
 	}
 
 	HGLRC glContext = wglCreateContext(hdc);
 	if (!glContext) {
-		core_error("wglCreateContext: %s", core_win32_error(NULL));
+		print_error("wglCreateContext: %s", _win32_error(NULL));
 		return FALSE;
 	}
 	if (!wglMakeCurrent(hdc, glContext)) {
-		core_error("wglMakeCurrent: %s", core_win32_error(NULL));
+		print_error("wglMakeCurrent: %s", _win32_error(NULL));
 		return FALSE;
 	}
 
@@ -255,7 +255,7 @@ b32 core_opengl(core_window_t* window) {
 	int num_formats;
 	BOOL choose_format_result = wglChoosePixelFormatARB(hdc, format_attribs, NULL, 1, &format, &num_formats);
 	if (!choose_format_result) {
-		core_error("wglChoosePixelFormatARB: %s", core_win32_error(NULL));
+		print_error("wglChoosePixelFormatARB: %s", _win32_error(NULL));
 		return FALSE;
 	}
 
@@ -268,13 +268,13 @@ b32 core_opengl(core_window_t* window) {
 	};
 	HGLRC context = wglCreateContextAttribsARB(hdc, 0, attribs);
 	if (!context) {
-		core_error("wglCreateContextAttribsARB: %s", core_win32_error(NULL));
+		print_error("wglCreateContextAttribsARB: %s", _win32_error(NULL));
 		return FALSE;
 	}
 
 	BOOL make_current_result = wglMakeCurrent(hdc, context);
 	if (!make_current_result) {
-		core_error("wglMakeCurrent: %s", core_win32_error(NULL));
+		print_error("wglMakeCurrent: %s", _win32_error(NULL));
 		return FALSE;
 	}
 
@@ -286,9 +286,11 @@ b32 core_opengl(core_window_t* window) {
 	if (window->wglSwapIntervalEXT) {
 		window->wglSwapIntervalEXT(1);
 	}
+
+	return TRUE;
 }
 
-void core_window_update(core_window_t* window) {
+void update_window(window_t* window) {
 	SetWindowLongPtrA(window->hwnd, GWLP_WNDPROC, (LONG_PTR)_core_wndproc);
 
 	BYTE keyboard[256] = {0};
@@ -322,7 +324,7 @@ void core_window_update(core_window_t* window) {
 	}
 }
 
-void core_opengl_swap(core_window_t* window) {
+void opengl_swap_buffers(window_t* window) {
 	SwapBuffers(window->hdc);
 }
 

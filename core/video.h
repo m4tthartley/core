@@ -59,10 +59,11 @@ typedef struct {
 	b32 down;
 	b32 pressed;
 	b32 released;
-} core_button_t;
+} button_t;
 
 typedef struct {
-} core_keyboard_t;
+	button_t keys[256];
+} keyboard_t;
 
 typedef struct {
 	struct {
@@ -73,10 +74,10 @@ typedef struct {
         int x;
         int y;
     } pos_dt;
-	core_button_t left;
-	core_button_t right;
+	button_t left;
+	button_t right;
 	int wheel_dt;
-} core_mouse_t;
+} mouse_t;
 
 typedef struct {
 #ifdef __WIN32__
@@ -90,15 +91,15 @@ typedef struct {
 	int height;
 	b32 quit;
     u32 flags;
-	core_button_t keyboard[256];
-	core_mouse_t mouse;
-} core_window_t;
+	button_t keyboard[256];
+	mouse_t mouse;
+} window_t;
 
 
-b32 core_window(core_window_t* window, char* title, int width, int height, int flags);
-b32 core_opengl(core_window_t* window);
-void core_window_update(core_window_t* window);
-void core_opengl_swap(core_window_t* window);
+b32 start_window(window_t* window, char* title, int width, int height, int flags);
+b32 start_opengl(window_t* window);
+void update_window(window_t* window);
+void opengl_swap_buffers(window_t* window);
 
 
 #endif

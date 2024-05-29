@@ -593,9 +593,9 @@ CORE_INLINE int randr(int min, int max) {
 	int result = rand() % (max-min);
 	return min + result;
 }
-CORE_INLINE float randf() {
-	return (float)rand() / RAND_MAX;
-}
+// CORE_INLINE float randf() {
+// 	return (float)rand() / RAND_MAX;
+// }
 CORE_INLINE float randfr(float min, float max) {
 	return min + randf()*(max-min);
 }

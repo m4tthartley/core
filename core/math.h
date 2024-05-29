@@ -288,7 +288,7 @@ CORE_INLINE void qrotatevec3_create(vec3_t* v, quaternion_t q);
 CORE_INLINE quaternion_t qnlerp(quaternion_t a, quaternion_t b, float t);
 CORE_INLINE mat4_t qmat4(quaternion_t q);
 CORE_INLINE int randr(int min, int max);
-CORE_INLINE float randf();
+// CORE_INLINE float randf();
 CORE_INLINE float randfr(float min, float max);
 CORE_INLINE float rand2d(vec2_t st);
 CORE_INLINE float noise (vec2_t st);
