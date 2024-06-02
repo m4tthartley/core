@@ -103,7 +103,7 @@ b32 start_opengl(window_t* window);
 void update_window(window_t* window);
 void opengl_swap_buffers(window_t* window);
 
-inline void _update_button(button_t *button, b32 new_state) {
+static inline void _update_button(button_t *button, b32 new_state) {
 	button->pressed = new_state && !button->down;
 	button->released = !new_state && button->down;
 	button->down = new_state;

@@ -10,6 +10,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+#include "core.h"
 #include "platform.h"
 
 // Errors
@@ -20,12 +21,12 @@ char* _win32_error(DWORD error_code) {
 	}
 
 	char* msg;
-	FormatMessage(
+	FormatMessageA(
 		FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
 		NULL,
 		error_code,
 		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		&msg,
+		(LPSTR)&msg,
 		0,
 		NULL);
 
@@ -387,7 +388,7 @@ DWORD WINAPI watcher_thread_proc(watcher_thread_t* thread) {
 		// WaitForSingleObject(thread->handle, INFINITE);
 
 		u8 change_buffer[512] = {0};
-		int bytes;
+		DWORD bytes;
 		BOOL rdc = ReadDirectoryChangesW(
 			thread->handle,
 			change_buffer,
@@ -409,7 +410,7 @@ DWORD WINAPI watcher_thread_proc(watcher_thread_t* thread) {
 
 		WaitForSingleObject(watcher->semaphore, INFINITE);
 
-		FILE_NOTIFY_INFORMATION *change = change_buffer;
+		FILE_NOTIFY_INFORMATION* change = (FILE_NOTIFY_INFORMATION*)change_buffer;
 		while (change) {
 			char filename[MAX_PATH_LENGTH];
 			char_wide_to_char(filename, change->FileName, MAX_PATH_LENGTH);
@@ -461,7 +462,7 @@ DWORD WINAPI watcher_thread_proc(watcher_thread_t* thread) {
 			free_memory(filename);
 
 			if (change->NextEntryOffset) {
-				change = (u8*)change + change->NextEntryOffset;
+				change = (FILE_NOTIFY_INFORMATION*)((u8*)change + change->NextEntryOffset);
 			} else {
 				change = NULL;
 			}
@@ -492,7 +493,7 @@ b32 watch_directory_changes(directory_watcher_t* watcher, char** dir_paths, int 
 		GetFullPathNameA(dir_paths[i], MAX_PATH_LENGTH, thread->path, NULL);
 
 		thread->watcher = watcher;
-		CreateThread(NULL, 0, watcher_thread_proc, thread, 0, NULL);
+		CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)watcher_thread_proc, thread, 0, NULL);
 	}
 
 	return TRUE;

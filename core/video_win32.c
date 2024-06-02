@@ -24,6 +24,7 @@ LRESULT CALLBACK _core_wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
 // }
 
 b32 start_window(window_t* window, char* title, int width, int height, int flags) {
+	*window = (window_t){0};
 	// HINSTANCE hinstance = __ImageBase;
 	WNDCLASS windowClass = {0};
 	windowClass.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;

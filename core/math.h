@@ -106,6 +106,9 @@ typedef union {
 
 typedef vec4_t quaternion_t;
 typedef quaternion_t quat_t;
+typedef vec2_t v2;
+typedef vec3_t v3;
+typedef vec4_t v4;
 
 typedef union {
 	struct {

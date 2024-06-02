@@ -6,6 +6,10 @@
 //  Copyright 2023 GiantJelly. All rights reserved.
 //
 
+#ifndef __CORE_TIME_HEADER__
+#define __CORE_TIME_HEADER__
+
+
 #include "core.h"
 
 typedef struct {
@@ -16,10 +20,13 @@ typedef struct {
 	u64 last_second_time;
 	int frame_counter;
 	int fps;
-} core_timer_t;
+} timer_t;
 
-void core_timer(core_timer_t* timer);
-f64 core_time(core_timer_t* timer);
-f64 core_time_seconds(core_timer_t* timer);
-u64 core_time_raw(core_timer_t* timer);
-void core_timer_update(core_timer_t* timer);
+timer_t create_timer();
+f64 time(timer_t* timer);
+f64 time_seconds(timer_t* timer);
+u64 time_raw(timer_t* timer);
+void update_timer(timer_t* timer);
+
+
+#endif

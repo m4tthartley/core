@@ -246,7 +246,7 @@ allocator_t create_allocator(u8* buffer, size_t size) {
 	arena.blocks.last = NULL;
 	
 	((memblock_t*)arena.address)->size = arena.size;
-	list_add(&arena.free, arena.address);
+	list_add(&arena.free, (llnode_t*)arena.address);
 
 	return arena;
 }
@@ -263,7 +263,7 @@ allocator_t create_virtual_allocator(size_t size, size_t commit) {
 	arena.blocks.last = NULL;
 	
 	((memblock_t*)arena.address)->size = arena.commit;
-	list_add(&arena.free, arena.address);
+	list_add(&arena.free, (llnode_t*)arena.address);
 
 	return arena;
 }
@@ -332,18 +332,18 @@ void pop_memory_and_shift(stack_t* arena, size_t offset, size_t size) {
 
 // Allocators
 void defrag_free_block(allocator_t* arena, memblock_t* block) {
-	memblock_t* free = arena->free.first;
+	memblock_t* free = (memblock_t*)arena->free.first;
 	while(free) {
-		memblock_t* next_free = ((llnode_t*)free)->next;
+		memblock_t* next_free = (memblock_t*)((llnode_t*)free)->next;
 
 		if (free != block) {
 			if ((u8*)free == (u8*)block + block->size) {
 				block->size += free->size;
-				list_remove(&arena->free, free);
+				list_remove(&arena->free, (llnode_t*)free);
 			}
 			if((u8*)free + free->size == (u8*)block) {
 				free->size += block->size;
-				list_remove(&arena->free, block);
+				list_remove(&arena->free, (llnode_t*)block);
 				block = free;
 			}
 		}
@@ -354,13 +354,13 @@ void defrag_free_block(allocator_t* arena, memblock_t* block) {
 
 void* _alloc_into_free(allocator_t* arena, memblock_t* free, size_t size) {
 	if(free->size > size) {
-		memblock_t* newFree = (u8*)free + size;
+		memblock_t* newFree = (memblock_t*)((u8*)free + size);
 		newFree->size = free->size - size;
-		list_add(&arena->free, newFree);
+		list_add(&arena->free, (llnode_t*)newFree);
 	}
-	list_remove(&arena->free, free);
+	list_remove(&arena->free, (llnode_t*)free);
 	free->size = size;
-	list_add(&arena->blocks, free);
+	list_add(&arena->blocks, (llnode_t*)free);
 	return free + 1;
 }
 
@@ -387,7 +387,7 @@ void _virtual_allocator_commit(allocator_t* arena, size_t size) {
 	memblock_t* new_memory = commit_virtual_memory((u8*)arena->address+arena->commit, commit);
 	arena->commit += commit;
 	new_memory->size = commit;
-	list_add(&arena->free, new_memory);
+	list_add(&arena->free, (llnode_t*)new_memory);
 	defrag_free_block(arena, new_memory);
 }
 
@@ -408,7 +408,7 @@ void* alloc_memory_in(allocator_t* arena, size_t size) {
 		
 	// }
 
-	memblock_t* free = arena->free.first;
+	memblock_t* free = (memblock_t*)arena->free.first;
 	while(free) {
 		// If the free block's size isn't exactly the same,
 		// it will need to split the free block.
@@ -418,7 +418,7 @@ void* alloc_memory_in(allocator_t* arena, size_t size) {
 			|| free->size >= (required_size+sizeof(memblock_t))) {
 			return _alloc_into_free(arena, free, required_size);
 		}
-		free = ((llnode_t*)free)->next;
+		free = (memblock_t*)((llnode_t*)free)->next;
 	}
 
 	if(_is_arena_virtual(arena)) {
@@ -449,10 +449,10 @@ void free_memory_in(allocator_t* arena, u8* block) {
 	if (block >= arena->address && block < arena->address+arena->size) {
 		block -= sizeof(memblock_t);
 		// arena->stack -= ((memblock_t*)block)->size;
-		list_remove(&arena->blocks, block);
-		list_add(&arena->free, block);
+		list_remove(&arena->blocks, (llnode_t*)block);
+		list_add(&arena->free, (llnode_t*)block);
 
-		defrag_free_block(arena, block);
+		defrag_free_block(arena, (memblock_t*)block);
 	}
 }
 
@@ -464,7 +464,7 @@ void clear_allocator(allocator_t* arena) {
 	arena->blocks = (llist_t){0};
 	arena->free = (llist_t){0};
 	((memblock_t*)arena->address)->size = arena->commit;
-	list_add(&arena->free, arena->address);
+	list_add(&arena->free, (llnode_t*)arena->address);
 }
 
 void clear_global_allocator() {
@@ -552,7 +552,7 @@ void print_arena(allocator_t* arena) {
 
 next:
 	while(index < arena_size) {
-		memblock_t* b = arena->blocks.first;
+		memblock_t* b = (memblock_t*)arena->blocks.first;
 		while(b) {
 			if(arena->address+index == (void*)b) {
 				print_inline(TERM_RESET TERM_INVERTED);
@@ -567,10 +567,10 @@ next:
 				index += b->size;
 				goto next;
 			}
-			b = ((llnode_t*)b)->next;
+			b = (memblock_t*)((llnode_t*)b)->next;
 		}
 
-		memblock_t* f = arena->free.first;
+		memblock_t* f = (memblock_t*)arena->free.first;
 		while(f) {
 			if(arena->address+index == (void*)f) {
 				print_inline(TERM_RESET TERM_INVERTED);
@@ -585,7 +585,7 @@ next:
 				index += f->size;
 				goto next;
 			}
-			f = ((llnode_t*)f)->next;
+			f = (memblock_t*)((llnode_t*)f)->next;
 		}
 
 		print_inline(TERM_RED_BG "FATAL ERROR");

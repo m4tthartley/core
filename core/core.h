@@ -6,6 +6,12 @@
 //  Copyright 2023 GiantJelly. All rights reserved.
 //
 
+
+// TODO
+// Window fullscreen flag and toggle
+// Window resizeable flag
+
+
 #ifndef __CORE_HEADER__
 #define __CORE_HEADER__
 
@@ -23,8 +29,8 @@
 #endif
 
 
+// #	include <stdint.h>
 #ifdef __LINUX__
-#	include <stdint.h>
 #	include <stdarg.h>
 #	include <stdlib.h>
 #endif
@@ -74,7 +80,8 @@ typedef u8 byte;
 #undef NULL
 #undef TRUE
 #undef FALSE
-#define NULL ((void*)0)
+#define NULL (0)
+#define NULLPTR ((void*)0)
 #define TRUE ((int)1)
 #define FALSE ((int)0)
 #define PAGE_SIZE 4096
@@ -95,12 +102,15 @@ typedef u8 byte;
 #endif
 
 
+#define CORE_API __declspec(dllexport)
+
+
 // Printing definitions
-void print_inline(char* fmt, ...);
-void print(char* fmt, ...);
-void print_error(char* fmt, ...);
-int print_to_buffer(char* buffer, size_t len, char* fmt, ...);
-int print_to_buffer_va(char* buffer, size_t len, char* fmt, va_list args);
+CORE_API void print_inline(char* fmt, ...);
+CORE_API void print(char* fmt, ...);
+CORE_API void print_error(char* fmt, ...);
+CORE_API int print_to_buffer(char* buffer, size_t len, char* fmt, ...);
+CORE_API int print_to_buffer_va(char* buffer, size_t len, char* fmt, va_list args);
 
 
 // Misc definitions

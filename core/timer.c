@@ -8,39 +8,41 @@
 
 #include "timer.h"
 
-void core_timer(core_timer_t* timer) {
+timer_t create_timer() {
+	timer_t timer = {0};
 	LARGE_INTEGER freq;
 	QueryPerformanceFrequency(&freq);
-	timer->performance_freq = freq.QuadPart/1000;
+	timer.performance_freq = freq.QuadPart/1000;
 	LARGE_INTEGER start;
 	QueryPerformanceCounter(&start);
-	timer->start_time = start.QuadPart;
-	timer->last_second_time = timer->start_time;
-	timer->last_frame_time = timer->start_time;
-	timer->frame_counter = 0;
+	timer.start_time = start.QuadPart;
+	timer.last_second_time = timer.start_time;
+	timer.last_frame_time = timer.start_time;
+	timer.frame_counter = 0;
+	return timer;
 }
 
 // Milliseconds
-f64 core_time(core_timer_t* timer) {
+f64 time(timer_t* timer) {
 	LARGE_INTEGER counter;
 	QueryPerformanceCounter(&counter);
 	return (f64)(counter.QuadPart-timer->start_time) / (f64)timer->performance_freq;
 }
 
 // Seconds
-f64 core_time_seconds(core_timer_t* timer) {
+f64 time_seconds(timer_t* timer) {
 	LARGE_INTEGER counter;
 	QueryPerformanceCounter(&counter);
 	return (f64)(counter.QuadPart-timer->start_time) / (f64)timer->performance_freq / 1000.0;
 }
 
-u64 core_time_raw(core_timer_t* timer) {
+u64 time_raw(timer_t* timer) {
 	LARGE_INTEGER counter;
 	QueryPerformanceCounter(&counter);
 	return counter.QuadPart;
 }
 
-void core_timer_update(core_timer_t* timer) {
+void update_timer(timer_t* timer) {
 	LARGE_INTEGER counter;
 	QueryPerformanceCounter(&counter);
 	timer->dt = (f64)(counter.QuadPart - timer->last_frame_time) /
