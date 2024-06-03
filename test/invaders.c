@@ -12,10 +12,23 @@
 #include <core/math.c>
 #include <core/timer.c>
 // #include <core/im.c>
-        
+
+float SCREEN_LEFT = -20;
+float SCREEN_RIGHT = 20;
+float SCREEN_BOTTOM = -20.0f*(600.0f/800.0f);
+float SCREEN_TOP = 20.0f*(600.0f/800.0f);
+
+#define ALIEN_ROW 12
+#define ALIEN_COL 5
+
 typedef struct {
     v2 pos;
 } player_t;
+
+typedef struct {
+    b32 active;
+    v2 pos;
+} alien_t;
 
 typedef struct {
     b32 active;
@@ -25,6 +38,8 @@ typedef struct {
 
 typedef struct {
     player_t player;
+    alien_t aliens[ALIEN_ROW*ALIEN_COL];
+    bullet_t player_bullet;
     bullet_t bullets[64];
     int bullet_count;
     allocator_t memory;
@@ -44,11 +59,21 @@ void add_bullet(state_t* state, v2 pos, b32 player) {
     }
 }
 
+void player_shoot(state_t* state) {
+    if (!state->player_bullet.active) {
+        state->player_bullet = (bullet_t){
+            .active = TRUE,
+            .pos = state->player.pos,
+            .speed = vec2(0, 1.0f),
+        };
+    }
+}
+
 int main() {
     print("Invaders");
 
     window_t window;
-    start_window(&window, "Invaders", 800, 600, WINDOW_CENTERED);
+    start_window(&window, "Invaders", /*800.0f*1.5f, 600.0f*1.5f*/800, 600, WINDOW_CENTERED);
     start_opengl(&window);
     start_opengl_debug();
 
@@ -64,21 +89,30 @@ int main() {
         // .texture = gfx_create_null_texture(64, 64),
         .texture = gfx_create_texture(load_bitmap_file(&state.memory, "spritesheet.bmp")),
         .tile_size = 16,
-        .scale = 4,
+        .scale = 3,
     };
+
+#define ALIEN_SPACING 2.5f
+    FOR (r, ALIEN_ROW)
+    FOR (c, ALIEN_COL) {
+        state.aliens[c*ALIEN_ROW + r] = (alien_t){
+            .active = TRUE,
+            .pos = vec2(-ALIEN_SPACING*(ALIEN_ROW/2) + (ALIEN_SPACING/2.0f) + (ALIEN_SPACING*r), ALIEN_SPACING*c),
+        };
+    }
 
     while (!window.quit) {
         update_window(&window);
         update_timer(&timer);
 
         // gfx_coord_system(20, 20*(600/800));
-        gfx_ortho_projection(&window, -20, 20, -20.0f*(600.0f/800.0f), 20.0f*(600.0f/800.0f));
+        gfx_ortho_projection(&window, SCREEN_LEFT, SCREEN_RIGHT, SCREEN_BOTTOM, SCREEN_TOP);
         // glMatrixMode(GL_PROJECTION);
         // glLoadIdentity();
         // glOrtho(-20, 20, -20.0f*(600.0f/800.0f), 20.0f*(600.0f/800.0f), -10, 10);
         // glMatrixMode(GL_MODELVIEW);
         // glClear(GL_COLOR_BUFFER_BIT);
-        gfx_clear(vec4(0,0.5f,0,0));
+        gfx_clear(vec4(0,0.0f,0,0));
 
         player_t* player = &state.player;
         if (window.keyboard[KEY_LEFT].down) {
@@ -88,7 +122,8 @@ int main() {
             player->pos.x += 20.0f * timer.dt;
         }
         if (window.keyboard[KEY_SPACE].pressed) {
-            add_bullet(&state, player->pos, TRUE);
+            // add_bullet(&state, player->pos, TRUE);
+            player_shoot(&state);
         }
 
         // glPushMatrix();
@@ -105,9 +140,9 @@ int main() {
         gfx_color(vec4(1, 0.5, 1, 1));
         gfx_quad(player->pos, vec2(1, 1));
 
-        FOR (i, array_size(state.bullets)) {
-            if (state.bullets[i].active) {
-                bullet_t* bullet = state.bullets + i;
+        FOR (i, 1 + array_size(state.bullets)) {
+            bullet_t* bullet = &state.player_bullet + i;
+            if (bullet->active) {
                 bullet->pos.y += bullet->speed.y * timer.dt * 60.0;
 
                 glPushMatrix();
@@ -128,9 +163,26 @@ int main() {
         gfx_texture(&state.spritesheet.texture);
         // glDisable(GL_TEXTURE_2D);
 		// glBindTexture(GL_TEXTURE_2D, 0);
-        gfx_sprite(&window, vec2(0, 0), 0, 0, 64, 64, 4);
+        // gfx_sprite(&window, vec2(0, 0), 0, 0, 64, 64, 4);
 
-        gfx_sprite_tile(&window, &state.spritesheet, vec2(0, 0), 0);
+        FOR (r, ALIEN_ROW)
+        FOR (c, ALIEN_COL) {
+            alien_t* alien = state.aliens + c*ALIEN_ROW + r;
+
+            if (alien->active) {
+                if (len2(sub2(state.player_bullet.pos, alien->pos)) < 1.0f) {
+                    alien->active = FALSE;
+                    state.player_bullet.active = FALSE;
+                }
+
+                gfx_sprite_tile(
+                    &window,
+                    &state.spritesheet,
+                    state.aliens[c*ALIEN_ROW + r].pos,
+                    0
+                );
+            }
+        }
         gfx_texture(NULL);
 
         opengl_swap_buffers(&window);
