@@ -8,6 +8,7 @@
 
 #include "core.h"
 #include "video.h"
+#include "opengl_extensions.h"
 
 
 // #include "audio.h"
@@ -287,6 +288,8 @@ b32 start_opengl(window_t* window) {
 	if (window->wglSwapIntervalEXT) {
 		window->wglSwapIntervalEXT(1);
 	}
+
+	_load_opengl_extensions();
 
 	return TRUE;
 }

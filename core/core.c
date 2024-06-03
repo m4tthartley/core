@@ -239,7 +239,11 @@ stack_t create_virtual_stack(size_t size, size_t commit) {
 
 allocator_t create_allocator(u8* buffer, size_t size) {
 	allocator_t arena = {0};
-	arena.address = buffer;
+	if (buffer) {
+		arena.address = buffer;
+	} else {
+		arena.address = allocate_virtual_memory(size);
+	}
 	arena.size = size;
 
 	arena.blocks.first = NULL;

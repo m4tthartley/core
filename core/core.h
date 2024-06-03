@@ -10,6 +10,7 @@
 // TODO
 // Window fullscreen flag and toggle
 // Window resizeable flag
+// Remove CRT file api from bmp and wav loading
 
 
 #ifndef __CORE_HEADER__

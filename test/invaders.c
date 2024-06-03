@@ -3,15 +3,15 @@
 #include <core/video.h>
 #include <core/im.h>
 #include <core/timer.h>
-#include <core/file.h>
-#include <core/im.h>
+// #include <core/file.h>
+// #include <core/im.h>
 
 #include <core/core.c>
 #include <core/video.c>
 #include <core/im.c>
 #include <core/math.c>
 #include <core/timer.c>
-#include <core/im.c>
+// #include <core/im.c>
         
 typedef struct {
     v2 pos;
@@ -27,6 +27,8 @@ typedef struct {
     player_t player;
     bullet_t bullets[64];
     int bullet_count;
+    allocator_t memory;
+    gfx_sprite_t spritesheet;
 } state_t;
 
 void add_bullet(state_t* state, v2 pos, b32 player) {
@@ -48,22 +50,35 @@ int main() {
     window_t window;
     start_window(&window, "Invaders", 800, 600, WINDOW_CENTERED);
     start_opengl(&window);
+    start_opengl_debug();
 
     state_t state = {0};
+    state.memory = create_allocator(NULL, MB(10));
     state.player.pos = vec2(0, -12);
 
     timer_t timer = create_timer();
+
+    // bitmap_t* bmp = load_bitmap_file(&state.memory, "spritesheet.bmp");
+    // gfx_texture_t tex = gfx_create_texture(bmp);
+    state.spritesheet = (gfx_sprite_t){
+        // .texture = gfx_create_null_texture(64, 64),
+        .texture = gfx_create_texture(load_bitmap_file(&state.memory, "spritesheet.bmp")),
+        .tile_size = 16,
+        .scale = 4,
+    };
 
     while (!window.quit) {
         update_window(&window);
         update_timer(&timer);
 
-        gfx_coord_system(20, 20*(600/800));
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        glOrtho(-20, 20, -20.0f*(600.0f/800.0f), 20.0f*(600.0f/800.0f), -10, 10);
-        glMatrixMode(GL_MODELVIEW);
-        glClear(GL_COLOR_BUFFER_BIT);
+        // gfx_coord_system(20, 20*(600/800));
+        gfx_ortho_projection(&window, -20, 20, -20.0f*(600.0f/800.0f), 20.0f*(600.0f/800.0f));
+        // glMatrixMode(GL_PROJECTION);
+        // glLoadIdentity();
+        // glOrtho(-20, 20, -20.0f*(600.0f/800.0f), 20.0f*(600.0f/800.0f), -10, 10);
+        // glMatrixMode(GL_MODELVIEW);
+        // glClear(GL_COLOR_BUFFER_BIT);
+        gfx_clear(vec4(0,0.5f,0,0));
 
         player_t* player = &state.player;
         if (window.keyboard[KEY_LEFT].down) {
@@ -76,16 +91,19 @@ int main() {
             add_bullet(&state, player->pos, TRUE);
         }
 
-        glPushMatrix();
-        glTranslatef(player->pos.x, player->pos.y, 0);
-        glColor4f(1, 0.5, 1, 1);
-        glBegin(GL_QUADS);
-        glVertex2f(-0.5f, -0.5f);
-        glVertex2f(0.5f, -0.5f);
-        glVertex2f(0.5f, 0.5f);
-        glVertex2f(-0.5f, 0.5f);
-        glEnd();
-        glPopMatrix();
+        // glPushMatrix();
+        // glTranslatef(player->pos.x, player->pos.y, 0);
+        // glColor4f(1, 0.5, 1, 1);
+        // glBegin(GL_QUADS);
+        // glVertex2f(-0.5f, -0.5f);
+        // glVertex2f(0.5f, -0.5f);
+        // glVertex2f(0.5f, 0.5f);
+        // glVertex2f(-0.5f, 0.5f);
+        // glEnd();
+        // glPopMatrix();
+
+        gfx_color(vec4(1, 0.5, 1, 1));
+        gfx_quad(player->pos, vec2(1, 1));
 
         FOR (i, array_size(state.bullets)) {
             if (state.bullets[i].active) {
@@ -104,6 +122,16 @@ int main() {
                 glPopMatrix();
             }
         }
+
+        glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        gfx_texture(&state.spritesheet.texture);
+        // glDisable(GL_TEXTURE_2D);
+		// glBindTexture(GL_TEXTURE_2D, 0);
+        gfx_sprite(&window, vec2(0, 0), 0, 0, 64, 64, 4);
+
+        gfx_sprite_tile(&window, &state.spritesheet, vec2(0, 0), 0);
+        gfx_texture(NULL);
 
         opengl_swap_buffers(&window);
     }
