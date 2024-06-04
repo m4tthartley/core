@@ -104,17 +104,17 @@ bitmap_t* load_bitmap_file(allocator_t* allocator, char* filename) {
 
 bitmap_t* load_font_file(allocator_t* allocator, char*filename) {
 	bitmap_t* bitmap = load_bitmap_file(allocator, filename);
-	if (bitmap) {
-		u32* pixels = (u32*)(bitmap + 1);
-		FOR (i, bitmap->width * bitmap->height) {
-			u32 pixel = pixels[i];
-			if (pixel != 0xFF000000) {
-				pixels[i] = 0;
-			} else {
-				pixels[i] = 0xFFFFFFFF;
-			}
-		}
-	}
+	// if (bitmap) {
+	// 	u32* pixels = (u32*)(bitmap + 1);
+	// 	FOR (i, bitmap->width * bitmap->height) {
+	// 		u32 pixel = pixels[i];
+	// 		if (pixel != 0xFFFF0000) {
+	// 			pixels[i] = 0;
+	// 		} else {
+	// 			pixels[i] = 0xFFFFFFFF;
+	// 		}
+	// 	}
+	// }
 
 	return bitmap;
 }
@@ -321,11 +321,12 @@ void gfx_text(window_t* window, vec2_t pos, float scale, char* str, ...) {
 	// 	(pixel_size.x)*2.0f * (f32)scale,
 	// 	(pixel_size.y)*2.0f * (f32)scale,
 	// };
-	vec2_t percent_of_screen = vec2(1.0f/((f32)window->width/8), 1.0f/((f32)window->height/8));
-	vec2_t s = {
-		(percent_of_screen.x/*/_gfx_coord_system.x*/) * (f32)scale,
-		(percent_of_screen.y/*/_gfx_coord_system.y*/) * (f32)scale,
-	};
+	
+	// vec2_t percent_of_screen = vec2(1.0f/((f32)window->width/8), 1.0f/((f32)window->height/8));
+	// vec2_t s = {
+	// 	(percent_of_screen.x/*/_gfx_coord_system.x*/) * (f32)scale,
+	// 	(percent_of_screen.y/*/_gfx_coord_system.y*/) * (f32)scale,
+	// };
 
 	gfx_texture_t* t = _gfx_active_texture;
 	int chars_per_row = t->width / 8;
@@ -335,16 +336,20 @@ void gfx_text(window_t* window, vec2_t pos, float scale, char* str, ...) {
 	char* buffer = b;
 	for (int i=0; *buffer; ++i,++buffer) {
 		if(*buffer != '\n') {
-			vec2_t uv = vec2((float)(*buffer%chars_per_row) / (float)chars_per_row,
-					(float)(*buffer/chars_per_row) / (float)chars_per_col);
-			vec2_t uvt = vec2(1.0f/(float)chars_per_row, 1.0f/(float)chars_per_col);
-			vec2_t charPos = add2(pos, vec2(i * s.x, 0));
-			glBegin(GL_QUADS);
-			glTexCoord2f(uv.x,       uv.y+uvt.y); glVertex2f(charPos.x,            charPos.y+s.y);
-			glTexCoord2f(uv.x+uvt.x, uv.y+uvt.y); glVertex2f(charPos.x+(s.x), charPos.y+s.y);
-			glTexCoord2f(uv.x+uvt.x, uv.y);       glVertex2f(charPos.x+(s.x), charPos.y);
-			glTexCoord2f(uv.x,       uv.y);       glVertex2f(charPos.x,            charPos.y);
-			glEnd();
+			// vec2_t uv = vec2((float)(*buffer%chars_per_row) / (float)chars_per_row,
+			// 		(float)(*buffer/chars_per_row) / (float)chars_per_col);
+			// vec2_t uvt = vec2(1.0f/(float)chars_per_row, 1.0f/(float)chars_per_col);
+			// vec2_t charPos = add2(pos, vec2(i * s.x, 0));
+			// glBegin(GL_QUADS);
+			// glTexCoord2f(uv.x,       uv.y+uvt.y); glVertex2f(charPos.x,            charPos.y+s.y);
+			// glTexCoord2f(uv.x+uvt.x, uv.y+uvt.y); glVertex2f(charPos.x+(s.x), charPos.y+s.y);
+			// glTexCoord2f(uv.x+uvt.x, uv.y);       glVertex2f(charPos.x+(s.x), charPos.y);
+			// glTexCoord2f(uv.x,       uv.y);       glVertex2f(charPos.x,            charPos.y);
+			// glEnd();
+
+			v2 char_pos = add2(pos, mul2(vec2((float)i*8.0f*scale, 0), _gfx_ortho_res_scale));
+			i2 pixel_offset = int2(*buffer%chars_per_row * 8, *buffer/chars_per_row * 8);
+			gfx_sprite(window, char_pos, pixel_offset.x, pixel_offset.y, 8, 8, scale);
 		}
 	}
 }
