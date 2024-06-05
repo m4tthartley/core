@@ -17,6 +17,7 @@ float SCREEN_LEFT = -20;
 float SCREEN_RIGHT = 20;
 float SCREEN_BOTTOM = -20.0f*(600.0f/800.0f);
 float SCREEN_TOP = 20.0f*(600.0f/800.0f);
+float PIXEL_SCALE = 3.0f;
 
 #define ALIEN_ROW_SIZE 12
 #define ALIEN_COL_SIZE 5
@@ -55,12 +56,17 @@ typedef struct {
 } particle_t;
 
 typedef struct {
+    v2 pos;
+} barrier_t;
+
+typedef struct {
     player_t player;
     alien_t aliens[ALIEN_ROW_SIZE*ALIEN_COL_SIZE];
     bullet_t player_bullet;
     bullet_t bullets[64];
     particle_t particles[1024];
     int next_particle_slot;
+    barrier_t barriers[4];
 
     float alien_move_timer;
     float alien_move_interval;
@@ -76,6 +82,9 @@ typedef struct {
     bitmap_t* font_bitmap;
     gfx_sprite_t spritesheet;
     gfx_texture_t font_texture;
+
+    bitmap_t* barrier_bitmaps[4];
+    gfx_texture_t barrier_textures[4];
 
     game_t game;
 } state_t;
@@ -130,9 +139,11 @@ void player_shoot(game_t* game) {
     }
 }
 
-void start_system(state_t* state, allocator_t allocator) {
+state_t* start_system() {
+    allocator_t _allocator = create_allocator(NULL, MB(10));
+    state_t* state = alloc_memory_in(&_allocator, sizeof(state_t));
     zero_memory(state, sizeof(state_t));
-    state->memory = allocator;
+    state->memory = _allocator;
 
     state->spritesheet_bmp = load_bitmap_file(&state->memory, "spritesheet.bmp");
     // gfx_texture_t tex = gfx_create_texture(bmp);
@@ -140,13 +151,29 @@ void start_system(state_t* state, allocator_t allocator) {
         // .texture = gfx_create_null_texture(64, 64),
         .texture = gfx_create_texture(state->spritesheet_bmp),
         .tile_size = 16,
-        .scale = 3,
+        .scale = PIXEL_SCALE,
     };
 
     state->font_bitmap = load_font_file(&state->memory, "font.bmp");
     state->font_texture = gfx_create_texture(state->font_bitmap);
 
-    glPointSize(3.0f);
+    // Generate barrier bitmaps
+    FOR (i, 4) {
+        state->barrier_bitmaps[i] = alloc_memory_in(&state->memory, sizeof(bitmap_t)+(sizeof(u32)*16*16));
+        state->barrier_bitmaps[i]->size = sizeof(u32)*16*16;
+        state->barrier_bitmaps[i]->width = 16;
+        state->barrier_bitmaps[i]->height = 16;
+
+        FOR (y, 16) FOR (x, 16) {
+            state->barrier_bitmaps[i]->data[y*16+x] = state->spritesheet_bmp->data[(32+y)*state->spritesheet_bmp->width + (32+x)];
+        }
+
+        state->barrier_textures[i] = gfx_create_texture(state->barrier_bitmaps[i]);
+    }
+
+    glPointSize(PIXEL_SCALE);
+
+    return state;
 }
 
 void start_game(game_t* game) {
@@ -167,20 +194,19 @@ void start_game(game_t* game) {
             .target_pos = vec2(-ALIEN_SPACING*(ALIEN_ROW_SIZE/2) + (ALIEN_SPACING/2.0f) + (ALIEN_SPACING*r), ALIEN_SPACING*c),
         };
     }
+
+    FOR (i, array_size(game->barriers)) {
+        game->barriers[i].pos = vec2(-12.0f + (8.0f*i), -8.0f);
+    }
 }
 
 int main() {
-    print("Invaders");
-
     window_t window;
     start_window(&window, "Invaders", /*800.0f*1.5f, 600.0f*1.5f*/800, 600, WINDOW_CENTERED);
     start_opengl(&window);
     start_opengl_debug();
-
-    allocator_t allocator = create_allocator(NULL, MB(10));
-    state_t* state = alloc_memory_in(&allocator, sizeof(state_t));
     
-    start_system(state, allocator);
+    state_t* state = start_system();
     start_game(&state->game);
     timer_t timer = create_timer();
 
@@ -258,6 +284,49 @@ int main() {
                     bullet->active = FALSE;
                 }
 
+                FOR (bi, array_size(game->barriers)) {
+                    barrier_t* barrier = game->barriers + bi;
+
+                    // v2 pixel_overlapf = add2f(mul2(sub2(barrier->pos, bullet->pos), div2f(_gfx_ortho_res_scale, PIXEL_SCALE)), 8.0f);
+                    v2 pixel_scale = mul2f(_gfx_ortho_res_scale, PIXEL_SCALE);
+                    v2 pixel_overlapf = add2f(div2(sub2(bullet->pos, barrier->pos), pixel_scale), 8.0f);
+                    i2 pixel_overlap = {pixel_overlapf.x, pixel_overlapf.y};
+                    if (pixel_overlap.x>=0 && pixel_overlap.x<16 &&
+                        pixel_overlap.y>=0 && pixel_overlap.y<16 /*len2(sub2(bullet->pos, barrier->pos)) < 2.0f*/) {
+
+                        bitmap_t* bitmap = state->barrier_bitmaps[bi];
+                        u32* pixel = bitmap->data + (pixel_overlap.y)*bitmap->width + (pixel_overlap.x);
+                        if (*pixel) {
+                            bullet->active = FALSE;
+                            
+                            // explosion
+                            FOR (y, 16) FOR (x, 16) {
+                                u32* pixels = bitmap->data;
+                                // int tile = 10;
+                                i32* p = pixels + (y)*bitmap->width + (x);
+                                v2 pixel_pos = add2(barrier->pos, mul2(sub2f(vec2(x, y), 7.5f), mul2f(_gfx_ortho_res_scale, PIXEL_SCALE)));
+                                
+                                // i2 pixel_overlap = {
+
+                                // };
+
+                                float dist = len2(sub2(bullet->pos, pixel_pos));
+                                if (dist < 0.5f && randf()<(1.0f - powf(dist*2.0f, 2.0f))) {
+                                    *p = 0;
+                                }
+                            }
+
+                            gfx_update_texture(state->barrier_textures + bi, bitmap);
+                            print("%i %i", pixel_overlap.x, pixel_overlap.y);
+                        }
+                        
+                        // barrier->pos.x += 1.0f;
+                        
+
+                        // state->spritesheet_bmp->data[(32+pixel_overlap.y)*state->spritesheet_bmp->width + (32+pixel_overlap.x)] = 0;
+                    }
+                }
+
                 // glPushMatrix();
                 // glTranslatef(bullet->pos.x, bullet->pos.y, 0);
                 // glColor4f(1, 1, 1, 1);
@@ -268,7 +337,9 @@ int main() {
                 // glVertex2f(-0.05f, 0.5f);
                 // glEnd();
                 // glPopMatrix();
-                gfx_sprite_tile(&window, &state->spritesheet, bullet->pos, 12 + (int)bullet->animation);
+                // gfx_sprite_tile(&window, &state->spritesheet, bullet->pos, 12 + (int)bullet->animation);
+                gfx_texture(NULL);
+                gfx_point(bullet->pos);
             }
         }
 
@@ -352,7 +423,7 @@ int main() {
                             // _gfx_ortho_res_scale
                             add_alien_particle(
                                 game,
-                                add2(alien->pos, mul2(sub2f(vec2(x, y), 7.5f), mul2f(_gfx_ortho_res_scale, 3.0f))),
+                                add2(alien->pos, mul2(sub2f(vec2(x, y), 7.5f), mul2f(_gfx_ortho_res_scale, PIXEL_SCALE))),
                                 // vec2(randf_range(-0.5f, 0.5f), randf_range(-0.5f, 0.5f))
                                 add2(mul2f(normalize2(sub2(vec2(x, y), vec2(8, 8))), 0.5f), vec2(randfr(-0.2f, 0.2f), randfr(-0.2f, 0.2f))),
                                 // vec4(97.0f / 255.0f, 16.0f / 255.0f, 162.0f / 255.0f, 1.0f)
@@ -373,6 +444,14 @@ int main() {
                     (c%3 * 2) + alien->animation
                 );
             }
+        }
+
+        // BARRIERS
+        FOR (i, array_size(game->barriers)) {
+            barrier_t* barrier = game->barriers + i;
+            // gfx_sprite_tile(&window, &state->, barrier->pos, 10);
+            gfx_texture(state->barrier_textures + i);
+            gfx_sprite(&window, barrier->pos, 0, 0, 16, 16, PIXEL_SCALE);
         }
 
         // TEXT

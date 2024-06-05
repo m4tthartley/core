@@ -160,6 +160,11 @@ gfx_texture_t gfx_create_texture(bitmap_t* bitmap) {
 	}
 }
 
+void gfx_update_texture(gfx_texture_t* texture, bitmap_t* bitmap) {
+	glBindTexture(GL_TEXTURE_2D, texture->handle);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture->width, texture->height, GL_BGRA_EXT, GL_UNSIGNED_BYTE, bitmap->data);
+}
+
 void gfx_texture(gfx_texture_t* texture) {
 	if (texture) {
 		glEnable(GL_TEXTURE_2D);

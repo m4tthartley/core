@@ -52,17 +52,17 @@ typedef struct {
 
 
 // Threading
-typedef b32 barrier_t;
+typedef b32 thread_barrier_t;
 
-inline void barrier_start(volatile barrier_t* barrier) {
+inline void thread_lock_barrier(volatile thread_barrier_t* barrier) {
 	int num = 0;
 	while (!__sync_bool_compare_and_swap((long volatile*)barrier, TRUE, FALSE)) {
 		++num;
 	}
-	print("SPIN LOCK %i", num);
+	print("SPIN LOCK %i", num); // debug
 }
 
-inline void barrier_end(volatile barrier_t* barrier) {
+inline void thread_unlock_barrier(volatile thread_barrier_t* barrier) {
 	__sync_lock_test_and_set((long volatile*)barrier, FALSE);
 }
 
