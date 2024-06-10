@@ -1,10 +1,13 @@
 //
-//  platform_linux.h
+//  platform_posix.c
 //  Core
 //
 //  Created by Matt Hartley on 26/10/2023.
 //  Copyright 2023 GiantJelly. All rights reserved.
 //
+
+#include "core.h"
+#include "platform.h"
 
 #include <sys/mman.h>
 #include <fcntl.h>
@@ -18,11 +21,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <dlfcn.h>
+
 #define HANDLE_NULL (-1)
 #define HANDLE_STDOUT STDOUT_FILENO
-
-typedef int f_handle;
-typedef int socket_t;
 
 
 char* error_with_source_location(char* errstr, char* file, int line_number) {
@@ -35,11 +37,11 @@ char* error_with_source_location(char* errstr, char* file, int line_number) {
 
 
 // Virtual memory
-void* core_reserve_virtual_memory(size_t size) {
+void* reserve_virtual_memory(size_t size) {
 	return mmap(NULL, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, HANDLE_NULL, 0);
 }
 
-void* core_commit_virtual_memory(void* addr, size_t size) {
+void* commit_virtual_memory(void* addr, size_t size) {
 	int result = mprotect(addr, size, PROT_READ | PROT_WRITE);
 	if (!result) {
 		return addr;
@@ -48,15 +50,15 @@ void* core_commit_virtual_memory(void* addr, size_t size) {
 	}
 }
 
-void* core_allocate_virtual_memory(size_t size) {
+void* allocate_virtual_memory(size_t size) {
 	return mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, HANDLE_NULL, 0);
 }
 
-void core_free_virtual_memory(void* addr, size_t size) {
+void free_virtual_memory(void* addr, size_t size) {
 	munmap(addr, size);
 }
 
-void core_zero_memory(void* addr, size_t size) {
+void zero_memory(void* addr, size_t size) {
 	u8* p = addr;
 	u8* end = p+size;
 	while(p<end) {
@@ -64,7 +66,7 @@ void core_zero_memory(void* addr, size_t size) {
 	}
 }
 
-void core_copy_memory(void* dest, void* src, size_t size) {
+void copy_memory(void* dest, void* src, size_t size) {
 	u8* out = dest;
 	u8* in = src;
 	u8* end = out+size;
@@ -75,37 +77,37 @@ void core_copy_memory(void* dest, void* src, size_t size) {
 
 
 // Threading and atomic operations
-typedef b32 core_barrier_t;
+// typedef b32 core_barrier_t;
 
-void core_barrier_start(volatile core_barrier_t* barrier) {
-	int num = 0;
-	while (!__sync_bool_compare_and_swap((long volatile*)barrier, TRUE, FALSE)) {
-		++num;
-	}
-	printf("SPIN LOCK %i\n", num);
-}
+// void core_barrier_start(volatile core_barrier_t* barrier) {
+// 	int num = 0;
+// 	while (!__sync_bool_compare_and_swap((long volatile*)barrier, TRUE, FALSE)) {
+// 		++num;
+// 	}
+// 	printf("SPIN LOCK %i\n", num);
+// }
 
-void core_barrier_end(volatile core_barrier_t* barrier) {
-	__sync_lock_test_and_set((long volatile*)barrier, FALSE);
-}
+// void core_barrier_end(volatile core_barrier_t* barrier) {
+// 	__sync_lock_test_and_set((long volatile*)barrier, FALSE);
+// }
 
-int atomic_swap32(void *ptr, int swap) {
+int sync_swap32(void *ptr, int swap) {
 	return __sync_lock_test_and_set((long volatile*)ptr, swap);
 }
 
-b32 atomic_compare_swap32(void *ptr, int cmp, int swap) {
+b32 sync_compare_swap32(void *ptr, int cmp, int swap) {
 	return __sync_val_compare_and_swap((long volatile*)ptr, swap, cmp) == cmp;
 }
 
-int atomic_add32(void *ptr, int value) {
+int sync_add32(void *ptr, int value) {
 	return __sync_fetch_and_add((long volatile*)ptr, value);
 }
 
-int atomic_sub32(void *ptr, int value) {
+int sync_sub32(void *ptr, int value) {
 	return __sync_fetch_and_sub((long volatile*)ptr, value);
 }
 
-int atomic_read32(void *ptr) {
+int sync_read32(void *ptr) {
 	return __sync_fetch_and_add((long volatile*)ptr, 0);
 }
 
@@ -118,7 +120,7 @@ void core_message_box(char* msg, char* caption, int type) {
 
 
 // Time and Dates
-timestamp_t core_system_time() {
+time_t system_time() {
 	// number of 100-nanosecond intervals
 	// FILETIME time;
 	// GetSystemTimeAsFileTime(&time);
@@ -131,16 +133,16 @@ timestamp_t core_system_time() {
 
 	struct timeval systime;
 	struct timezone zone;
-	int result = gettimeofday(&systime, &zone);
+	int gtod = gettimeofday(&systime, &zone);
 
-	timestamp_t timestamp;
-	timestamp.sec = systime.tv_sec;
-	timestamp.msec = systime.tv_sec*1000 + systime.tv_usec/1000;
+	time_t result = systime.tv_sec*1000 + systime.tv_usec/1000;
+	// timestamp.sec = systime.tv_sec;
+	// timestamp.msec = systime.tv_sec*1000 + systime.tv_usec/1000;
 
-	return timestamp;
+	return result;
 }
 
-char* core_format_time(timestamp_t timestamp) {
+char* format_time(time_t timestamp) {
 	// char d[64];
 	// char t[64];
 	// if (!time.msec) {
@@ -222,113 +224,122 @@ char* core_format_time(timestamp_t timestamp) {
 		date->tm_min,
 		date->tm_sec);
 
-	char* result = malloc(s_len(buffer));
+	char* result = malloc(str_len(buffer));
 	strcpy(result, buffer);
 	return result;
 }
 
 
 // Files
-#define core_print_file_error()\
-	core_error("%s: %s", path, strerror(errno))
+#define _print_file_error()\
+	print_error("%s: %s", path, strerror(errno))
 
-f_handle f_open(char* path) {
+file_t file_open(char* path) {
 	int handle = open(path, O_RDWR);
 	if(handle == HANDLE_NULL) {
 		if (errno != EACCES) {
-			core_print_file_error();
+			_print_file_error();
 		}
 		return NULL;
 	}
 	return handle;
 }
 
-f_handle f_create(char* path) {
+file_t file_create(char* path) {
 	int handle = open(path, O_RDWR | O_CREAT);
 	if(handle == HANDLE_NULL) {
-		core_print_file_error();
+		_print_file_error();
 		return NULL;
 	}
 	return handle;
 }
 
-f_handle f_open_directory(char* path) {
+b32 file_read(file_t file, size_t offset, void* buffer, size_t size) {
+	int result = pread(file, buffer, size, offset);
+	if (result == -1) {
+		print_error(strerror(errno));
+		return FALSE;
+	}
+	if (result != size) {
+		print_error(strerror(errno));
+		return FALSE;
+	}
+	return result;
+}
+
+b32 file_write(file_t file, size_t offset, void* buffer, size_t size) {
+	int result = pwrite(file, buffer, size, offset);
+	if (result == -1) {
+		print_error(strerror(errno));
+		return FALSE;
+	}
+	if (result != size) {
+		print_error(strerror(errno));
+		return FALSE;
+	}
+	return result;
+}
+
+stat_t file_stat(file_t file) {
+	stat_t result = {0};
+	struct stat stats;
+	int stat_result = fstat(file, &stats);
+	if (stat_result == -1) {
+		print_error(strerror(errno));
+	}
+	result.created = 0;
+#ifdef __MACOS__
+	result.modified = stats.st_mtimespec.tv_sec*1000 + (stats.st_mtimespec.tv_nsec/1000000);
+#endif
+#ifdef __LINUX__
+	result.modified = stats.st_mtim.tv_sec*1000 + (stats.st_mtim.tv_nsec/1000000);
+#endif
+	result.size = stats.st_size;
+	if ((stats.st_mode & S_IFMT) == S_IFDIR) {
+		result.is_directory = TRUE;
+	}
+
+	return result;
+}
+
+void file_close(file_t file) {
+	if(file) {
+		close(file);
+	}
+}
+
+file_t file_open_dir(char* path) {
 	int handle = open(path, O_RDONLY | O_DIRECTORY);
 	if(handle == HANDLE_NULL) {
 		if (errno != EACCES) {
-			core_print_file_error();
+			_print_file_error();
 		}
 		return NULL;
 	}
 	return handle;
 }
 
-f_handle f_create_directory(char* path) {
+file_t file_create_dir(char* path) {
 	int handle = open(path, O_RDONLY | O_CREAT | O_DIRECTORY);
 	if(handle == HANDLE_NULL) {
-		core_print_file_error();
+		_print_file_error();
 		return NULL;
 	}
 	return handle;
 }
 
-int f_directory_list(char* path, b32 recursive, f_info* output, int length) {
-// 	int output_index = 0;
-// 	char* wildcard = s_format("%s/*", path);
-// 	WIN32_FIND_DATAA find_data;
-// 	HANDLE find_handle = FindFirstFileA(wildcard, &find_data);
-// 	if (find_handle == INVALID_HANDLE_VALUE) {
-// 		core_error_console(FALSE, "Failed to open directory: %s", path);
-// 		return 0;
-// 	}
-// 	do {
-// 		if (!s_compare(find_data.cFileName, ".") && !s_compare(find_data.cFileName, "..")) {
-// 			if (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-// 				if (recursive) {
-// 					output_index += f_directory_list(
-// 						s_format("%s/%s", path, find_data.cFileName),
-// 						TRUE,
-// 						output+output_index,
-// 						length-output_index);
-// 				} else {
-// 					f_info* file = output + output_index++;
-// 					assert(s_len(find_data.cFileName) < sizeof(output->filename));
-// 					strcpy(file->filename, find_data.cFileName);
-// 					file->created = find_data.ftCreationTime.dwLowDateTime;
-// 					file->created |= (u64)find_data.ftCreationTime.dwHighDateTime<<32;
-// 					file->modified = find_data.ftLastWriteTime.dwLowDateTime;
-// 					file->modified |= (u64)find_data.ftLastWriteTime.dwHighDateTime<<32;
-// 					file->size = ((u64)find_data.nFileSizeHigh<<32) | find_data.nFileSizeLow;
-// 				}
-// 			} else {
-// 				// char* filename = s_copy(find_data.cFileName);
-// 				if (output_index < length) {
-// 					f_info* file = output + output_index++;
-// 					assert(s_len(find_data.cFileName) < sizeof(output->filename));
-// 					strcpy(file->filename, find_data.cFileName);
-// 					file->created = find_data.ftCreationTime.dwLowDateTime;
-// 					file->created |= (u64)find_data.ftCreationTime.dwHighDateTime<<32;
-// 					file->modified = find_data.ftLastWriteTime.dwLowDateTime;
-// 					file->modified |= (u64)find_data.ftLastWriteTime.dwHighDateTime<<32;
-// 					file->size = ((u64)find_data.nFileSizeHigh<<32) | find_data.nFileSizeLow;
-// 				}
-// 			}
-// 		}
-// 	} while (FindNextFileA(find_handle, &find_data));
-// 	FindClose(find_handle);
-// 	return output_index;
-
+int file_list_dir(char* path, b32 recursive, stat_t* output, int length) {
 	int output_index = 0;
 
 	DIR* dir = opendir(path);
 	struct dirent* ent;
-	while (ent = readdir(dir)) {
+	while ((ent = readdir(dir))) {
 		if (ent->d_type == DT_DIR) {
 			if (recursive) {
 				char dirpath[256];
 				char* name = ent->d_name;
 				snprintf(dirpath, 256, "%s/%s", path, name);
-				output_index += f_directory_list(
+				output_index += file_list_dir(
 					dirpath,
 					TRUE,
 					output+output_index,
@@ -338,7 +349,7 @@ int f_directory_list(char* path, b32 recursive, f_info* output, int length) {
 		}
 
 		if (output_index < length) {
-			f_info* file = output + output_index++;
+			stat_t* file = output + output_index++;
 			// assert(s_len(ent->d_name) < sizeof(file->filename));
 			strncpy(file->filename, ent->d_name, sizeof(file->filename));
 			// file->created = find_data.ftCreationTime.dwLowDateTime;
@@ -352,51 +363,45 @@ int f_directory_list(char* path, b32 recursive, f_info* output, int length) {
 	return output_index;
 }
 
-int f_read(f_handle file, size_t offset, void* buffer, size_t size) {
-	int result = pread(file, buffer, size, offset);
-	if (result == -1) {
-		core_error(strerror(errno));
-	}
-	if (result != size) {
-		core_error(strerror(errno));
-	}
-	return result;
+char* file_current_dir(char* output, size_t size) {
+	return getcwd(output, size);
 }
 
-int f_write(f_handle file, size_t offset, void* buffer, size_t size) {
-	int result = pwrite(file, buffer, size, offset);
-	if (result == -1) {
-		core_error(strerror(errno));
-	}
-	if (result != size) {
-		core_error(strerror(errno));
-	}
-	return result;
-}
-
-f_info f_stat(f_handle file) {
-	f_info result = {0};
-	struct stat stats;
-	int stat_result = fstat(file, &stats);
-	if (stat_result == -1) {
-		core_error(strerror(errno));
-	}
-	result.created = 0;
-	result.modified = stats.st_mtim.tv_sec*1000 + (stats.st_mtim.tv_nsec/1000000);
-	result.size = stats.st_size;
-	if ((stats.st_mode & S_IFMT) == S_IFDIR) {
-		result.is_directory = TRUE;
-	}
-
-	return result;
-}
-
-void f_close(f_handle file) {
-	if(file) {
-		close(file);
-	}
-}
-
-void f_change_directory(char* path) {
+void file_change_dir(char* path) {
 	chdir(path);
+}
+
+
+// Dynamic libraries
+dylib_t load_dynamic_library(char *file) {
+	dylib_t lib;
+	char path[256];
+// #ifdef __MACOS__
+// 	char* format = "%s.dylib";
+// #endif
+// #ifdef __LINUX__
+// 	char* format = "%s.so";
+// #endif
+
+	snprintf(path, 255, file, file);
+
+	file_t test = file_open(path);
+	if (!test) print_error("Unable to open library: %s", path);
+	else {
+		print("Found library: %s", path);
+		file_close(test);
+	}
+
+	lib.handle = dlopen(path, RTLD_LAZY);
+
+	if (!lib.handle) {
+		char* error = dlerror();
+		print_error("Error loading library: %s", error);
+	}
+
+	return lib;
+}
+
+void *load_library_proc(dylib_t lib, char *proc) {
+	return dlsym(lib.handle, proc);
 }

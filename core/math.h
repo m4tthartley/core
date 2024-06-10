@@ -12,11 +12,6 @@
 #ifndef __CORE_MATH_HEADER__
 #define __CORE_MATH_HEADER__
 
-typedef __int64  i64;
-typedef unsigned __int64  u64;
-typedef __int32  i32;
-typedef unsigned __int32  u32;
-
 #undef min
 #undef max
 #undef near

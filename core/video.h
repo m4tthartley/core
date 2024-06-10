@@ -12,7 +12,15 @@
 
 #include "core.h"
 
+#ifdef __WIN32__
 #include <gl/gl.h>
+#endif
+#ifdef __LINUX__
+#include <gl/gl.h>
+#endif
+#ifdef __MACOS__
+#include <OpenGL/gl.h>
+#endif
 
 
 #define KEY_F1 0x70

@@ -1,8 +1,9 @@
 
+#define GL_SILENCE_DEPRECATION
+
 #include <core/core.h>
 #include <core/video.h>
 #include <core/im.h>
-#include <core/timer.h>
 // #include <core/file.h>
 // #include <core/im.h>
 
@@ -10,8 +11,10 @@
 #include <core/video.c>
 #include <core/im.c>
 #include <core/math.c>
-#include <core/timer.c>
 // #include <core/im.c>
+
+#define CORE_IMPL
+#include <core/time.h>
 
 float SCREEN_LEFT = -20;
 float SCREEN_RIGHT = 20;
@@ -201,18 +204,18 @@ void start_game(game_t* game) {
 }
 
 int main() {
-    window_t window;
+    window_t window = {0};
     start_window(&window, "Invaders", /*800.0f*1.5f, 600.0f*1.5f*/800, 600, WINDOW_CENTERED);
     start_opengl(&window);
     start_opengl_debug();
     
     state_t* state = start_system();
     start_game(&state->game);
-    timer_t timer = create_timer();
+    time_game_t time = time_init();
 
     while (!window.quit) {
         update_window(&window);
-        update_timer(&timer);
+        time_update(&time);
 
         game_t* game = &state->game;
 
@@ -221,10 +224,10 @@ int main() {
 
         player_t* player = &game->player;
         if (window.keyboard[KEY_LEFT].down) {
-            player->pos.x -= 10.0f * timer.dt;
+            player->pos.x -= 10.0f * time.dt;
         }
         if (window.keyboard[KEY_RIGHT].down) {
-            player->pos.x += 10.0f * timer.dt;
+            player->pos.x += 10.0f * time.dt;
         }
         if (window.keyboard[KEY_SPACE].pressed) {
             player_shoot(game);
@@ -246,15 +249,15 @@ int main() {
                     particle->active = FALSE;
                 }
 
-                particle->life -= timer.dt;
-                particle->lifetime += timer.dt;
+                particle->life -= time.dt;
+                particle->lifetime += time.dt;
 
                 v4 color = particle->color;
                 color.a = particle->lifetime < 1.0f ? min(particle->lifetime, color.a) : min(particle->life, color.a);
                 gfx_color(color);
                 gfx_point(particle->pos);
                 
-                particle->pos = add2(particle->pos, mul2f(particle->speed, timer.dt));
+                particle->pos = add2(particle->pos, mul2f(particle->speed, time.dt));
             }
         }
 
@@ -273,8 +276,8 @@ int main() {
         FOR (i, 1 + array_size(game->bullets)) {
             bullet_t* bullet = &game->player_bullet + i;
             if (bullet->active) {
-                bullet->pos.y += bullet->speed.y * timer.dt * 20.0;
-                bullet->animation += 20.0f * timer.dt;
+                bullet->pos.y += bullet->speed.y * time.dt * 20.0;
+                bullet->animation += 20.0f * time.dt;
                 if (bullet->animation >= 4.0f) bullet->animation -= 4.0f;
 
                 if (bullet->pos.x < SCREEN_LEFT ||
@@ -303,7 +306,7 @@ int main() {
                             FOR (y, 16) FOR (x, 16) {
                                 u32* pixels = bitmap->data;
                                 // int tile = 10;
-                                i32* p = pixels + (y)*bitmap->width + (x);
+                                u32* p = pixels + (y)*bitmap->width + (x);
                                 v2 pixel_pos = add2(barrier->pos, mul2(sub2f(vec2(x, y), 7.5f), mul2f(_gfx_ortho_res_scale, PIXEL_SCALE)));
                                 
                                 // i2 pixel_overlap = {
@@ -317,7 +320,6 @@ int main() {
                             }
 
                             gfx_update_texture(state->barrier_textures + bi, bitmap);
-                            print("%i %i", pixel_overlap.x, pixel_overlap.y);
                         }
                         
                         // barrier->pos.x += 1.0f;
@@ -344,7 +346,7 @@ int main() {
         }
 
         // ALIENS
-        game->alien_move_timer -= timer.dt;
+        game->alien_move_timer -= time.dt;
         if (game->alien_move_timer < 0.0f) {
             game->alien_move_timer = game->alien_move_interval;
 
@@ -405,7 +407,7 @@ int main() {
 
             if (alien->active) {
                 if (len2(sub2(alien->target_pos, alien->pos)) > 0.1f) {
-                    // alien->pos = add2(alien->pos, mul2f(normalize2(sub2(alien->target_pos, alien->pos)), 5.0f*timer.dt));
+                    // alien->pos = add2(alien->pos, mul2f(normalize2(sub2(alien->target_pos, alien->pos)), 5.0f*time.dt));
                     alien->pos = alien->target_pos;
                 }
 

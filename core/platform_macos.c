@@ -6,6 +6,8 @@
 //  Copyright 2024 GiantJelly. All rights reserved.
 //
 
+#include <dlfcn.h>
+
 #include "platform.h"
 
 

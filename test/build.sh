@@ -8,7 +8,7 @@
 
 mkdir -p build
 
-core_dir="${USERPROFILE}/code/core"
+# core_dir="~/code/core"
 
-options="-std=c99 -g -I$core_dir -L$core_dir/build"
-gcc $options $core_dir/test/invaders.c -o build/invaders.exe -I.. -lgdi32 -lopengl32
+options="-std=c99 -g -I~/code/core"
+clang $options invaders.c -o build/invaders -I.. -D__SDL__ -framework OpenGL

@@ -13,13 +13,17 @@
 #	include "platform_win32.c"
 #endif
 
-#ifdef __LINUX__
-#	include "platform_linux.c"
+#ifdef __POSIX__
+#	include "platform_posix.c"
 #endif
 
-#ifdef __MACOS__
-#	include "platform_macos.c"
-#endif
+// #ifdef __LINUX__
+// #	include "platform_linux.c"
+// #endif
+
+// #ifdef __MACOS__
+// #	include "platform_macos.c"
+// #endif
 
 
 // PRINTING
@@ -219,16 +223,16 @@ allocator_t* _global_allocator = NULL;
 // }
 
 // Constructors
-stack_t create_stack(u8* buffer, size_t size) {
-	stack_t arena = {0};
+memstack_t create_stack(u8* buffer, size_t size) {
+	memstack_t arena = {0};
 	arena.address = buffer;
 	arena.size = size;
 	arena.stack = 0;
 	return arena;
 }
 
-stack_t create_virtual_stack(size_t size, size_t commit) {
-	stack_t arena = {0};
+memstack_t create_virtual_stack(size_t size, size_t commit) {
+	memstack_t arena = {0};
 	arena.size = size;
 	arena.commit = align64(commit, PAGE_SIZE);
 	arena.address = reserve_virtual_memory(arena.size);
@@ -292,7 +296,7 @@ void use_allocator(allocator_t* arena) {
 // }
 
 // Stacks
-// void* push_into_virtual(stack_t* arena, size_t size) {
+// void* push_into_virtual(memstack_t* arena, size_t size) {
 // 	if(arena->stack+size > arena->commit) {
 // 		size_t extra_commit = align64(arena->stack+size - arena->commit, PAGE_SIZE);
 // 		commit_virtual_memory((u8*)arena->address+arena->commit, extra_commit);
@@ -302,7 +306,7 @@ void use_allocator(allocator_t* arena) {
 // 	return (u8*)arena->address + arena->stack - size;
 // }
 
-void* push_memory(stack_t* arena, size_t size) {
+void* push_memory(memstack_t* arena, size_t size) {
 	assert(arena->stack + size <= arena->size);
 	if(_is_arena_virtual(arena)) {
 		// return m_push_into_reserve(arena, size);
@@ -322,13 +326,13 @@ void* push_memory(stack_t* arena, size_t size) {
 	return 0;
 }
 
-void pop_memory(stack_t* arena, size_t size) {
+void pop_memory(memstack_t* arena, size_t size) {
 	// TODO: Should we zero this?
 	zero_memory(arena->address + arena->stack - size, size);
 	arena->stack -= size;
 }
 
-void pop_memory_and_shift(stack_t* arena, size_t offset, size_t size) {
+void pop_memory_and_shift(memstack_t* arena, size_t offset, size_t size) {
 	assert(arena->stack >= offset + size);
 	copy_memory(arena->address + offset, arena->address + offset + size, arena->stack - (offset+size));
 	pop_memory(arena, size);
@@ -442,7 +446,7 @@ void* alloc_memory(size_t size) {
 	return alloc_memory_in(_global_allocator, size);
 }
 
-void free_memory_in(allocator_t* arena, u8* block) {
+void free_memory_in(allocator_t* arena, void* block) {
 	// if (!arena) {
 	// 	// print("free");
 	// 	return free(block);
@@ -460,7 +464,7 @@ void free_memory_in(allocator_t* arena, u8* block) {
 	}
 }
 
-void free_memory(u8* block) {
+void free_memory(void* block) {
 	free_memory_in(_global_allocator, block);
 }
 
@@ -657,8 +661,8 @@ core_string_t _allocate_string(size_t len) {
 }
 
 void str_check_inside_allocator(core_string_t str) {
-	assert((u8*)str >= _global_allocator->address &&
-			(u8*)str < (_global_allocator->address+_global_allocator->size));
+	assert((u8*)str >= (u8*)_global_allocator->address &&
+			(u8*)str < ((u8*)_global_allocator->address+_global_allocator->size));
 }
 
 int str_len(char* str) {

@@ -78,11 +78,19 @@ inline void thread_unlock_barrier(volatile thread_barrier_t* barrier) {
 #	define HANDLE_STDOUT stdout
 // #define INVALID_SOCKET  (SOCKET)(~0)
 // #define SOCKET_ERROR            (-1)
-typedef void* handle_t; // HANDLE
+typedef void* file_t; // HANDLE
 typedef SOCKET socket_t;
 
 char* _win32_error(DWORD error_code);
 
+#endif
+#ifdef __LINUX__
+typedef int file_t;
+typedef int socket_t;
+#endif
+#ifdef __MACOS__
+typedef int file_t;
+typedef int socket_t;
 #endif
 
 
@@ -118,17 +126,18 @@ time_t system_time();
 char* format_time(time_t time);
 
 // File definitions
-handle_t 	open_file(char* path);
-handle_t 	create_file(char* path);
-handle_t 	open_dir(char* path);
-void 		create_dir(char* path);
-int 		dir_list(char* path, b32 recursive, stat_t* output, int length);
-b32 		read_file(handle_t file, size_t offset, void* output, size_t size);
-b32 		write_file(handle_t file, size_t offset, void* data, size_t size);
-stat_t 		stat_file(handle_t file);
-void 		close_file(handle_t file);
-void 		current_dir(char* output, size_t size);
-void 		change_dir(char* path);
+file_t 		file_open(char* path);
+file_t 		file_create(char* path);
+b32 		file_read(file_t file, size_t offset, void* output, size_t size);
+b32 		file_write(file_t file, size_t offset, void* data, size_t size);
+stat_t 		file_stat(file_t file);
+void 		file_close(file_t file);
+
+file_t 		file_open_dir(char* path);
+file_t 		file_create_dir(char* path);
+int 		file_list_dir(char* path, b32 recursive, stat_t* output, int length);
+char* 		file_current_dir(char* output, size_t size);
+void 		file_change_dir(char* path);
 
 // Dynamic libraries
 typedef struct {
@@ -142,20 +151,21 @@ dylib_t load_dynamic_library(char *file);
 void *load_library_proc(dylib_t lib, char *proc);
 
 // Directory watcher definitions
+#ifdef __WIN32__
 typedef struct {
 	u64 modified;
 	char filename[MAX_PATH_LENGTH];
 } file_change_t;
 
 typedef struct watcher_thread_t {
-	handle_t handle;
+	file_t handle;
 	char path[MAX_PATH_LENGTH];
 	struct directory_watcher_t* watcher;
 } watcher_thread_t;
 
 typedef struct directory_watcher_t {
-	handle_t semaphore;
-	handle_t ready_event;
+	file_t semaphore;
+	file_t ready_event;
 	watcher_thread_t threads[64];
 	int directory_count;
 	DWORD filter;
@@ -166,6 +176,7 @@ typedef struct directory_watcher_t {
 
 b32 watch_directory_changes(directory_watcher_t* watcher, char** dir_paths, int dir_count);
 int wait_for_directory_changes(directory_watcher_t* watcher, file_change_t* output, int output_size);
+#endif
 
 
 #endif

@@ -16,13 +16,17 @@ gfx_texture_t* _gfx_active_texture = NULL;
 v2 _gfx_ortho_space = {2.0f, 2.0f};
 v2 _gfx_ortho_res_scale = {1.0f, 1.0f};
 
-void APIENTRY _opengl_debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char* message, const void *userParam) {
+#ifndef __MACOS__
+void _opengl_debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char* message, const void *userParam) {
 	print("[id:%i] %s\n", id, message);
 }
+#endif
 
 void start_opengl_debug() {
+#ifndef __MACOS__
 	glDebugMessageCallback(_opengl_debug_callback, NULL);
 	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
+#endif
 }
 
 bitmap_t* load_bitmap_file(allocator_t* allocator, char* filename) {

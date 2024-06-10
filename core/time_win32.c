@@ -1,12 +1,12 @@
 //
-//  timer.c
+//  time_win32.c
 //  Core
 //
 //  Created by Matt Hartley on 16/11/2023.
 //  Copyright 2023 GiantJelly. All rights reserved.
 //
 
-#include "timer.h"
+#include "time.h"
 
 timer_t create_timer() {
 	timer_t timer = {0};
@@ -23,20 +23,20 @@ timer_t create_timer() {
 }
 
 // Milliseconds
-f64 time(timer_t* timer) {
+f64 get_time(timer_t* timer) {
 	LARGE_INTEGER counter;
 	QueryPerformanceCounter(&counter);
 	return (f64)(counter.QuadPart-timer->start_time) / (f64)timer->performance_freq;
 }
 
 // Seconds
-f64 time_seconds(timer_t* timer) {
+f64 get_time_seconds(timer_t* timer) {
 	LARGE_INTEGER counter;
 	QueryPerformanceCounter(&counter);
 	return (f64)(counter.QuadPart-timer->start_time) / (f64)timer->performance_freq / 1000.0;
 }
 
-u64 time_raw(timer_t* timer) {
+u64 get_time_raw(timer_t* timer) {
 	LARGE_INTEGER counter;
 	QueryPerformanceCounter(&counter);
 	return counter.QuadPart;

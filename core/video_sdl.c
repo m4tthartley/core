@@ -20,7 +20,7 @@ typedef i32 Sint32;
 typedef i64 Sint64;
 
 typedef void SDL_Window;
-typedef void SDL_GLContext;
+typedef void* SDL_GLContext;
 
 #define SDL_BUTTON_LEFT     1
 #define SDL_BUTTON_MIDDLE   2
@@ -896,6 +896,15 @@ typedef union SDL_Event
     Uint8 padding[56];
 } SDL_Event;
 
+typedef Uint32 SDL_MouseButtonFlags;
+
+#define SDL_BUTTON_LEFT     1
+#define SDL_BUTTON_MIDDLE   2
+#define SDL_BUTTON_RIGHT    3
+#define SDL_BUTTON_X1       4
+#define SDL_BUTTON_X2       5
+#define SDL_BUTTON(X)       (1u << ((X)-1))
+
 #define SDL_PROCS\
 	SDL_PROC(void, SDL_SetMainReady, void)\
 	SDL_PROC(int, SDL_Init, Uint32 flags)\
@@ -913,13 +922,14 @@ typedef union SDL_Event
 	SDL_PROC(SDL_Scancode, SDL_GetScancodeFromKey, SDL_Keycode key)\
 	SDL_PROC(int, SDL_WaitEvent, SDL_Event* event)\
 	SDL_PROC(const char*, SDL_GetKeyName, SDL_Keycode key)\
+    SDL_PROC(SDL_MouseButtonFlags, SDL_GetMouseState, int *x, int *y)\
 
 #define SDL_PROC(ret, name, ...) typedef ret (name##_proc)(__VA_ARGS__); name##_proc *name;
 SDL_PROCS
 #undef SDL_PROC
 
 void load_sdl_procs() {
-	dylib_t sdl_lib = load_dynamic_library("libSDL2");
+	dylib_t sdl_lib = load_dynamic_library("build/SDL2.framework/SDL2");
 #define SDL_PROC(ret, name, ...) name = (name##_proc*)load_library_proc(sdl_lib, #name);
 	SDL_PROCS
 #undef SDL_PROC
@@ -927,7 +937,8 @@ void load_sdl_procs() {
 
 
 b32 start_window(window_t* window, char* title, int width, int height, int flags) {
-    // load sdl stuff
+    load_sdl_procs();
+    // file_list_dir(".")
 
     SDL_SetMainReady();
     SDL_Init(SDL_INIT_VIDEO);
@@ -943,10 +954,51 @@ b32 start_window(window_t* window, char* title, int width, int height, int flags
 }
 
 b32 start_opengl(window_t* window) {
-    SDL_GL_CreateContext(window->sdl_window);
+    SDL_GLContext context = SDL_GL_CreateContext(window->sdl_window);
+    if (!context) return FALSE;
+
+    SDL_GL_SetSwapInterval(1);
+
+    return TRUE;
 }
 
-void update_window(window_t* window);
+void update_window(window_t* window) {
+    const u8* keyboard = SDL_GetKeyboardState(NULL);
+    for (int i = 0; i < 256; ++i) {
+		_update_button(&window->keyboard[i], keyboard[i]>>7);
+	}
+
+    window->mouse.pos_dt.x = 0;
+	window->mouse.pos_dt.y = 0;
+	window->mouse.wheel_dt = 0;
+
+    int mousex, mousey;
+    u32 mouse_buttons = SDL_GetMouseState(&mousex, &mousey);
+    window->mouse.pos_dt.x = mousex - window->mouse.pos.x;
+	window->mouse.pos_dt.y = mousey - window->mouse.pos.y;
+    window->mouse.pos.x = mousex;
+    window->mouse.pos.y = mousey;
+    _update_button(&window->mouse.left, SDL_BUTTON(SDL_BUTTON_LEFT));
+    _update_button(&window->mouse.right, SDL_BUTTON(SDL_BUTTON_RIGHT));
+
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+        switch (event.type) {
+            case SDL_QUIT:
+				exit(0);
+				break;
+            case SDL_MOUSEWHEEL:
+				window->mouse.wheel_dt += event.wheel.y;
+				break;
+			case SDL_WINDOWEVENT:
+				switch (event.window.event) {
+					case SDL_WINDOWEVENT_RESIZED:
+						break;
+				}
+				break;
+        }
+    }
+}
 
 void opengl_swap_buffers(window_t* window) {
     SDL_GL_SwapWindow(window->sdl_window);

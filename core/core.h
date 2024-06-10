@@ -24,16 +24,21 @@
 #endif
 #ifdef __linux__
 #	define __LINUX__
+#	define __POSIX__
 #endif
 #ifdef __APPLE__
 #	define __MACOS__
+#	define __POSIX__
 #endif
 
 
-// #	include <stdint.h>
-#ifdef __LINUX__
+#ifdef __POSIX__
 #	include <stdarg.h>
 #	include <stdlib.h>
+#	include <stdint.h>
+#endif
+#ifdef __MACOS__
+#	include <time.h>
 #endif
 #include <stddef.h>
 #include <stdio.h>
@@ -66,7 +71,14 @@ typedef unsigned char  u8;
 #endif
 
 #ifdef __MACOS__
-
+typedef int64_t  i64;
+typedef uint64_t  u64;
+typedef int32_t  i32;
+typedef uint32_t  u32;
+typedef int16_t  i16;
+typedef uint16_t  u16;
+typedef int8_t  i8;
+typedef uint8_t  u8;
 #endif
 
 typedef float f32;
@@ -99,11 +111,11 @@ typedef u8 byte;
 #define FORSTATIC(index, arr) for(int index=0; index<(sizeof(arr)/sizeof(arr[0])); ++index)
 #define FORDYNARR(index, arr) for(int index=0; index<arr.count; ++index)
 #ifndef CORE_CRT_ASSERT
-#	define assert(exp) if(!(exp)) { printf("Assertion failed (" #exp ") in function \"%s\" \n", __FUNCTION__); fflush(stdout); (*(int*)0 = 0); }
+#	define assert(exp) if(!(exp)) { printf("Assertion failed (" #exp ") in function \"%s\" \n", __FUNCTION__); fflush(stdout); (*(volatile int*)0 = 0); }
 #endif
 
 
-#define CORE_API __declspec(dllexport)
+#define CORE_API 
 
 
 // Printing definitions
@@ -147,13 +159,13 @@ typedef struct {
 	u64 size;
 } memblock_t;
 typedef struct {
-	u8* address;
+	void* address;
 	u64 size;
 	u64 stack;
 	u64 commit;
-} stack_t;
+} memstack_t;
 typedef struct {
-	u8* address;
+	void* address;
 	u64 size;
 	u64 commit;
 	llist_t blocks;
@@ -162,24 +174,24 @@ typedef struct {
 
 // void zero(u8* address, int size);
 // void copy(u8* dest, u8* src, int size);
-stack_t create_stack(u8* buffer, size_t size);
-stack_t create_virtual_stack(size_t size, size_t commit);
+memstack_t create_stack(u8* buffer, size_t size);
+memstack_t create_virtual_stack(size_t size, size_t commit);
 allocator_t create_allocator(u8* buffer, size_t size);
 allocator_t create_virtual_allocator(size_t size, size_t commit);
 void use_allocator(allocator_t* arena);
 
-void* push_memory_into_virtual(stack_t* arena, size_t size);
-void* push_memory(stack_t* arena, size_t size);
-void  pop_memory(stack_t* arena, size_t size);
-void  pop_memory_and_shift(stack_t* arena, size_t offset, size_t size);
+void* push_memory_into_virtual(memstack_t* arena, size_t size);
+void* push_memory(memstack_t* arena, size_t size);
+void  pop_memory(memstack_t* arena, size_t size);
+void  pop_memory_and_shift(memstack_t* arena, size_t offset, size_t size);
 
 // void  core_defrag_free_block(core_allocator_t* arena, core_memblock_t* block);
 // void* _core_alloc_into_free(core_allocator_t* arena, core_memblock_t* free, size_t size);
 // void _core_virtual_allocator_commit(core_allocator_t* arena, size_t size);
 void* alloc_memory_in(allocator_t* arena, size_t size);
 void* alloc_memory(size_t size);
-void  free_memory_in(allocator_t* arena, u8* block);
-void  free_memory(u8* block);
+void  free_memory_in(allocator_t* arena, void* block);
+void  free_memory(void* block);
 void  clear_allocator(allocator_t* arena);
 void  clear_global_allocator();
 
@@ -188,7 +200,7 @@ void print_arena(allocator_t* arena);
 
 // Dynarr definitions
 typedef struct {
-	stack_t arena;
+	memstack_t arena;
 	int stride;
 	int max;
 	int count;
