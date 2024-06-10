@@ -938,7 +938,7 @@ void load_sdl_procs() {
 
 b32 start_window(window_t* window, char* title, int width, int height, int flags) {
     load_sdl_procs();
-    // file_list_dir(".")
+    *window = (window_t){0};
 
     SDL_SetMainReady();
     SDL_Init(SDL_INIT_VIDEO);
@@ -949,6 +949,10 @@ b32 start_window(window_t* window, char* title, int width, int height, int flags
         width, height,
         SDL_WINDOW_SHOWN|SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE
     );
+
+    window->width = width;
+	window->height = height;
+    window->flags = flags;
 
     return TRUE;
 }
@@ -965,7 +969,7 @@ b32 start_opengl(window_t* window) {
 void update_window(window_t* window) {
     const u8* keyboard = SDL_GetKeyboardState(NULL);
     for (int i = 0; i < 256; ++i) {
-		_update_button(&window->keyboard[i], keyboard[i]>>7);
+		_update_button(&window->keyboard[i], keyboard[i]);
 	}
 
     window->mouse.pos_dt.x = 0;

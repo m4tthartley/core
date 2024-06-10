@@ -99,6 +99,7 @@ b32 start_window(window_t* window, char* title, int width, int height, int flags
 	window->hdc = GetDC(window->hwnd);
 	window->width = width;
 	window->height = height;
+    window->flags = flags;
 	ZeroMemory(&window->keyboard, sizeof(window->keyboard));
 	// printf("hwnd %#08x hdc %#08x \n", window->hwnd, window->hdc);
 
