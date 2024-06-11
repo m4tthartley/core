@@ -1,3 +1,26 @@
+//
+//  invaders.c
+//  Core
+//
+//  Created by Matt Hartley on 07/06/2024.
+//  Copyright 2024 GiantJelly. All rights reserved.
+//
+
+/* 
+    TODO
+    - Decrease framebuffer size to 1to1
+    - Software rendering
+    - Update sprite api,
+        I think the spritesheet structure is not needed
+        and you can set the scale of the sprite rendering via a global state
+        e.g. gfx_sprite_scale(3.0f);
+    - Player lives and death
+    - Fail state
+    - Score
+    - Intro screen
+    - Flying saucer?
+    - Embedded font system
+ */
 
 #define GL_SILENCE_DEPRECATION
 
@@ -26,7 +49,10 @@ float PIXEL_SCALE = 3.0f;
 #define ALIEN_COL_SIZE 5
 
 typedef struct {
+    b32 active;
 	v2 pos;
+    int lives;
+    float respawn_timer;
 } player_t;
 
 typedef enum {
@@ -76,6 +102,8 @@ typedef struct {
 	float alien_move_direction;
 	b32 alien_move_shift_down;
 	int alien_move_row;
+
+    float restart_timer;
 } game_t;
 
 typedef struct {
@@ -118,7 +146,7 @@ void add_background_particle(game_t* game, v2 pos, v2 speed) {
 	game->next_particle_slot %= array_size(game->particles);
 }
 
-void add_alien_particle(game_t* game, v2 pos, v2 speed, v4 color) {
+void add_damage_particle(game_t* game, v2 pos, v2 speed, v4 color) {
 	game->particles[game->next_particle_slot] = (particle_t){
 		.active = TRUE,
 		.pos = pos,
@@ -140,6 +168,26 @@ void player_shoot(game_t* game) {
 			.speed = vec2(0, 1.0f),
 		};
 	}
+}
+
+void explode_sprite(state_t* state, int tile, v2 pos) {
+    FOR (y, 16) FOR (x, 16) {
+        u32* pixels = state->spritesheet_bmp->data;
+        // int tile = (c%3 * 2) + alien->animation;
+        i32 p = pixels[((tile/4)*16 + y)*state->spritesheet_bmp->width + ((tile%4)*16 + x)];
+        char* cc = (char*)&p;
+        if (p) {
+            // _gfx_ortho_res_scale
+            add_damage_particle(
+                &state->game,
+                add2(pos, mul2(sub2f(vec2(x, y), 7.5f), mul2f(_gfx_ortho_res_scale, PIXEL_SCALE))),
+                // vec2(randf_range(-0.5f, 0.5f), randf_range(-0.5f, 0.5f))
+                add2(mul2f(normalize2(sub2(vec2(x, y), vec2(8, 8))), 0.5f), vec2(randfr(-0.2f, 0.2f), randfr(-0.2f, 0.2f))),
+                // vec4(97.0f / 255.0f, 16.0f / 255.0f, 162.0f / 255.0f, 1.0f)
+                vec4((float)(p>>16&0xff) / 255.0f, (float)(p>>8&0xff) / 255.0f, (float)(p>>0&0xff) / 255.0f, 1.0f)
+            );
+        }
+    }
 }
 
 state_t* start_system() {
@@ -187,6 +235,10 @@ void start_game(game_t* game) {
 	game->alien_move_timer = game->alien_move_interval;
 	game->alien_move_direction = 1.0f;
 
+    game->player.active = TRUE;
+    game->player.lives = 3;
+
+    game->restart_timer = 5.0f;
 	
 #define ALIEN_SPACING 2.5f
 	FOR (r, ALIEN_ROW_SIZE)
@@ -205,13 +257,13 @@ void start_game(game_t* game) {
 
 int main() {
 	window_t window = {0};
-	start_window(&window, "Invaders", /*800.0f*1.5f, 600.0f*1.5f*/800, 600, WINDOW_CENTERED);
+	start_window(&window, "Galactic Conquerors", /*800.0f*1.5f, 600.0f*1.5f*/800, 600, WINDOW_CENTERED);
 	start_opengl(&window);
 	start_opengl_debug();
 	
 	state_t* state = start_system();
 	start_game(&state->game);
-	time_game_t time = time_init();
+	gametime_t time = time_init();
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -229,16 +281,48 @@ int main() {
 		gfx_ortho_projection(&window, SCREEN_LEFT, SCREEN_RIGHT, SCREEN_BOTTOM, SCREEN_TOP);
 		gfx_clear(vec4(0.0f, 0.0f, 0.0f, 0.0f));
 
-		player_t* player = &game->player;
-		if (window.keyboard[KEY_LEFT].down) {
-			player->pos.x -= 10.0f * time.dt;
-		}
-		if (window.keyboard[KEY_RIGHT].down) {
-			player->pos.x += 10.0f * time.dt;
-		}
-		if (window.keyboard[KEY_SPACE].pressed) {
-			player_shoot(game);
-		}
+        // PLAYER
+        player_t* player = &game->player;
+        if (player->active) {
+            if (window.keyboard[KEY_LEFT].down) {
+                player->pos.x -= 10.0f * time.dt;
+            }
+            if (window.keyboard[KEY_RIGHT].down) {
+                player->pos.x += 10.0f * time.dt;
+            }
+            if (window.keyboard[KEY_SPACE].pressed) {
+                player_shoot(game);
+            }
+
+            gfx_color(vec4(1, 1, 1, 1));
+            // gfx_quad(player->pos, vec2(1, 1));
+            gfx_sprite_tile(
+                &window,
+                &state->spritesheet,
+                player->pos,
+                8
+            );
+            
+            FOR (i, array_size(game->bullets)) {
+                bullet_t* bullet = game->bullets + i;
+                if (bullet->active) {
+                    if (len2(sub2(bullet->pos, player->pos)) < 1.0f) {
+                        bullet->active = FALSE;
+                        player->active = FALSE;
+                        player->respawn_timer = 2.0f;
+                        --player->lives;
+                        explode_sprite(state, 8, player->pos);
+                        player->pos.x = 0.0f;
+                    }
+                }
+            }
+
+        } else {
+            player->respawn_timer -= time.dt;
+            if (player->lives && player->respawn_timer < 0.0f) {
+                player->active = TRUE;
+            }
+        }
 
 		// PARTICLES
 		gfx_texture(NULL);
@@ -268,18 +352,9 @@ int main() {
 			}
 		}
 
-		// PLAYER
-		gfx_color(vec4(1, 1, 1, 1));
-		// gfx_quad(player->pos, vec2(1, 1));
-		gfx_sprite_tile(
-			&window,
-			&state->spritesheet,
-			player->pos,
-			8
-		);
-
 		// BULLETS
 		// gfx_texture(NULL);
+        gfx_color(vec4(1, 1, 1, 1));
 		FOR (i, 1 + array_size(game->bullets)) {
 			bullet_t* bullet = &game->player_bullet + i;
 			if (bullet->active) {
@@ -428,7 +503,7 @@ int main() {
 						char* cc = (char*)&p;
 						if (p) {
 							// _gfx_ortho_res_scale
-							add_alien_particle(
+							add_damage_particle(
 								game,
 								add2(alien->pos, mul2(sub2f(vec2(x, y), 7.5f), mul2f(_gfx_ortho_res_scale, PIXEL_SCALE))),
 								// vec2(randf_range(-0.5f, 0.5f), randf_range(-0.5f, 0.5f))
@@ -465,22 +540,29 @@ int main() {
 		gfx_color(vec4(1, 1, 1, 1));
 		gfx_texture(&state->font_texture);
 		
-		// gfx_text(&window, vec2(SCREEN_LEFT + 1, SCREEN_TOP - 1), 2.0f, "Invaders");
+		gfx_text(&window, vec2(SCREEN_LEFT + 1, SCREEN_TOP - 1), 2.0f, "Invaders");
 		// gfx_text(&window, vec2(SCREEN_LEFT + 1, SCREEN_TOP - 2), 2.0f, "Partilces %i", active_particles);
 
-		// gfx_texture(&state->spritesheet.texture);
-		// glColor4f(1, 1, 1, 1);
-		// glBegin(GL_QUADS);
-        // glTexCoord2f(0.0f, 0.0f);
-		// glVertex2f(-5.0f, -5.0f);
-        // glTexCoord2f(1.0f, 0.0f);
-		// glVertex2f(5.0f, -5.0f);
-        // glTexCoord2f(1.0f, 1.0f);
-		// glVertex2f(5.0f, 5.0f);
-        // glTexCoord2f(0.0f, 1.0f);
-		// glVertex2f(-5.0f, 5.0f);
-		// glEnd();
+        if (!player->lives) {
+            game->restart_timer -= time.dt;
+            if (game->restart_timer < 0.0f) {
+                start_game(game);
+            }
+            gfx_text(&window, vec2(SCREEN_LEFT + 1, SCREEN_TOP - 2), 2.0f, "Game Over");
+        }
 
+        state->spritesheet.scale = 2.0f;
+        FOR (i, game->player.lives) {
+            gfx_sprite_tile(
+                &window,
+                &state->spritesheet,
+                vec2(SCREEN_LEFT + 1.5f + (1.5f*i), SCREEN_BOTTOM + 1.0f),
+                8
+            );
+        }
+        state->spritesheet.scale = 3.0f;
+
+        // END
 		GLenum gl_error = glGetError();
 		if (gl_error) {
 			print("OpenGL error: %i", gl_error);

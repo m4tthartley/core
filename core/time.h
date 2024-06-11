@@ -21,7 +21,7 @@ typedef struct {
 	u64 last_second_time;
 	int frame_counter;
 	int fps;
-} time_game_t;
+} gametime_t;
 
 // timer_t create_timer();
 // f64 get_time(timer_t* timer);
@@ -29,8 +29,8 @@ typedef struct {
 // u64 get_time_raw(timer_t* timer);
 // void update_timer(timer_t* timer);
 
-time_game_t 	time_init();
-void 			time_update(time_game_t* time);
+gametime_t      time_init();
+void 			time_update(gametime_t* time);
 f64 			time_get_ms();
 f64 			time_get_seconds();
 u64 			time_get_raw();

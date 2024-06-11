@@ -22,19 +22,19 @@ static inline void time_load_mach_timebase() {
 	}
 }
 
-time_game_t time_init() {
+gametime_t time_init() {
     time_load_mach_timebase();
 
     u64 time = mach_absolute_time();
 
-	time_game_t state = {0};
+	gametime_t state = {0};
 	state.start_time = time;
 	state.last_frame_time = time;
 	state.last_second_time = time;
 	return state;
 }
 
-void time_update(time_game_t* time) {
+void time_update(gametime_t* time) {
     time_load_mach_timebase();
 
     u64 ticks = mach_absolute_time();

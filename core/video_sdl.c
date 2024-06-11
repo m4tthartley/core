@@ -1000,6 +1000,10 @@ void update_window(window_t* window) {
 						break;
 				}
 				break;
+            // case SDL_KEYDOWN:
+            //     _update_button(&window->keyboard[event.key.keysym.scancode], TRUE);
+            // case SDL_KEYUP:
+            //     _update_button(&window->keyboard[event.key.keysym.scancode], FALSE);
         }
     }
 }
