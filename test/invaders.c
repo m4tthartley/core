@@ -26,18 +26,17 @@
 
 #include <core/core.h>
 #include <core/video.h>
-#include <core/im.h>
 // #include <core/file.h>
 // #include <core/im.h>
 
 #include <core/core.c>
 #include <core/video.c>
-#include <core/im.c>
 #include <core/math.c>
 // #include <core/im.c>
 
 #define CORE_IMPL
 #include <core/time.h>
+#include <core/gfx.h>
 
 float SCREEN_LEFT = -20;
 float SCREEN_RIGHT = 20;
@@ -116,6 +115,8 @@ typedef struct {
 
 	bitmap_t* barrier_bitmaps[4];
 	gfx_texture_t barrier_textures[4];
+
+    gfx_framebuffer_t framebuffer;
 
 	game_t game;
 } state_t;
@@ -265,6 +266,10 @@ int main() {
 	start_game(&state->game);
 	gametime_t time = time_init();
 
+    state->framebuffer = gfx_create_framebuffer(200, 150, GFX_FORMAT_RGBA, GFX_SAMPLING_NEAREST);
+    // gfx_bind_window_framebuffer(&window);
+    gfx_bind_framebuffer(&state->framebuffer);
+
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	// glEnable(GL_ALPHA_TEST);
@@ -278,6 +283,7 @@ int main() {
 
 		game_t* game = &state->game;
 
+        gfx_bind_framebuffer(&state->framebuffer);
 		gfx_ortho_projection(&window, SCREEN_LEFT, SCREEN_RIGHT, SCREEN_BOTTOM, SCREEN_TOP);
 		gfx_clear(vec4(0.0f, 0.0f, 0.0f, 0.0f));
 
@@ -302,7 +308,7 @@ int main() {
                 player->pos,
                 8
             );
-            
+
             FOR (i, array_size(game->bullets)) {
                 bullet_t* bullet = game->bullets + i;
                 if (bullet->active) {
@@ -561,6 +567,19 @@ int main() {
             );
         }
         state->spritesheet.scale = 3.0f;
+
+        // PRESENT
+        gfx_bind_window_framebuffer(&window);
+
+        glEnable(GL_TEXTURE_2D);
+		glBindTexture(GL_TEXTURE_2D, state->framebuffer.textures[0]);
+
+        glBegin(GL_QUADS);
+        glTexCoord2f(0.0f, 0.0f); glVertex2f(-5.0f, -5.0f);
+        glTexCoord2f(1.0f, 0.0f); glVertex2f( 5.0f, -5.0f);
+        glTexCoord2f(1.0f, 1.0f); glVertex2f( 5.0f,  5.0f);
+        glTexCoord2f(0.0f, 1.0f); glVertex2f(-5.0f,  5.0f);
+        glEnd();
 
         // END
 		GLenum gl_error = glGetError();

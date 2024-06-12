@@ -1,14 +1,103 @@
 //
-//  im.c
+//  gfx.h
 //  Core
 //
-//  Created by Matt Hartley on 16/11/2023.
+//  Created by Matt Hartley on 18/09/2023.
 //  Copyright 2023 GiantJelly. All rights reserved.
 //
 
+// #include <windows.h>
+// #include <gl/gl.h>
+// #include <file.h>
+
+// typedef GLuint glh_t;
+
+#ifndef __CORE_GFX_HEADER__
+#define __CORE_GFX_HEADER__
+
+
+#include "core.h"
+#include "math.h"
+// #include "opengl_extensions.h"
+
+#pragma pack(push, 1)
+typedef struct {
+	char header[2];
+	u32 size;
+	u16 reserved1;
+	u16 reserved2;
+	u32 offset;
+	
+	// Windows BITMAPINFOHEADER
+	u32 headerSize;
+	i32 bitmapWidth;
+	i32 bitmapHeight;
+	u16 colorPlanes;
+	u16 colorDepth;
+	u32 compression;
+	u32 imageSize;
+	i32 hres;
+	i32 vres;
+	u32 paletteSize;
+	u32 importantColors;
+} bmp_header_t;
+#pragma pack(pop)
+
+typedef struct {
+	u32* data;
+	bmp_header_t* header;
+} bmp_file_t;
+
+typedef struct {
+	u32 size;
+	u32 width;
+	u32 height;
+	u32 data[];
+} bitmap_t;
+
+typedef struct {
+	GLuint handle;
+	f32 width;
+	f32 height;
+} gfx_texture_t;
+
+// typedef struct {
+// 	gfx_texture_t texture;
+// 	vec2_t uv;
+// 	vec2_t uv2;
+// } gfx_sprite_t;
+
+typedef struct {
+	gfx_texture_t texture;
+	int tile_size;
+	int scale;
+} gfx_sprite_t;
+
+bitmap_t* load_bitmap_file(allocator_t* allocator, char* filename);
+bitmap_t* load_font_file(allocator_t* allocator, char*filename);
+
+gfx_texture_t gfx_create_null_texture(int width, int height);
+gfx_texture_t gfx_create_texture(bitmap_t* bitmap);
+void gfx_texture(gfx_texture_t* texture);
+void gfx_clear(vec4_t color);
+void gfx_ortho_projection(window_t* window, f32 left, f32 right, f32 bottom, f32 top);
+void gfx_ortho_projection_centered(window_t* window, f32 width, f32 height);
+void gfx_color(v4 color);
+void gfx_point(vec2_t pos);
+void gfx_quad(vec2_t pos, vec2_t size);
+void gfx_sprite(window_t* window, vec2_t pos, int px, int py, int pxs, int pys, float scale);
+void gfx_sprite_tile(window_t* window, gfx_sprite_t* sprite, vec2_t pos, int tile);
+void gfx_circle(vec2_t pos, f32 size, int segments);
+void gfx_line_circle(vec2_t pos, f32 size, int segments);
+void gfx_line(vec2_t start, vec2_t end);
+void gfx_text(window_t* window, vec2_t pos, float scale, char* str, ...);
+
+
+#ifdef CORE_IMPL
+
+
 #include "video.h"
 #include "math.h"
-#include "im.h"
 #include "../font/default_font.h"
 
 gfx_texture_t* _gfx_active_texture = NULL;
@@ -139,8 +228,8 @@ gfx_texture_t gfx_create_null_texture(int width, int height) {
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	free(data);
 	gfx_texture_t result = {
 		handle,
@@ -364,3 +453,130 @@ void gfx_text(window_t* window, vec2_t pos, float scale, char* str, ...) {
 		}
 	}
 }
+
+
+// RENDER TARGETS
+typedef enum {
+	GFX_FORMAT_RED = GL_RED,
+	GFX_FORMAT_RG = GL_RG,
+	GFX_FORMAT_RGB = GL_RGB,
+	GFX_FORMAT_RGBA = GL_RGBA,
+} gfx_format_t;
+typedef enum {
+	GFX_SAMPLING_LINEAR = GL_LINEAR,
+	GFX_SAMPLING_NEAREST = GL_NEAREST,
+} gfx_sampling_t;
+typedef struct {
+	GLuint handle;
+	GLuint textures[8];
+	int texture_count;
+	int width;
+	int height;
+} gfx_framebuffer_t;
+
+GLenum _gfx_draw_buffers[] = {
+	GL_COLOR_ATTACHMENT0,
+	GL_COLOR_ATTACHMENT1,
+	GL_COLOR_ATTACHMENT2,
+	GL_COLOR_ATTACHMENT3,
+	GL_COLOR_ATTACHMENT4,
+	GL_COLOR_ATTACHMENT5,
+	GL_COLOR_ATTACHMENT6,
+	GL_COLOR_ATTACHMENT7,
+};
+
+gfx_framebuffer_t gfx_create_framebuffer(int width, int height, gfx_format_t format, gfx_sampling_t sampling) {
+	gfx_framebuffer_t framebuffer = {0};
+
+	glGenFramebuffers(1, &framebuffer.handle);
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.handle);
+	framebuffer.width = width;
+	framebuffer.height = height;
+
+	// char fmt[64];
+	// strcpy(fmt, formats);
+	// int fmt_count = 0;
+	// char *tok = strtok(fmt, ", ");
+	// do {
+	// 	debug_print("strtok %s\n", tok);
+
+	// 	GLint tex_fmt = 0;
+	// 	GLint other_fmt = 0;
+	// 	if (tok) {
+	// 		if (strcmp(tok, "RGB")==0) {
+	// 			tex_fmt = GL_RGB32F;
+	// 			other_fmt = GL_RGB;
+	// 		}
+	// 		if (strcmp(tok, "RGBA")==0) {
+	// 			tex_fmt = GL_RGBA32F;
+	// 			other_fmt = GL_RGBA;
+	// 		}
+
+	// 		if (tex_fmt) {
+	glGenTextures(1, &framebuffer.textures[0]);
+	glBindTexture(GL_TEXTURE_2D, framebuffer.textures[0]);
+	glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, sampling);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, sampling);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebuffer.textures[0], 0);
+	++framebuffer.texture_count;
+
+	// 			++fmt_count;
+	// 		}
+	// 	}
+	// } while ((tok = strtok(NULL, ", ")) != NULL);
+
+	/*va_list va;
+	va_start(va, size);
+	GfxRTFormat format;
+	for (int i = 0; format = va_arg(va, GfxRTFormat); ++i) {
+		debug_print("format %i\n", i);
+	}
+	va_end(va);*/
+
+	// if (!fmt_count) {
+	// 	debug_print("dude, you need at least _one_ valid color attachment (%s)\n", formats);
+	// 	return {};
+	// }
+	
+	// rt.targets = fmt_count;
+
+	
+	glDrawBuffers(framebuffer.texture_count, _gfx_draw_buffers);
+
+	GLenum fbstatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (fbstatus != GL_FRAMEBUFFER_COMPLETE) {
+		if (fbstatus == GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT) {
+			assert(FALSE);
+		}
+		if (fbstatus == GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS_EXT) {
+			assert(FALSE);
+		}
+		if (fbstatus == GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT) {
+			assert(FALSE);
+		}
+		if (fbstatus == GL_FRAMEBUFFER_UNSUPPORTED) {
+			assert(FALSE);
+		}
+	}
+	
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	return framebuffer;
+}
+
+void gfx_bind_framebuffer(gfx_framebuffer_t* framebuffer) {
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->handle);
+	glViewport(0, 0, framebuffer->width, framebuffer->height);
+}
+
+void gfx_bind_window_framebuffer(window_t* window) {
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0, window->width, window->height);
+}
+
+
+#endif
+#endif

@@ -113,6 +113,8 @@ typedef u8 byte;
 #ifndef CORE_CRT_ASSERT
 #	define assert(exp) if(!(exp)) { printf("Assertion failed (" #exp ") in function \"%s\" \n", __FUNCTION__); fflush(stdout); (*(volatile int*)0 = 0); }
 #endif
+#define min(a, b) (a<b ? a : b)
+#define max(a, b) (a>b ? a : b)
 
 
 #define CORE_API 

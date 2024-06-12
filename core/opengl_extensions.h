@@ -6,6 +6,10 @@
 //  Copyright 2024 GiantJelly. All rights reserved.
 //
 
+#ifndef __CORE_OPENGL_EXTENSIONS_HEADER__
+#define __CORE_OPENGL_EXTENSIONS_HEADER__
+
+
 #ifndef APIENTRY
 #	define APIENTRY
 #endif
@@ -169,3 +173,6 @@ void _load_opengl_extensions() {
 	GL_PROC_LIST
 #undef GLEXT
 }
+
+
+#endif
