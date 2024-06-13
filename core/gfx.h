@@ -105,6 +105,9 @@ gfx_texture_t* _gfx_active_texture = NULL;
 v2 _gfx_ortho_space = {2.0f, 2.0f};
 v2 _gfx_ortho_res_scale = {1.0f, 1.0f};
 
+float _gfx_sprite_scale = 1.0f;
+float _gfx_sprite_tile_size = 8.0f;
+
 #ifndef __MACOS__
 void _opengl_debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char* message, const void *userParam) {
 	print("[id:%i] %s\n", id, message);
@@ -298,6 +301,14 @@ void gfx_color(v4 color) {
 	glColor4f(color.r, color.g, color.b, color.a);
 }
 
+void gfx_sprite_scale(float scale) {
+	_gfx_sprite_scale = scale;
+}
+
+void gfx_sprite_tile_size(float size) {
+	_gfx_sprite_tile_size = size;
+}
+
 void gfx_point(vec2_t pos) {
 	glBegin(GL_POINTS);
 	glVertex2f(pos.x, pos.y);
@@ -340,8 +351,8 @@ void gfx_sprite(window_t* window, vec2_t pos, int px, int py, int pxs, int pys, 
 	glTexCoord2f((f32)px / (f32)t->width, ((f32)py+pys) / (f32)t->height);
 	glVertex2f(pos.x-s.x, pos.y+s.y);
 	glEnd();
-
 }
+
 
 void gfx_sprite_tile(window_t* window, gfx_sprite_t* sprite, vec2_t pos, int tile) {
 	gfx_texture(&sprite->texture);
@@ -352,6 +363,40 @@ void gfx_sprite_tile(window_t* window, gfx_sprite_t* sprite, vec2_t pos, int til
 			(tile%tiles_per_row)*sprite->tile_size,
 			(tile/tiles_per_row)*sprite->tile_size,
 			sprite->tile_size, sprite->tile_size, sprite->scale);
+}
+
+void gfx_draw_sprite_rect(v2 pos, v2 sprite_offset, v2 sprite_size) {
+	vec2_t vertex_offset = mul2(mul2f(vec2(sprite_size.x/2, sprite_size.y/2), _gfx_sprite_scale), _gfx_ortho_res_scale);
+	
+	float twidth = _gfx_active_texture->width;
+	float theight = _gfx_active_texture->height;
+
+	glBegin(GL_QUADS);
+
+	glTexCoord2f(sprite_offset.x / twidth, sprite_offset.y / theight);
+	glVertex2f(pos.x - vertex_offset.x, pos.y - vertex_offset.y);
+
+	glTexCoord2f((sprite_offset.x+sprite_size.x) / twidth, sprite_offset.y / theight);
+	glVertex2f(pos.x + vertex_offset.x, pos.y - vertex_offset.y);
+
+	glTexCoord2f((sprite_offset.x+sprite_size.x) / twidth, (sprite_offset.y+sprite_size.y) / theight);
+	glVertex2f(pos.x + vertex_offset.x, pos.y + vertex_offset.y);
+
+	glTexCoord2f(sprite_offset.x / twidth, (sprite_offset.y+sprite_size.y) / theight);
+	glVertex2f(pos.x - vertex_offset.x, pos.y + vertex_offset.y);
+
+	glEnd();
+}
+
+void gfx_draw_sprite_tile(v2 pos, int tile) {
+	int tiles_per_row = _gfx_active_texture->width / _gfx_sprite_tile_size;
+	int tiles_per_column = _gfx_active_texture->height / _gfx_sprite_tile_size;
+	tile %= (tiles_per_row * tiles_per_column);
+	gfx_draw_sprite_rect(
+		pos,
+		vec2((tile%tiles_per_row)*_gfx_sprite_tile_size, (tile/tiles_per_row)*_gfx_sprite_tile_size),
+		vec2(_gfx_sprite_tile_size, _gfx_sprite_tile_size)
+	);
 }
 
 void gfx_circle(vec2_t pos, f32 size, int segments) {

@@ -42,7 +42,7 @@ float SCREEN_LEFT = -20;
 float SCREEN_RIGHT = 20;
 float SCREEN_BOTTOM = -20.0f*(600.0f/800.0f);
 float SCREEN_TOP = 20.0f*(600.0f/800.0f);
-float PIXEL_SCALE = 3.0f;
+float PIXEL_SCALE = 1.0f;
 
 #define ALIEN_ROW_SIZE 12
 #define ALIEN_COL_SIZE 5
@@ -261,6 +261,9 @@ int main() {
 	start_window(&window, "Galactic Conquerors", /*800.0f*1.5f, 600.0f*1.5f*/800, 600, WINDOW_CENTERED);
 	start_opengl(&window);
 	start_opengl_debug();
+
+    // window.width = 200;
+    // window.height = 150;
 	
 	state_t* state = start_system();
 	start_game(&state->game);
@@ -270,8 +273,6 @@ int main() {
     // gfx_bind_window_framebuffer(&window);
     gfx_bind_framebuffer(&state->framebuffer);
 
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	// glEnable(GL_ALPHA_TEST);
 	// glAlphaFunc(GL_GREATER, 0.0f);
     // glDisable(GL_BLEND);
@@ -286,6 +287,9 @@ int main() {
         gfx_bind_framebuffer(&state->framebuffer);
 		gfx_ortho_projection(&window, SCREEN_LEFT, SCREEN_RIGHT, SCREEN_BOTTOM, SCREEN_TOP);
 		gfx_clear(vec4(0.0f, 0.0f, 0.0f, 0.0f));
+
+        glEnable(GL_BLEND);
+	    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         // PLAYER
         player_t* player = &game->player;
@@ -566,19 +570,26 @@ int main() {
                 8
             );
         }
-        state->spritesheet.scale = 3.0f;
+        state->spritesheet.scale = PIXEL_SCALE;
 
         // PRESENT
         gfx_bind_window_framebuffer(&window);
 
+        glDisable(GL_BLEND);
+	    // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
         glEnable(GL_TEXTURE_2D);
 		glBindTexture(GL_TEXTURE_2D, state->framebuffer.textures[0]);
 
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        glMatrixMode(GL_MODELVIEW);
+
         glBegin(GL_QUADS);
-        glTexCoord2f(0.0f, 0.0f); glVertex2f(-5.0f, -5.0f);
-        glTexCoord2f(1.0f, 0.0f); glVertex2f( 5.0f, -5.0f);
-        glTexCoord2f(1.0f, 1.0f); glVertex2f( 5.0f,  5.0f);
-        glTexCoord2f(0.0f, 1.0f); glVertex2f(-5.0f,  5.0f);
+        glTexCoord2f(0.0f, 0.0f); glVertex2f(-1.0f, -1.0f);
+        glTexCoord2f(1.0f, 0.0f); glVertex2f( 1.0f, -1.0f);
+        glTexCoord2f(1.0f, 1.0f); glVertex2f( 1.0f,  1.0f);
+        glTexCoord2f(0.0f, 1.0f); glVertex2f(-1.0f,  1.0f);
         glEnd();
 
         // END
