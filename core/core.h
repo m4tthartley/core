@@ -97,6 +97,7 @@ typedef u8 byte;
 #define NULLPTR ((void*)0)
 #define TRUE ((int)1)
 #define FALSE ((int)0)
+#undef PAGE_SIZE
 #define PAGE_SIZE 4096
 
 #define KILOBYTES(n) (n*1024)
@@ -111,6 +112,7 @@ typedef u8 byte;
 #define FORSTATIC(index, arr) for(int index=0; index<(sizeof(arr)/sizeof(arr[0])); ++index)
 #define FORDYNARR(index, arr) for(int index=0; index<arr.count; ++index)
 #ifndef CORE_CRT_ASSERT
+#   undef assert
 #	define assert(exp) if(!(exp)) { printf("Assertion failed (" #exp ") in function \"%s\" \n", __FUNCTION__); fflush(stdout); (*(volatile int*)0 = 0); }
 #endif
 #define min(a, b) (a<b ? a : b)
