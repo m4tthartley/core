@@ -44,7 +44,7 @@ float SCREEN_BOTTOM = -20.0f*(600.0f/800.0f);
 float SCREEN_TOP = 20.0f*(600.0f/800.0f);
 float PIXEL_SCALE = 1.0f;
 
-#define ALIEN_ROW_SIZE 12
+#define ALIEN_ROW_SIZE 11
 #define ALIEN_COL_SIZE 5
 
 typedef struct {
@@ -110,6 +110,7 @@ typedef struct {
 
 	bitmap_t* spritesheet_bmp;
 	bitmap_t* font_bitmap;
+    gfx_texture_t texture;
 	gfx_sprite_t spritesheet;
 	gfx_texture_t font_texture;
 
@@ -182,9 +183,8 @@ void explode_sprite(state_t* state, int tile, v2 pos) {
             add_damage_particle(
                 &state->game,
                 add2(pos, mul2(sub2f(vec2(x, y), 7.5f), mul2f(_gfx_ortho_res_scale, PIXEL_SCALE))),
-                // vec2(randf_range(-0.5f, 0.5f), randf_range(-0.5f, 0.5f))
-                add2(mul2f(normalize2(sub2(vec2(x, y), vec2(8, 8))), 0.5f), vec2(randfr(-0.2f, 0.2f), randfr(-0.2f, 0.2f))),
-                // vec4(97.0f / 255.0f, 16.0f / 255.0f, 162.0f / 255.0f, 1.0f)
+                add2(mul2f(normalize2(sub2(vec2(x, y), vec2(8, 8))), 0.5f), vec2(randfr(-1.0f, 1.0f), randfr(-1.0f, 1.0f))),
+                // vec2(0, 0),
                 vec4((float)(p>>16&0xff) / 255.0f, (float)(p>>8&0xff) / 255.0f, (float)(p>>0&0xff) / 255.0f, 1.0f)
             );
         }
@@ -199,9 +199,10 @@ state_t* start_system() {
 
 	state->spritesheet_bmp = load_bitmap_file(&state->memory, "spritesheet.bmp");
 	// gfx_texture_t tex = gfx_create_texture(bmp);
+    state->texture = gfx_create_texture(state->spritesheet_bmp);
 	state->spritesheet = (gfx_sprite_t){
 		// .texture = gfx_create_null_texture(64, 64),
-		.texture = gfx_create_texture(state->spritesheet_bmp),
+		.texture = state->texture,
 		.tile_size = 16,
 		.scale = PIXEL_SCALE,
 	};
@@ -230,7 +231,7 @@ state_t* start_system() {
 
 void start_game(game_t* game) {
 	zero_memory(game, sizeof(game_t));
-	game->player.pos = vec2(0, -12);
+	game->player.pos = vec2(0, -13);
 
 	game->alien_move_interval = 0.2f;
 	game->alien_move_timer = game->alien_move_interval;
@@ -241,18 +242,18 @@ void start_game(game_t* game) {
 
     game->restart_timer = 5.0f;
 	
-#define ALIEN_SPACING 2.5f
+#define ALIEN_SPACING 3.0f
 	FOR (r, ALIEN_ROW_SIZE)
 	FOR (c, ALIEN_COL_SIZE) {
 		game->aliens[c*ALIEN_ROW_SIZE + r] = (alien_t){
 			.active = TRUE,
-			.pos = vec2(-ALIEN_SPACING*(ALIEN_ROW_SIZE/2) + (ALIEN_SPACING/2.0f) + (ALIEN_SPACING*r), ALIEN_SPACING*c),
-			.target_pos = vec2(-ALIEN_SPACING*(ALIEN_ROW_SIZE/2) + (ALIEN_SPACING/2.0f) + (ALIEN_SPACING*r), ALIEN_SPACING*c),
+			.pos = vec2(-ALIEN_SPACING*((f32)ALIEN_ROW_SIZE/2) + (ALIEN_SPACING/2.0f) + (ALIEN_SPACING*r), ALIEN_SPACING*c),
+			.target_pos = vec2(-ALIEN_SPACING*((f32)ALIEN_ROW_SIZE/2) + (ALIEN_SPACING/2.0f) + (ALIEN_SPACING*r), ALIEN_SPACING*c),
 		};
 	}
 
 	FOR (i, array_size(game->barriers)) {
-		game->barriers[i].pos = vec2(-12.0f + (8.0f*i), -8.0f);
+		game->barriers[i].pos = vec2(-12.0f + (8.0f*i), -10.0f);
 	}
 }
 
@@ -285,11 +286,15 @@ int main() {
 		game_t* game = &state->game;
 
         gfx_bind_framebuffer(&state->framebuffer);
-		gfx_ortho_projection(&window, SCREEN_LEFT, SCREEN_RIGHT, SCREEN_BOTTOM, SCREEN_TOP);
+		gfx_ortho_projection(200, 150, SCREEN_LEFT, SCREEN_RIGHT, SCREEN_BOTTOM, SCREEN_TOP);
 		gfx_clear(vec4(0.0f, 0.0f, 0.0f, 0.0f));
 
         glEnable(GL_BLEND);
 	    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        gfx_sprite_scale(1.0f);
+        gfx_sprite_tile_size(16);
+        gfx_texture(&state->texture);
 
         // PLAYER
         player_t* player = &game->player;
@@ -306,12 +311,13 @@ int main() {
 
             gfx_color(vec4(1, 1, 1, 1));
             // gfx_quad(player->pos, vec2(1, 1));
-            gfx_sprite_tile(
-                &window,
-                &state->spritesheet,
-                player->pos,
-                8
-            );
+            // gfx_sprite_tile(
+            //     &window,
+            //     &state->spritesheet,
+            //     player->pos,
+            //     8
+            // );
+            gfx_draw_sprite_tile(player->pos, 8);
 
             FOR (i, array_size(game->bullets)) {
                 bullet_t* bullet = game->bullets + i;
@@ -490,10 +496,13 @@ int main() {
 		// glDisable(GL_TEXTURE_2D);
 		// glBindTexture(GL_TEXTURE_2D, 0);
 		// gfx_sprite(&window, vec2(0, 0), 0, 0, 64, 64, 4);
-
+        float lowest_alien = 0.0f;
 		FOR (r, ALIEN_ROW_SIZE)
 		FOR (c, ALIEN_COL_SIZE) {
 			alien_t* alien = game->aliens + c*ALIEN_ROW_SIZE + r;
+            if (alien->pos.y < lowest_alien) {
+                lowest_alien = alien->pos.y;
+            }
 
 			if (alien->active) {
 				if (len2(sub2(alien->target_pos, alien->pos)) > 0.1f) {
@@ -506,71 +515,77 @@ int main() {
 					game->player_bullet.active = FALSE;
 
 					// Explosion
-					FOR (y, 16) FOR (x, 16) {
-						u32* pixels = state->spritesheet_bmp->data;
-						int tile = (c%3 * 2) + alien->animation;
-						i32 p = pixels[((tile/4)*16 + y)*state->spritesheet_bmp->width + ((tile%4)*16 + x)];
-						char* cc = (char*)&p;
-						if (p) {
-							// _gfx_ortho_res_scale
-							add_damage_particle(
-								game,
-								add2(alien->pos, mul2(sub2f(vec2(x, y), 7.5f), mul2f(_gfx_ortho_res_scale, PIXEL_SCALE))),
-								// vec2(randf_range(-0.5f, 0.5f), randf_range(-0.5f, 0.5f))
-								add2(mul2f(normalize2(sub2(vec2(x, y), vec2(8, 8))), 0.5f), vec2(randfr(-0.2f, 0.2f), randfr(-0.2f, 0.2f))),
-								// vec4(97.0f / 255.0f, 16.0f / 255.0f, 162.0f / 255.0f, 1.0f)
-								vec4((float)(p>>16&0xff) / 255.0f, (float)(p>>8&0xff) / 255.0f, (float)(p>>0&0xff) / 255.0f, 1.0f)
-							);
-						}
-					}
+					// FOR (y, 16) FOR (x, 16) {
+					// 	u32* pixels = state->spritesheet_bmp->data;
+					// 	int tile = (c%3 * 2) + alien->animation;
+					// 	i32 p = pixels[((tile/4)*16 + y)*state->spritesheet_bmp->width + ((tile%4)*16 + x)];
+					// 	char* cc = (char*)&p;
+					// 	if (p) {
+					// 		// _gfx_ortho_res_scale
+					// 		add_damage_particle(
+					// 			game,
+					// 			add2(alien->pos, mul2(sub2f(vec2(x, y), 7.5f), mul2f(_gfx_ortho_res_scale, PIXEL_SCALE))),
+					// 			// vec2(randf_range(-0.5f, 0.5f), randf_range(-0.5f, 0.5f))
+					// 			add2(mul2f(normalize2(sub2(vec2(x, y), vec2(8, 8))), 0.5f), vec2(randfr(-0.2f, 0.2f), randfr(-0.2f, 0.2f))),
+					// 			// vec4(97.0f / 255.0f, 16.0f / 255.0f, 162.0f / 255.0f, 1.0f)
+					// 			vec4((float)(p>>16&0xff) / 255.0f, (float)(p>>8&0xff) / 255.0f, (float)(p>>0&0xff) / 255.0f, 1.0f)
+					// 		);
+					// 	}
+					// }
+                    int tile = (c%3 * 2) + alien->animation;
+                    explode_sprite(state, tile, alien->pos);
 				}
 
 				if (randf() < 0.0002f) {
 					add_bullet(game, alien->pos);
 				}
 
-				gfx_sprite_tile(
-					&window,
-					&state->spritesheet,
+				gfx_draw_sprite_tile(
 					game->aliens[c*ALIEN_ROW_SIZE + r].pos,
 					(c%3 * 2) + alien->animation
 				);
 			}
 		}
+        
+        // Lives
+        // state->spritesheet.scale = 2.0f;
+        gfx_sprite_scale(0.7f);
+        FOR (i, game->player.lives) {
+            gfx_draw_sprite_tile(
+                vec2(SCREEN_LEFT + 1.5f + (2.0f*i), SCREEN_BOTTOM + 1.0f),
+                8
+            );
+        }
+        // state->spritesheet.scale = PIXEL_SCALE;
+        gfx_sprite_scale(1);
 
 		// BARRIERS
 		FOR (i, array_size(game->barriers)) {
 			barrier_t* barrier = game->barriers + i;
 			// gfx_sprite_tile(&window, &state->, barrier->pos, 10);
 			gfx_texture(state->barrier_textures + i);
-			gfx_sprite(&window, barrier->pos, 0, 0, 16, 16, PIXEL_SCALE);
+			gfx_draw_sprite_rect(barrier->pos, vec2(0, 0), vec2(16, 16));
 		}
 
 		// TEXT
 		gfx_color(vec4(1, 1, 1, 1));
 		gfx_texture(&state->font_texture);
 		
-		gfx_text(&window, vec2(SCREEN_LEFT + 1, SCREEN_TOP - 1), 2.0f, "Invaders");
+        static float scale = 1.0f;
+        scale += time.dt*0.5f;
+        gfx_sprite_scale(scale);
+		gfx_text(&window, vec2(0, 0), "Invaders");
 		// gfx_text(&window, vec2(SCREEN_LEFT + 1, SCREEN_TOP - 2), 2.0f, "Partilces %i", active_particles);
+        // gfx_text(&window, vec2(SCREEN_LEFT + 1, SCREEN_TOP - 2), "Lowest alien %f", lowest_alien);
+        gfx_sprite_scale(1.0f);
 
         if (!player->lives) {
             game->restart_timer -= time.dt;
             if (game->restart_timer < 0.0f) {
                 start_game(game);
             }
-            gfx_text(&window, vec2(SCREEN_LEFT + 1, SCREEN_TOP - 2), 2.0f, "Game Over");
+            gfx_text(&window, vec2(SCREEN_LEFT + 1, SCREEN_TOP - 2), "Game Over");
         }
-
-        state->spritesheet.scale = 2.0f;
-        FOR (i, game->player.lives) {
-            gfx_sprite_tile(
-                &window,
-                &state->spritesheet,
-                vec2(SCREEN_LEFT + 1.5f + (1.5f*i), SCREEN_BOTTOM + 1.0f),
-                8
-            );
-        }
-        state->spritesheet.scale = PIXEL_SCALE;
 
         // PRESENT
         gfx_bind_window_framebuffer(&window);

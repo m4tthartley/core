@@ -80,17 +80,19 @@ gfx_texture_t gfx_create_null_texture(int width, int height);
 gfx_texture_t gfx_create_texture(bitmap_t* bitmap);
 void gfx_texture(gfx_texture_t* texture);
 void gfx_clear(vec4_t color);
-void gfx_ortho_projection(window_t* window, f32 left, f32 right, f32 bottom, f32 top);
-void gfx_ortho_projection_centered(window_t* window, f32 width, f32 height);
+void gfx_ortho_projection(int fb_width, int fb_height, f32 left, f32 right, f32 bottom, f32 top);
+void gfx_ortho_projection_centered(int fb_width, int fb_height, f32 width, f32 height);
 void gfx_color(v4 color);
 void gfx_point(vec2_t pos);
 void gfx_quad(vec2_t pos, vec2_t size);
-void gfx_sprite(window_t* window, vec2_t pos, int px, int py, int pxs, int pys, float scale);
-void gfx_sprite_tile(window_t* window, gfx_sprite_t* sprite, vec2_t pos, int tile);
+// void gfx_sprite(window_t* window, vec2_t pos, int px, int py, int pxs, int pys, float scale);
+// void gfx_sprite_tile(window_t* window, gfx_sprite_t* sprite, vec2_t pos, int tile);
+void gfx_draw_sprite_rect(v2 pos, v2 sprite_offset, v2 sprite_size);
+void gfx_draw_sprite_tile(v2 pos, int tile);
 void gfx_circle(vec2_t pos, f32 size, int segments);
 void gfx_line_circle(vec2_t pos, f32 size, int segments);
 void gfx_line(vec2_t start, vec2_t end);
-void gfx_text(window_t* window, vec2_t pos, float scale, char* str, ...);
+void gfx_text(window_t* window, vec2_t pos, char* str, ...);
 
 
 #ifdef CORE_IMPL
@@ -283,18 +285,18 @@ void gfx_clear(vec4_t color) {
 // 	glColor4f(color.r, color.g, color.b, color.a);
 // }
 
-void gfx_ortho_projection(window_t* window, f32 left, f32 right, f32 bottom, f32 top) {
+void gfx_ortho_projection(int fb_width, int fb_height, f32 left, f32 right, f32 bottom, f32 top) {
 	// _gfx_coord_system = vec2(1.0f / width, 1.0f / height);
 	_gfx_ortho_space = vec2(right-left, top-bottom);
-	_gfx_ortho_res_scale = vec2((right-left) / (f32)window->width, (top-bottom) / (f32)window->height);
+	_gfx_ortho_res_scale = vec2((right-left) / (f32)fb_width, (top-bottom) / (f32)fb_height);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	glOrtho(left, right, bottom, top, -10, 10);
 	glMatrixMode(GL_MODELVIEW);
 }
 
-void gfx_ortho_projection_centered(window_t* window, f32 width, f32 height) {
-	gfx_ortho_projection(window, -width/2.0f, width/2.0f, -height/2.0f, height/2.0f);
+void gfx_ortho_projection_centered(int fb_width, int fb_height, f32 width, f32 height) {
+	gfx_ortho_projection(fb_width, fb_height, -width/2.0f, width/2.0f, -height/2.0f, height/2.0f);
 }
 
 void gfx_color(v4 color) {
@@ -330,40 +332,35 @@ void gfx_quad(vec2_t pos, vec2_t size) {
 	glEnd();
 }
 
-void gfx_sprite(window_t* window, vec2_t pos, int px, int py, int pxs, int pys, float scale) {
-	// vec2_t percent_of_screen = vec2(1.0f/((f32)window->width/pxs), 1.0f/((f32)window->height/pys));
-	// vec2_t s = {
-	// 	(percent_of_screen.x/*/_gfx_coord_system.x*/) * (f32)scale,
-	// 	(percent_of_screen.y/*/_gfx_coord_system.y*/) * (f32)scale,
-	// };
-	vec2_t s = mul2(mul2f(vec2(pxs/2, pys/2), scale), _gfx_ortho_res_scale);
-	gfx_texture_t* t = _gfx_active_texture;
-	glBegin(GL_QUADS);
-	glTexCoord2f((f32)px / (f32)t->width, ((f32)py) / (f32)t->height);
-	glVertex2f(pos.x-s.x, pos.y-s.y);
+// void gfx_sprite(window_t* window, vec2_t pos, int px, int py, int pxs, int pys, float scale) {
+// 	vec2_t s = mul2(mul2f(vec2(pxs/2, pys/2), scale), _gfx_ortho_res_scale);
+// 	gfx_texture_t* t = _gfx_active_texture;
+// 	glBegin(GL_QUADS);
+// 	glTexCoord2f((f32)px / (f32)t->width, ((f32)py) / (f32)t->height);
+// 	glVertex2f(pos.x-s.x, pos.y-s.y);
 
-	glTexCoord2f(((f32)px+pxs) / (f32)t->width, ((f32)py) / (f32)t->height);
-	glVertex2f(pos.x+s.x, pos.y-s.y);
+// 	glTexCoord2f(((f32)px+pxs) / (f32)t->width, ((f32)py) / (f32)t->height);
+// 	glVertex2f(pos.x+s.x, pos.y-s.y);
 
-	glTexCoord2f(((f32)px+pxs) / (f32)t->width, ((f32)py+pys) / (f32)t->height);
-	glVertex2f(pos.x+s.x, pos.y+s.y);
+// 	glTexCoord2f(((f32)px+pxs) / (f32)t->width, ((f32)py+pys) / (f32)t->height);
+// 	glVertex2f(pos.x+s.x, pos.y+s.y);
 
-	glTexCoord2f((f32)px / (f32)t->width, ((f32)py+pys) / (f32)t->height);
-	glVertex2f(pos.x-s.x, pos.y+s.y);
-	glEnd();
-}
+// 	glTexCoord2f((f32)px / (f32)t->width, ((f32)py+pys) / (f32)t->height);
+// 	glVertex2f(pos.x-s.x, pos.y+s.y);
+// 	glEnd();
+// }
 
 
-void gfx_sprite_tile(window_t* window, gfx_sprite_t* sprite, vec2_t pos, int tile) {
-	gfx_texture(&sprite->texture);
-	int tiles_per_row = sprite->texture.width / sprite->tile_size;
-	int tiles_per_column = sprite->texture.height / sprite->tile_size;
-	tile %= (tiles_per_row * tiles_per_column);
-	gfx_sprite(window, pos,
-			(tile%tiles_per_row)*sprite->tile_size,
-			(tile/tiles_per_row)*sprite->tile_size,
-			sprite->tile_size, sprite->tile_size, sprite->scale);
-}
+// void gfx_sprite_tile(window_t* window, gfx_sprite_t* sprite, vec2_t pos, int tile) {
+// 	gfx_texture(&sprite->texture);
+// 	int tiles_per_row = sprite->texture.width / sprite->tile_size;
+// 	int tiles_per_column = sprite->texture.height / sprite->tile_size;
+// 	tile %= (tiles_per_row * tiles_per_column);
+// 	gfx_sprite(window, pos,
+// 			(tile%tiles_per_row)*sprite->tile_size,
+// 			(tile/tiles_per_row)*sprite->tile_size,
+// 			sprite->tile_size, sprite->tile_size, sprite->scale);
+// }
 
 void gfx_draw_sprite_rect(v2 pos, v2 sprite_offset, v2 sprite_size) {
 	vec2_t vertex_offset = mul2(mul2f(vec2(sprite_size.x/2, sprite_size.y/2), _gfx_sprite_scale), _gfx_ortho_res_scale);
@@ -389,6 +386,7 @@ void gfx_draw_sprite_rect(v2 pos, v2 sprite_offset, v2 sprite_size) {
 }
 
 void gfx_draw_sprite_tile(v2 pos, int tile) {
+	assert(_gfx_active_texture);
 	int tiles_per_row = _gfx_active_texture->width / _gfx_sprite_tile_size;
 	int tiles_per_column = _gfx_active_texture->height / _gfx_sprite_tile_size;
 	tile %= (tiles_per_row * tiles_per_column);
@@ -448,7 +446,7 @@ void gfx_line(vec2_t start, vec2_t end) {
 	glEnd();
 }
 
-void gfx_text(window_t* window, vec2_t pos, float scale, char* str, ...) {
+void gfx_text(window_t* window, vec2_t pos, char* str, ...) {
 	if (!_gfx_active_texture) {
 		print_error("gfx_text: No active texture");
 		return;
@@ -492,9 +490,10 @@ void gfx_text(window_t* window, vec2_t pos, float scale, char* str, ...) {
 			// glTexCoord2f(uv.x,       uv.y);       glVertex2f(charPos.x,            charPos.y);
 			// glEnd();
 
-			v2 char_pos = add2(pos, mul2(vec2((float)i*8.0f*scale, 0), _gfx_ortho_res_scale));
-			i2 pixel_offset = int2(*buffer%chars_per_row * 8, *buffer/chars_per_row * 8);
-			gfx_sprite(window, char_pos, pixel_offset.x, pixel_offset.y, 8, 8, scale);
+			v2 char_pos = add2(pos, mul2(vec2((float)i*8.0f*_gfx_sprite_scale, 0), _gfx_ortho_res_scale));
+			v2 pixel_offset = vec2(*buffer%chars_per_row * 8, *buffer/chars_per_row * 8);
+			// gfx_sprite(window, char_pos, pixel_offset.x, pixel_offset.y, 8, 8, scale);
+			gfx_draw_sprite_rect(char_pos, pixel_offset, vec2(8, 8));
 		}
 	}
 }
