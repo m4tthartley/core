@@ -6,7 +6,7 @@
 #  Copyright 2023 GiantJelly. All rights reserved.
 #
 
-mkdir -p build
+mkdir -p ../bin
 # pushd build
 
 # core="${USERPROFILE}/code/core/core"
@@ -22,8 +22,8 @@ mkdir -p build
 # 	echo "Build failed"
 # fi
 
-options="-std=c99 -g -I~/code/core"
-clang $options macos.c -o build/builder -I.. -framework CoreServices
+options="-std=c99 -g -I$HOME/code/core"
+clang macos.c -o ../bin/builder $options -framework CoreServices
 
 
 # popd
