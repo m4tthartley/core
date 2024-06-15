@@ -20,6 +20,8 @@
     - Intro screen
     - Flying saucer?
     - Embedded font system
+    - Move core to single header again
+    - Separate bitmap from general gfx code
  */
 
 #define GL_SILENCE_DEPRECATION
@@ -572,11 +574,18 @@ int main() {
 		gfx_texture(&state->font_texture);
 		
         static float scale = 1.0f;
-        scale += time.dt*0.5f;
+        // scale += time.dt*0.5f;
         gfx_sprite_scale(scale);
-		gfx_text(&window, vec2(0, 0), "Invaders");
+		// gfx_text(&window, vec2(0, 0), "Invaders");
 		// gfx_text(&window, vec2(SCREEN_LEFT + 1, SCREEN_TOP - 2), 2.0f, "Partilces %i", active_particles);
         // gfx_text(&window, vec2(SCREEN_LEFT + 1, SCREEN_TOP - 2), "Lowest alien %f", lowest_alien);
+        char* rwby =
+            "Red like roses\n"
+            "Fills my head with dreams and finds me\n"
+            "Always closer\n"
+            "To the emptiness and sadness\n"
+            "That has come to take the place of you\n";
+        gfx_text(&window, vec2(-15, 0), rwby);
         gfx_sprite_scale(1.0f);
 
         if (!player->lives) {

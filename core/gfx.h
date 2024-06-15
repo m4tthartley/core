@@ -20,6 +20,17 @@
 #include "math.h"
 // #include "opengl_extensions.h"
 
+#ifdef __WIN32__
+#   include <gl/gl.h>
+#endif
+#ifdef __LINUX__
+#   include <gl/gl.h>
+#endif
+#ifdef __MACOS__
+#   define GL_SILENCE_DEPRECATION
+#   include <OpenGL/gl.h>
+#endif
+
 #pragma pack(push, 1)
 typedef struct {
 	char header[2];
@@ -100,7 +111,7 @@ void gfx_text(window_t* window, vec2_t pos, char* str, ...);
 
 #include "video.h"
 #include "math.h"
-#include "../font/default_font.h"
+// #include "../font/default_font.h"
 
 gfx_texture_t* _gfx_active_texture = NULL;
 // vec2_t _gfx_coord_system = {1.0f, 1.0f};

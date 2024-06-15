@@ -13,13 +13,14 @@
 #include "core.h"
 
 #ifdef __WIN32__
-#include <gl/gl.h>
+#   include <gl/gl.h>
 #endif
 #ifdef __LINUX__
-#include <gl/gl.h>
+#   include <gl/gl.h>
 #endif
 #ifdef __MACOS__
-#include <OpenGL/gl.h>
+#   define GL_SILENCE_DEPRECATION
+#   include <OpenGL/gl.h>
 #endif
 
 
