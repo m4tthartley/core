@@ -111,7 +111,7 @@ void gfx_text(window_t* window, vec2_t pos, char* str, ...);
 
 #include "video.h"
 #include "math.h"
-#include "../tools/fonter/default_font.h"
+#include "font.h"
 
 gfx_texture_t* _gfx_active_texture = NULL;
 // vec2_t _gfx_coord_system = {1.0f, 1.0f};
@@ -539,7 +539,7 @@ void gfx_draw_text(embedded_font_t* font, vec2_t pos, char* str, ...) {
 		return;
 	}
 
-	char b[1024*10];
+	char b[1024*100];
 	va_list args;
 	va_start(args, str);
 	// int length = vsnprintf(0, 0, layout.text, args) + 1;
@@ -582,6 +582,11 @@ void gfx_draw_text(embedded_font_t* font, vec2_t pos, char* str, ...) {
 
             u8 xkern = font->kerning.offsets[*buffer] >> 4;
             u8 ykern = font->kerning.offsets[*buffer] & 0xF;
+
+            if (buffer[1]) {
+                u8 kern_pair = font_get_kerning(font, *buffer, buffer[1]);
+                xkern += kern_pair;
+            }
 
 			v2 pixel_offset = vec2(*buffer%chars_per_row * 8, *buffer/chars_per_row * 8);
 			// gfx_sprite(window, char_pos, pixel_offset.x, pixel_offset.y, 8, 8, scale);
