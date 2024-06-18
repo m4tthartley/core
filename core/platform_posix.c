@@ -280,6 +280,15 @@ b32 file_write(file_t file, size_t offset, void* buffer, size_t size) {
 	return result;
 }
 
+b32 file_truncate(file_t file, size_t size) {
+    int result = ftruncate(file, size);
+    if (result != 0) {
+        print_error(strerror(errno));
+		return FALSE;
+    }
+    return TRUE;
+}
+
 stat_t file_stat(file_t file) {
 	stat_t result = {0};
 	struct stat stats;

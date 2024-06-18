@@ -130,6 +130,7 @@ file_t 		file_open(char* path);
 file_t 		file_create(char* path);
 b32 		file_read(file_t file, size_t offset, void* output, size_t size);
 b32 		file_write(file_t file, size_t offset, void* data, size_t size);
+b32         file_truncate(file_t file, size_t size);
 stat_t 		file_stat(file_t file);
 void 		file_close(file_t file);
 

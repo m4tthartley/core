@@ -40,6 +40,8 @@
 #include <core/time.h>
 #include <core/gfx.h>
 
+#include "words.c"
+
 float SCREEN_LEFT = -20;
 float SCREEN_RIGHT = 20;
 float SCREEN_BOTTOM = -20.0f*(600.0f/800.0f);
@@ -114,6 +116,7 @@ typedef struct {
 	bitmap_t* font_bitmap;
     gfx_texture_t texture;
 	gfx_sprite_t spritesheet;
+    gfx_texture_t old_font_texture;
 	gfx_texture_t font_texture;
 
 	bitmap_t* barrier_bitmaps[4];
@@ -209,8 +212,9 @@ state_t* start_system() {
 		.scale = PIXEL_SCALE,
 	};
 
-	state->font_bitmap = load_font_file(&state->memory, "font.bmp");
-	state->font_texture = gfx_create_texture(state->font_bitmap);
+	state->font_bitmap = load_font_file(&state->memory, "font_v5.bmp");
+	state->old_font_texture = gfx_create_texture(state->font_bitmap);
+    state->font_texture = gfx_generate_font_texture(&state->memory, &FONT_DEFAULT);
 
 	// Generate barrier bitmaps
 	FOR (i, 4) {
@@ -579,13 +583,27 @@ int main() {
 		// gfx_text(&window, vec2(0, 0), "Invaders");
 		// gfx_text(&window, vec2(SCREEN_LEFT + 1, SCREEN_TOP - 2), 2.0f, "Partilces %i", active_particles);
         // gfx_text(&window, vec2(SCREEN_LEFT + 1, SCREEN_TOP - 2), "Lowest alien %f", lowest_alien);
+        static float scroll = 0.0f;
+        static float wheel_momentum = 0.0f;
+        if ((window.mouse.wheel_dt > 0 && window.mouse.wheel_dt > wheel_momentum) ||
+            (window.mouse.wheel_dt < 0 && window.mouse.wheel_dt < wheel_momentum)) {
+            wheel_momentum = (float)window.mouse.wheel_dt;
+        } else {
+            wheel_momentum *= 0.9f;
+        }
+        scroll -= wheel_momentum*0.5f;
+        _gfx_font_wrap_width = 30.0f;
+        int stuff = array_size(FONT_DEFAULT.combos);
         char* rwby =
             "Red like roses\n"
             "Fills my head with dreams and finds me\n"
             "Always closer\n"
             "To the emptiness and sadness\n"
-            "That has come to take the place of you\n";
-        gfx_text(&window, vec2(-15, 0), rwby);
+            "That has come to take the place of you\n"
+            "Amazing 0123456789 \n"
+            "silly sausages  \n";
+        gfx_draw_text(&FONT_DEFAULT, vec2(-18, 12 + scroll), ALL_THE_WORDS);
+        // gfx_draw_text(&FONT_DEFAULT, vec2(0, 0), "a");
         gfx_sprite_scale(1.0f);
 
         if (!player->lives) {
@@ -604,6 +622,7 @@ int main() {
 
         glEnable(GL_TEXTURE_2D);
 		glBindTexture(GL_TEXTURE_2D, state->framebuffer.textures[0]);
+        // glBindTexture(GL_TEXTURE_2D, state->font_texture.handle);
 
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();

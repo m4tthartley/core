@@ -111,7 +111,7 @@ void gfx_text(window_t* window, vec2_t pos, char* str, ...);
 
 #include "video.h"
 #include "math.h"
-// #include "../font/default_font.h"
+#include "../tools/fonter/default_font.h"
 
 gfx_texture_t* _gfx_active_texture = NULL;
 // vec2_t _gfx_coord_system = {1.0f, 1.0f};
@@ -120,6 +120,7 @@ v2 _gfx_ortho_res_scale = {1.0f, 1.0f};
 
 float _gfx_sprite_scale = 1.0f;
 float _gfx_sprite_tile_size = 8.0f;
+float _gfx_font_wrap_width = 0.0f;
 
 #ifndef __MACOS__
 void _opengl_debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char* message, const void *userParam) {
@@ -269,6 +270,29 @@ gfx_texture_t gfx_create_texture(bitmap_t* bitmap) {
 	} else {
 		return gfx_create_null_texture(256, 256);
 	}
+}
+
+gfx_texture_t gfx_generate_font_texture(allocator_t* allocator, embedded_font_t* font) {
+    bitmap_t* bitmap = alloc_memory_in(allocator, sizeof(bitmap_t)+128*64*sizeof(u32));
+    zero_memory(bitmap->data, 128*64*sizeof(u32));
+    FOR (c, 128) {
+        int charx = c%16 * 8;
+		int chary = c/(16) * 8;
+        FOR (p, 64) {
+            int x = charx + (p%8);
+            int y = chary + (p/8);
+            if (font->data[c] & ((u64)0x1 << p)) {
+                bitmap->data[y * 128 + x] = 0xFFFFFFFF;
+            }
+        }
+    }
+
+    bitmap->width = 128;
+    bitmap->height = 64;
+    bitmap->size = bitmap->width + bitmap->height;
+    gfx_texture_t texture = gfx_create_texture(bitmap);
+    free_memory_in(allocator, bitmap);
+    return texture;
 }
 
 void gfx_update_texture(gfx_texture_t* texture, bitmap_t* bitmap) {
@@ -506,6 +530,83 @@ void gfx_text(window_t* window, vec2_t pos, char* str, ...) {
 			// gfx_sprite(window, char_pos, pixel_offset.x, pixel_offset.y, 8, 8, scale);
 			gfx_draw_sprite_rect(char_pos, pixel_offset, vec2(8, 8));
 		}
+	}
+}
+
+void gfx_draw_text(embedded_font_t* font, vec2_t pos, char* str, ...) {
+	if (!_gfx_active_texture) {
+		print_error("gfx_text: No active texture");
+		return;
+	}
+
+	char b[1024*10];
+	va_list args;
+	va_start(args, str);
+	// int length = vsnprintf(0, 0, layout.text, args) + 1;
+	// char* buffer = pushMemory(&ui->transient, length);
+	vsnprintf(b, sizeof(b), str, args);
+
+	// vec2_t pixel_size = vec2(1.0f/(window->width/8), 1.0f/(window->height/8));
+	// vec2_t s = {
+	// 	(pixel_size.x)*2.0f * (f32)scale,
+	// 	(pixel_size.y)*2.0f * (f32)scale,
+	// };
+	
+	// vec2_t percent_of_screen = vec2(1.0f/((f32)window->width/8), 1.0f/((f32)window->height/8));
+	// vec2_t s = {
+	// 	(percent_of_screen.x/*/_gfx_coord_system.x*/) * (f32)scale,
+	// 	(percent_of_screen.y/*/_gfx_coord_system.y*/) * (f32)scale,
+	// };
+
+	gfx_texture_t* t = _gfx_active_texture;
+	int chars_per_row = t->width / 8;
+	int chars_per_col = t->height / 8;
+
+    v2 char_pos = pos;
+    v2 char_size = mul2(vec2(8.0f*_gfx_sprite_scale, 8.0f*_gfx_sprite_scale), _gfx_ortho_res_scale);
+	
+	// float charSize = 1.0f*0.05f;
+	char* buffer = b;
+	for (int i=0; *buffer; ++i,++buffer) {
+		if(*buffer != '\n') {
+			// vec2_t uv = vec2((float)(*buffer%chars_per_row) / (float)chars_per_row,
+			// 		(float)(*buffer/chars_per_row) / (float)chars_per_col);
+			// vec2_t uvt = vec2(1.0f/(float)chars_per_row, 1.0f/(float)chars_per_col);
+			// vec2_t charPos = add2(pos, vec2(i * s.x, 0));
+			// glBegin(GL_QUADS);
+			// glTexCoord2f(uv.x,       uv.y+uvt.y); glVertex2f(charPos.x,            charPos.y+s.y);
+			// glTexCoord2f(uv.x+uvt.x, uv.y+uvt.y); glVertex2f(charPos.x+(s.x), charPos.y+s.y);
+			// glTexCoord2f(uv.x+uvt.x, uv.y);       glVertex2f(charPos.x+(s.x), charPos.y);
+			// glTexCoord2f(uv.x,       uv.y);       glVertex2f(charPos.x,            charPos.y);
+			// glEnd();
+
+            u8 xkern = font->kerning.offsets[*buffer] >> 4;
+            u8 ykern = font->kerning.offsets[*buffer] & 0xF;
+
+			v2 pixel_offset = vec2(*buffer%chars_per_row * 8, *buffer/chars_per_row * 8);
+			// gfx_sprite(window, char_pos, pixel_offset.x, pixel_offset.y, 8, 8, scale);
+            v2 draw_pos = sub2(char_pos, mul2(vec2(0, ykern*_gfx_sprite_scale), _gfx_ortho_res_scale));
+			gfx_draw_sprite_rect(add2(draw_pos, mul2f(char_size, 0.5f)), pixel_offset, vec2(8, 8));
+
+			char_pos = add2(char_pos, mul2(vec2((8.0f-xkern)*_gfx_sprite_scale, 0), _gfx_ortho_res_scale));
+
+            if (_gfx_font_wrap_width>1.0f && *buffer == ' ') {
+                char* scan = buffer;
+                v2 scan_pos = char_pos;
+                ++scan;
+                while (*scan && *scan != '\n' && *scan != ' ') {
+                    u8 xkern = font->kerning.offsets[*scan] >> 4;
+                    scan_pos = add2(scan_pos, mul2(vec2((8.0f-xkern)*_gfx_sprite_scale, 0), _gfx_ortho_res_scale));
+                    if (scan_pos.x > pos.x + _gfx_font_wrap_width) {
+                        char_pos = vec2(pos.x, char_pos.y - 12.0f*_gfx_sprite_scale*_gfx_ortho_res_scale.y);
+                        break;
+                    }
+                    ++scan;
+                }
+            }
+		} else {
+            char_pos = vec2(pos.x, char_pos.y - 12.0f*_gfx_sprite_scale*_gfx_ortho_res_scale.y);
+        }
 	}
 }
 

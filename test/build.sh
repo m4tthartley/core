@@ -10,5 +10,9 @@ mkdir -p build
 
 # core_dir="~/code/core"
 
+cd ../tools/fonter
+../bin/fonter
+cd ../../test
+
 options="-std=c99 -g -I~/code/core"
 clang $options invaders.c -o build/invaders -I.. -D__SDL__ -framework OpenGL
