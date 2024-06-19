@@ -583,10 +583,17 @@ void gfx_draw_text_centered(embedded_font_t* font, vec2_t pos, char* str) {
     v2 max_size = gfx_layout_text(font, str_copy);
 
     max_size.y += _gfx_font_glyph_size.y * 1.0f;
-    pos = sub2(pos, mul2f(max_size, 0.5f));
-    gfx_draw_text_internal(font, pos, str_copy);
+    v2 new_pos = sub2(pos, mul2f(max_size, 0.5f));
+    gfx_draw_text_internal(font, new_pos, str_copy);
 
     str_free(str_copy);
+
+    // gfx_texture_t* t = _gfx_active_texture;
+    // gfx_texture(NULL);
+    // gfx_color(vec4(1, 0, 0, 1));
+    // gfx_point(pos);
+    // gfx_color(vec4(1, 1, 1, 1));
+    // gfx_texture(t);
 }
 
 void gfx_draw_text(embedded_font_t* font, vec2_t pos, char* str) {

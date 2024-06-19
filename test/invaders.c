@@ -78,6 +78,7 @@ typedef struct {
 	v2 pos;
 	v2 speed;
 	float animation;
+    b32 alien;
 } bullet_t;
 
 typedef struct {
@@ -118,6 +119,13 @@ typedef struct {
 	int alien_move_row;
 
     float restart_timer;
+    b32 base_exploded;
+
+    float menu_zoom;
+
+    int score;
+    int level;
+    float next_level_timer;
 } game_t;
 
 typedef struct {
@@ -132,9 +140,10 @@ typedef struct {
 	gfx_texture_t font_texture;
 
 	bitmap_t* barrier_bitmaps[4];
-	gfx_texture_t barrier_textures[4];
+    gfx_texture_t barrier_textures[4];
 
     gfx_framebuffer_t framebuffer;
+    gfx_framebuffer_t menu_framebuffer;
 
 	game_t game;
 } state_t;
@@ -146,6 +155,7 @@ void add_bullet(game_t* game, v2 pos) {
 				.active = TRUE,
 				.pos = pos,
 				.speed = vec2(0, -1.0f),
+                .alien = TRUE,
 			};
 			return;
 		}
@@ -183,22 +193,23 @@ void player_shoot(game_t* game) {
 	if (!game->player_bullet.active) {
 		game->player_bullet = (bullet_t){
 			.active = TRUE,
-			.pos = game->player.pos,
+			.pos = add2(game->player.pos, vec2(0, 1.0f)),
 			.speed = vec2(0, 1.0f),
+            .alien = FALSE,
 		};
 	}
 }
 
-void explode_sprite(state_t* state, int tile, v2 pos) {
+void explode_sprite(game_t* game, bitmap_t* bitmap, int tile, v2 pos) {
     FOR (y, 16) FOR (x, 16) {
-        u32* pixels = state->spritesheet_bmp->data;
+        u32* pixels = bitmap->data;
         // int tile = (c%3 * 2) + alien->animation;
-        i32 p = pixels[((tile/4)*16 + y)*state->spritesheet_bmp->width + ((tile%4)*16 + x)];
+        i32 p = pixels[((tile/4)*16 + y)*bitmap->width + ((tile%4)*16 + x)];
         char* cc = (char*)&p;
         if (p) {
             // _gfx_ortho_res_scale
             add_damage_particle(
-                &state->game,
+                game,
                 add2(pos, mul2(sub2f(vec2(x, y), 7.5f), mul2f(_gfx_ortho_res_scale, PIXEL_SCALE))),
                 add2(mul2f(normalize2(sub2(vec2(x, y), vec2(8, 8))), 0.5f), vec2(randfr(-1.0f, 1.0f), randfr(-1.0f, 1.0f))),
                 // vec2(0, 0),
@@ -206,6 +217,24 @@ void explode_sprite(state_t* state, int tile, v2 pos) {
             );
         }
     }
+}
+
+void generate_aliens(game_t* game) {
+#define ALIEN_SPACING 3.0f
+	FOR (r, ALIEN_ROW_SIZE)
+	FOR (c, ALIEN_COL_SIZE) {
+		game->aliens[c*ALIEN_ROW_SIZE + r] = (alien_t){
+			.active = TRUE,
+			.pos = vec2(-ALIEN_SPACING*((f32)ALIEN_ROW_SIZE/2) + (ALIEN_SPACING/2.0f) + (ALIEN_SPACING*r), ALIEN_SPACING*c),
+			.target_pos = vec2(-ALIEN_SPACING*((f32)ALIEN_ROW_SIZE/2) + (ALIEN_SPACING/2.0f) + (ALIEN_SPACING*r), ALIEN_SPACING*c),
+		};
+	}
+}
+
+void next_level(game_t* game) {
+    game->next_level_timer = 3.0f;
+    ++game->level;
+    generate_aliens(game);
 }
 
 state_t* start_system() {
@@ -231,7 +260,34 @@ state_t* start_system() {
 	state->old_font_texture = gfx_create_texture(state->font_bitmap);
     state->font_texture = gfx_generate_font_texture(&state->memory, &FONT_DEFAULT);
 
-	// Generate barrier bitmaps
+	glPointSize(PIXEL_SCALE);
+
+	return state;
+}
+
+void start_game(state_t* state, game_t* game) {
+	zero_memory(game, sizeof(game_t));
+
+    game->mode = GAMEMODE_PLAY;
+
+	game->player.pos = vec2(0, -13);
+
+	game->alien_move_interval = 0.2f;
+	game->alien_move_timer = game->alien_move_interval;
+	game->alien_move_direction = 1.0f;
+
+    game->player.active = TRUE;
+    game->player.lives = 4;
+
+    game->restart_timer = 3.0f;
+
+    next_level(game);
+
+	FOR (i, array_size(game->barriers)) {
+		game->barriers[i].pos = vec2(-12.0f + (8.0f*i), -10.0f);
+	}
+
+    // Generate barrier bitmaps
 	FOR (i, 4) {
 		state->barrier_bitmaps[i] = alloc_memory_in(&state->memory, sizeof(bitmap_t)+(sizeof(u32)*16*16));
 		state->barrier_bitmaps[i]->size = sizeof(u32)*16*16;
@@ -244,41 +300,31 @@ state_t* start_system() {
 
 		state->barrier_textures[i] = gfx_create_texture(state->barrier_bitmaps[i]);
 	}
-
-	glPointSize(PIXEL_SCALE);
-
-	return state;
 }
 
-void start_game(game_t* game) {
-	zero_memory(game, sizeof(game_t));
+void switch_to_menu(game_t* game) {
+    game->mode = GAMEMODE_MENU;
+    game->menu_zoom = -1.0f;
+}
 
-    game->mode = GAMEMODE_FONT_TEST;
+void switch_to_gameover(game_t* game) {
+    game->mode = GAMEMODE_GAMEOVER;
+    game->menu_zoom = 0.0f;
+}
 
-	game->player.pos = vec2(0, -13);
+void switch_to_play(state_t* state, game_t* game) {
+    game->mode = GAMEMODE_PLAY;
+    start_game(state, game);
+}
 
-	game->alien_move_interval = 0.2f;
-	game->alien_move_timer = game->alien_move_interval;
-	game->alien_move_direction = 1.0f;
-
-    game->player.active = TRUE;
-    game->player.lives = 3;
-
-    game->restart_timer = 5.0f;
-	
-#define ALIEN_SPACING 3.0f
-	FOR (r, ALIEN_ROW_SIZE)
-	FOR (c, ALIEN_COL_SIZE) {
-		game->aliens[c*ALIEN_ROW_SIZE + r] = (alien_t){
-			.active = TRUE,
-			.pos = vec2(-ALIEN_SPACING*((f32)ALIEN_ROW_SIZE/2) + (ALIEN_SPACING/2.0f) + (ALIEN_SPACING*r), ALIEN_SPACING*c),
-			.target_pos = vec2(-ALIEN_SPACING*((f32)ALIEN_ROW_SIZE/2) + (ALIEN_SPACING/2.0f) + (ALIEN_SPACING*r), ALIEN_SPACING*c),
-		};
-	}
-
-	FOR (i, array_size(game->barriers)) {
-		game->barriers[i].pos = vec2(-12.0f + (8.0f*i), -10.0f);
-	}
+void player_die(state_t* state, game_t* game) {
+    if (game->player.active) {
+        game->player.active = FALSE;
+        game->player.respawn_timer = 2.0f;
+        --game->player.lives;
+        explode_sprite(game, state->spritesheet_bmp, 8, game->player.pos);
+        game->player.pos.x = 0.0f;
+    }
 }
 
 int main() {
@@ -291,10 +337,11 @@ int main() {
     // window.height = 150;
 	
 	state_t* state = start_system();
-	start_game(&state->game);
+	// start_game(&state->game);
 	gametime_t time = time_init();
 
     state->framebuffer = gfx_create_framebuffer(200, 150, GFX_FORMAT_RGBA, GFX_SAMPLING_NEAREST);
+    state->menu_framebuffer = gfx_create_framebuffer(200, 150, GFX_FORMAT_RGBA, GFX_SAMPLING_NEAREST);
     // gfx_bind_window_framebuffer(&window);
     gfx_bind_framebuffer(&state->framebuffer);
 
@@ -303,15 +350,15 @@ int main() {
     // glDisable(GL_BLEND);
     // glDisable(GL_ALPHA_TEST);
 
+    state->game.mode = GAMEMODE_MENU;
+
 	while (!window.quit) {
 		update_window(&window);
 		time_update(&time);
 
 		game_t* game = &state->game;
 
-        gfx_bind_framebuffer(&state->framebuffer);
 		gfx_ortho_projection(200, 150, SCREEN_LEFT, SCREEN_RIGHT, SCREEN_BOTTOM, SCREEN_TOP);
-		gfx_clear(vec4(0.0f, 0.0f, 0.0f, 0.0f));
 
         glEnable(GL_BLEND);
 	    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -321,48 +368,11 @@ int main() {
         gfx_texture(&state->texture);
 
         if (game->mode == GAMEMODE_PLAY) {
-            // PLAYER
-            player_t* player = &game->player;
-            if (player->active) {
-                if (window.keyboard[KEY_LEFT].down) {
-                    player->pos.x -= 10.0f * time.dt;
-                }
-                if (window.keyboard[KEY_RIGHT].down) {
-                    player->pos.x += 10.0f * time.dt;
-                }
-                if (window.keyboard[KEY_SPACE].pressed) {
-                    player_shoot(game);
-                }
+            gfx_bind_framebuffer(&state->framebuffer);
+            gfx_clear(vec4(0.0f, 0.0f, 0.0f, 0.0f));
 
-                gfx_color(vec4(1, 1, 1, 1));
-                // gfx_quad(player->pos, vec2(1, 1));
-                // gfx_sprite_tile(
-                //     &window,
-                //     &state->spritesheet,
-                //     player->pos,
-                //     8
-                // );
-                gfx_draw_sprite_tile(player->pos, 8);
-
-                FOR (i, array_size(game->bullets)) {
-                    bullet_t* bullet = game->bullets + i;
-                    if (bullet->active) {
-                        if (len2(sub2(bullet->pos, player->pos)) < 1.0f) {
-                            bullet->active = FALSE;
-                            player->active = FALSE;
-                            player->respawn_timer = 2.0f;
-                            --player->lives;
-                            explode_sprite(state, 8, player->pos);
-                            player->pos.x = 0.0f;
-                        }
-                    }
-                }
-
-            } else {
-                player->respawn_timer -= time.dt;
-                if (player->lives && player->respawn_timer < 0.0f) {
-                    player->active = TRUE;
-                }
+            if (window.keyboard[KEY_ESC].released) {
+                game->mode = GAMEMODE_MENU;
             }
 
             // PARTICLES
@@ -393,8 +403,49 @@ int main() {
                 }
             }
 
+            // PLAYER
+            gfx_texture(&state->spritesheet.texture);
+            player_t* player = &game->player;
+            if (player->active) {
+                if (window.keyboard[KEY_LEFT].down) {
+                    player->pos.x -= 10.0f * time.dt;
+                }
+                if (window.keyboard[KEY_RIGHT].down) {
+                    player->pos.x += 10.0f * time.dt;
+                }
+                if (window.keyboard[KEY_SPACE].pressed) {
+                    player_shoot(game);
+                }
+
+                gfx_color(vec4(1, 1, 1, 1));
+                // gfx_quad(player->pos, vec2(1, 1));
+                // gfx_sprite_tile(
+                //     &window,
+                //     &state->spritesheet,
+                //     player->pos,
+                //     8
+                // );
+                gfx_draw_sprite_tile(player->pos, 8);
+
+                FOR (i, array_size(game->bullets)) {
+                    bullet_t* bullet = game->bullets + i;
+                    if (bullet->active) {
+                        if (len2(sub2(bullet->pos, player->pos)) < 1.0f) {
+                            bullet->active = FALSE;
+                            player_die(state, game);
+                        }
+                    }
+                }
+
+            } else {
+                player->respawn_timer -= time.dt;
+                if (player->lives && player->respawn_timer < 0.0f) {
+                    player->active = TRUE;
+                }
+            }
+
             // BULLETS
-            // gfx_texture(NULL);
+            gfx_texture(&state->spritesheet.texture);
             gfx_color(vec4(1, 1, 1, 1));
             FOR (i, 1 + array_size(game->bullets)) {
                 bullet_t* bullet = &game->player_bullet + i;
@@ -462,9 +513,18 @@ int main() {
                     // glVertex2f(-0.05f, 0.5f);
                     // glEnd();
                     // glPopMatrix();
-                    // gfx_sprite_tile(&window, &state->spritesheet, bullet->pos, 12 + (int)bullet->animation);
-                    gfx_texture(NULL);
-                    gfx_point(bullet->pos);
+
+                    if (bullet->alien) {
+                        gfx_texture(&state->spritesheet.texture);
+                        gfx_draw_sprite_tile(bullet->pos, 12 + (int)bullet->animation);
+                    } else {
+                        // gfx_draw_sprite_tile(bullet->pos, 11);
+                        gfx_texture(NULL);
+                        // gfx_point(bullet->pos);
+                        gfx_line(bullet->pos, add2(bullet->pos, vec2(0, -0.5f)));
+                    }
+                    // gfx_texture(NULL);
+                    // gfx_point(bullet->pos);
                 }
             }
 
@@ -521,6 +581,7 @@ int main() {
             // glDisable(GL_TEXTURE_2D);
             // glBindTexture(GL_TEXTURE_2D, 0);
             // gfx_sprite(&window, vec2(0, 0), 0, 0, 64, 64, 4);
+            int active_aliens = 0;
             float lowest_alien = 0.0f;
             FOR (r, ALIEN_ROW_SIZE)
             FOR (c, ALIEN_COL_SIZE) {
@@ -530,6 +591,8 @@ int main() {
                 }
 
                 if (alien->active) {
+                    ++active_aliens;
+
                     if (len2(sub2(alien->target_pos, alien->pos)) > 0.1f) {
                         // alien->pos = add2(alien->pos, mul2f(normalize2(sub2(alien->target_pos, alien->pos)), 5.0f*time.dt));
                         alien->pos = alien->target_pos;
@@ -558,7 +621,9 @@ int main() {
                         // 	}
                         // }
                         int tile = (c%3 * 2) + alien->animation;
-                        explode_sprite(state, tile, alien->pos);
+                        explode_sprite(game, state->spritesheet_bmp, tile, alien->pos);
+
+                        game->score += 10;
                     }
 
                     if (randf() < 0.0002f) {
@@ -569,6 +634,18 @@ int main() {
                         game->aliens[c*ALIEN_ROW_SIZE + r].pos,
                         (c%3 * 2) + alien->animation
                     );
+                }
+            }
+
+            if (lowest_alien < -7.0f) {
+                game->player.lives = 0;
+                player_die(state, game);
+            }
+
+            if (!active_aliens) {
+                game->next_level_timer -= time.dt;
+                if (game->next_level_timer < 0.0f) {
+                    next_level(game);
                 }
             }
             
@@ -606,14 +683,156 @@ int main() {
             // gfx_draw_text(&FONT_DEFAULT, vec2(0, 0), "a");
             // gfx_sprite_scale(1.0f);
 
+            gfx_sprite_scale(1.0f); {
+            str_t score_str = str_format("score: %i", game->score);
+            gfx_draw_text(&FONT_DEFAULT, vec2(SCREEN_LEFT + 1, SCREEN_TOP - 2), score_str);
+            str_free(score_str);
+
+            str_t level = str_format("level: %i", game->level);
+            v2 size = gfx_layout_text(&FONT_DEFAULT, level);
+            gfx_draw_text(&FONT_DEFAULT, vec2(SCREEN_RIGHT - size.x - 1, SCREEN_TOP - 2), level);
+            str_free(level);
+            } gfx_sprite_scale(1.0f);
+
             if (!player->lives) {
+                if (!game->base_exploded) {
+                    game->base_exploded = TRUE;
+                    FOR (i, array_size(game->barriers)) {
+                        explode_sprite(game, state->barrier_bitmaps[i], 0, game->barriers[i].pos);
+                        zero_memory(state->barrier_bitmaps[i]->data, state->barrier_bitmaps[i]->size);
+                        gfx_update_texture(state->barrier_textures + i, state->barrier_bitmaps[i]);
+                    }
+                }
+
                 game->restart_timer -= time.dt;
                 if (game->restart_timer < 0.0f) {
-                    start_game(game);
+                    // start_game(game);
+                    game->mode = GAMEMODE_GAMEOVER;
                 }
-                gfx_text(&window, vec2(SCREEN_LEFT + 1, SCREEN_TOP - 2), "Game Over");
             }
         }
+
+        if (game->mode == GAMEMODE_MENU ||
+            game->mode == GAMEMODE_GAMEOVER) {
+            gfx_bind_framebuffer(&state->menu_framebuffer);
+            gfx_clear(vec4(0.0f, 0.0f, 0.0f, 0.0f));
+            gfx_color(vec4(1, 1, 1, 1));
+            gfx_texture(&state->font_texture);
+
+            // static float zoom = -1.0f;
+            if (game->mode == GAMEMODE_MENU) {
+                game->menu_zoom += max((3.0f-game->menu_zoom) * 1.0f, 0.5f) * time.dt;
+                game->menu_zoom = min(game->menu_zoom, 3.0f);
+            }
+            if (game->mode == GAMEMODE_GAMEOVER) {
+                game->menu_zoom += time.dt * 2.0f;
+                game->menu_zoom = min(game->menu_zoom, 2.0f);
+            }
+            if (game->menu_zoom > 0.0f) {
+                gfx_sprite_scale(game->menu_zoom);
+                if (game->mode == GAMEMODE_MENU) {
+                    // v2 size = gfx_layout_text(&FONT_DEFAULT, "Galactic\nConquerors");
+                    // gfx_texture(NULL);
+                    // gfx_color(vec4(1, 0, 0, 1));
+                    // gfx_quad(vec2(0, 5), size);
+                    // gfx_texture(&state->font_texture);
+                    // gfx_color(vec4(1, 1, 1, 1));
+
+                    gfx_draw_text_centered(&FONT_DEFAULT, vec2(0, 5), "Galactic\nConquerors");
+                }
+                if (game->mode == GAMEMODE_GAMEOVER) {
+                    gfx_draw_text_centered(&FONT_DEFAULT, vec2(0, 0), "Game Over");
+                }
+                gfx_sprite_scale(1.0f);
+            }
+
+            if (game->menu_zoom > (game->mode == GAMEMODE_MENU ? 2.99f : 1.99f)) {
+                static int selected_item = 0;
+                static float movement = 0.0f;
+                movement += time.dt * 8.0f;
+
+                gfx_sprite_scale(1.0f);
+                char* menu_items[] = {
+                    "Play",
+                    "Exit",
+                };
+                if (game->mode == GAMEMODE_GAMEOVER) {
+                    menu_items[0] = "Restart";
+                    menu_items[1] = "Menu";
+                }
+                
+                if (window.keyboard[KEY_DOWN].pressed) {
+                    ++selected_item;
+                }
+                if (window.keyboard[KEY_UP].pressed) {
+                    --selected_item;
+                }
+                if (window.keyboard[KEY_RETURN].released) {
+                    switch (selected_item) {
+                        case 0:
+                            switch_to_play(state, game);
+                            break;
+                        case 1:
+                            if (game->mode == GAMEMODE_MENU) {
+                                exit(0);
+                            } else {
+                                switch_to_menu(game);
+                            }
+                            break;
+                    }
+                }
+                selected_item = min(max(selected_item, 0), array_size(menu_items)-1);
+
+                FOR (i, array_size(menu_items)) {
+                    if (selected_item == i) {
+                        gfx_color(lerp4(vec4(1, 1, 1, 1), vec4(1, 1, 0.5f, 1), sinf(movement)));
+                        gfx_draw_text_centered(&FONT_DEFAULT, vec2(-6.0f + (sinf(movement)*0.5f), -8 - i*3.0f), ">");
+                        // gfx_color(lerp4(vec4(1, 1, 1, 1), vec4(1, 1, 0.5f, 1), sinf(movement)));
+                        gfx_draw_text_centered(&FONT_DEFAULT, vec2(6.0f - (sinf(movement)*0.5f), -8 - i*3.0f), "<");
+
+                        // gfx_color(lerp4(vec4(1, 1, 1, 1), vec4(1, 1, 0.5f, 1), sinf(movement)));
+                    } else {
+                        gfx_color(vec4(1, 1, 1, 1));
+                    }
+
+                    // v2 size = gfx_layout_text(&FONT_DEFAULT, menu_items[i]);
+                    // gfx_texture(NULL);
+                    // gfx_color(vec4(1, 0, 0, 1));
+                    // gfx_quad(vec2(0, -8 - i*3.0f), size);
+                    // gfx_texture(&state->font_texture);
+                    // gfx_color(vec4(1, 1, 1, 1));
+
+                    gfx_draw_text_centered(&FONT_DEFAULT, vec2(0, -8 - i*3.0f), menu_items[i]);
+                }
+            }
+        }
+
+        // if (game->mode == GAMEMODE_GAMEOVER) {
+        //     gfx_bind_framebuffer(&state->menu_framebuffer);
+        //     gfx_clear(vec4(0.0f, 0.0f, 0.0f, 0.0f));
+
+        //     gfx_color(vec4(1, 1, 1, 1));
+        //     gfx_texture(&state->font_texture);
+
+        //     static float zoom = 0.0f;
+        //     zoom += time.dt * 2.0f;
+        //     zoom = min(zoom, 2.0f);
+        //     gfx_sprite_scale(zoom);
+        //     gfx_draw_text_centered(&FONT_DEFAULT, vec2(0, 0), "Game Over");
+        //     gfx_sprite_scale(1.0f);
+
+        //     if (zoom > 1.99f) {
+        //         gfx_draw_text_centered(&FONT_DEFAULT, vec2(0, -5), "Press (enter) to try again");
+        //         char* menu_items[] = {
+        //             "Restart",
+        //             "Menu",
+        //         };
+        //         if (window.keyboard[KEY_RETURN].released) {
+        //             start_game(game);
+        //             game->mode = GAMEMODE_PLAY;
+        //         }
+        //     }
+        // }
 
         if (game->mode == GAMEMODE_FONT_TEST) {
             gfx_texture(NULL);
@@ -659,25 +878,40 @@ int main() {
 
         // PRESENT
         gfx_bind_window_framebuffer(&window);
-
-        glDisable(GL_BLEND);
-	    // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-        glEnable(GL_TEXTURE_2D);
-		glBindTexture(GL_TEXTURE_2D, state->framebuffer.textures[0]);
-        // glBindTexture(GL_TEXTURE_2D, state->font_texture.handle);
+        gfx_clear(vec4(0, 0, 0, 0));
 
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
         glMatrixMode(GL_MODELVIEW);
 
-        gfx_color(vec4(1, 1, 1, 1));
-        glBegin(GL_QUADS);
-        glTexCoord2f(0.0f, 0.0f); glVertex2f(-1.0f, -1.0f);
-        glTexCoord2f(1.0f, 0.0f); glVertex2f( 1.0f, -1.0f);
-        glTexCoord2f(1.0f, 1.0f); glVertex2f( 1.0f,  1.0f);
-        glTexCoord2f(0.0f, 1.0f); glVertex2f(-1.0f,  1.0f);
-        glEnd();
+        glEnable(GL_TEXTURE_2D);
+
+        // glBindTexture(GL_TEXTURE_2D, NULL);
+        // gfx_clear(vec4(0, 0, 0, 0));
+
+        if (game->mode != GAMEMODE_MENU) {
+            glDisable(GL_BLEND);
+            glBindTexture(GL_TEXTURE_2D, state->framebuffer.textures[0]);
+            gfx_color(vec4(1, 1, 1, 1));
+            glBegin(GL_QUADS);
+            glTexCoord2f(0.0f, 0.0f); glVertex2f(-1.0f, -1.0f);
+            glTexCoord2f(1.0f, 0.0f); glVertex2f( 1.0f, -1.0f);
+            glTexCoord2f(1.0f, 1.0f); glVertex2f( 1.0f,  1.0f);
+            glTexCoord2f(0.0f, 1.0f); glVertex2f(-1.0f,  1.0f);
+            glEnd();
+        }
+
+        if (game->mode != GAMEMODE_PLAY) {
+            glEnable(GL_BLEND);
+            glBindTexture(GL_TEXTURE_2D, state->menu_framebuffer.textures[0]);
+            gfx_color(vec4(1, 1, 1, 1));
+            glBegin(GL_QUADS);
+            glTexCoord2f(0.0f, 0.0f); glVertex2f(-1.0f, -1.0f);
+            glTexCoord2f(1.0f, 0.0f); glVertex2f( 1.0f, -1.0f);
+            glTexCoord2f(1.0f, 1.0f); glVertex2f( 1.0f,  1.0f);
+            glTexCoord2f(0.0f, 1.0f); glVertex2f(-1.0f,  1.0f);
+            glEnd();
+        }
 
         // END
 		GLenum gl_error = glGetError();
