@@ -369,6 +369,7 @@ void* _alloc_into_free(allocator_t* arena, memblock_t* free, size_t size) {
 	list_remove(&arena->free, (llnode_t*)free);
 	free->size = size;
 	list_add(&arena->blocks, (llnode_t*)free);
+    free->debug_id = 0xDeadBeef;
 	return free + 1;
 }
 
@@ -457,6 +458,7 @@ void free_memory_in(allocator_t* arena, void* block) {
 	if (block >= arena->address && block < arena->address+arena->size) {
 		block -= sizeof(memblock_t);
 		// arena->stack -= ((memblock_t*)block)->size;
+        assert(((memblock_t*)block)->debug_id == 0xDeadBeef);
 		list_remove(&arena->blocks, (llnode_t*)block);
 		list_add(&arena->free, (llnode_t*)block);
 
@@ -650,13 +652,19 @@ void dynarr_clear(dynarr_t* arr) {
 
 
 // STRINGS
+allocator_t* _global_str_allocator = NULL;
+
+void str_set_allocator(allocator_t* allocator) {
+    _global_str_allocator = allocator;
+}
+
 int str_get_aligned_size(int size) {
 	// NOTE: don't think adding sizeof memblock at this point is needed
 	return align64(size+1 /*+ sizeof(core_memblock_t)*/, 64);
 }
 
 core_string_t _allocate_string(size_t len) {
-	core_string_t result = alloc_memory(str_get_aligned_size(len));
+	core_string_t result = alloc_memory_in(_global_str_allocator, str_get_aligned_size(len));
 	return result;
 }
 
@@ -692,7 +700,7 @@ core_string_t str_format(char* fmt, ...) {
 	return result;
 }
 void str_free(core_string_t str) {
-	free_memory(str);
+	free_memory_in(_global_str_allocator, str);
 }
 
 void char_wide_to_char(char* dest, wchar_t* str, int n) {

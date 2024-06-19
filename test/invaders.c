@@ -122,6 +122,7 @@ typedef struct {
 
 typedef struct {
 	allocator_t memory;
+    allocator_t scratch_buffer;
 
 	bitmap_t* spritesheet_bmp;
 	bitmap_t* font_bitmap;
@@ -212,6 +213,9 @@ state_t* start_system() {
 	state_t* state = alloc_memory_in(&_allocator, sizeof(state_t));
 	zero_memory(state, sizeof(state_t));
 	state->memory = _allocator;
+
+    state->scratch_buffer = create_allocator(NULL, MB(1));
+    str_set_allocator(&state->scratch_buffer);
 
 	state->spritesheet_bmp = load_bitmap_file(&state->memory, "spritesheet.bmp");
 	// gfx_texture_t tex = gfx_create_texture(bmp);
@@ -612,6 +616,13 @@ int main() {
         }
 
         if (game->mode == GAMEMODE_FONT_TEST) {
+            gfx_texture(NULL);
+            gfx_color(vec4(0, 0.5f, 0, 1));
+            gfx_quad(vec2(0, 0), vec2(24, SCREEN_TOP*2));
+
+            gfx_color(vec4(1, 0, 0, 1));
+            gfx_point(vec2(0, 0));
+
             gfx_color(vec4(1, 1, 1, 1));
             gfx_texture(&state->font_texture);
 
@@ -634,9 +645,16 @@ int main() {
                 "That has come to take the place of you\n"
                 "Amazing 0123456789 \n"
                 "silly sausages  \n"
-                "jelly is silly fjord jimmy ain't don't haven't \n";
+                "jelly is silly fjord jimmy ain't don't haven't \n"
+                // "Game Over"
+                ;
             
-            gfx_draw_text(&FONT_DEFAULT, vec2(-18, 12 + scroll), ALL_THE_WORDS);
+            gfx_draw_text(&FONT_DEFAULT, vec2(-18, 12 + scroll), rwby);
+            // gfx_draw_text(&FONT_DEFAULT, vec2(0, 0 + scroll), rwby);
+
+            gfx_texture(NULL);
+            gfx_color(vec4(1, 0, 0, 1));
+            gfx_point(vec2(0, 0));
         }
 
         // PRESENT
@@ -653,6 +671,7 @@ int main() {
         glLoadIdentity();
         glMatrixMode(GL_MODELVIEW);
 
+        gfx_color(vec4(1, 1, 1, 1));
         glBegin(GL_QUADS);
         glTexCoord2f(0.0f, 0.0f); glVertex2f(-1.0f, -1.0f);
         glTexCoord2f(1.0f, 0.0f); glVertex2f( 1.0f, -1.0f);

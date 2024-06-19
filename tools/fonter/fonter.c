@@ -315,7 +315,7 @@ int main() {
 	};
 
 	write("\n");
-	write("font_kern_t FONT_DEFAULT_KERNS[] = {\n");
+	write("font_kern_t FONT_DEFAULT_KERNING_PAIRS[] = {\n");
 	FOR (i, array_size(kerns)) {
 		write("\t");
 		FOR (a, umin(4, array_size(kerns)-i)) {
@@ -368,9 +368,9 @@ int main() {
 		write("\n");
 	}
 	write("\t\t},\n");
-	write("\t\t.kerns = FONT_DEFAULT_KERNS,\n");
+	write("\t\t.pairs = FONT_DEFAULT_KERNING_PAIRS,\n");
 	char line[32];
-	sprintf(line, "\t\t.kern_count = 0x%x,\n", (u32)array_size(kerns));
+	sprintf(line, "\t\t.pair_count = %u,\n", (u32)array_size(kerns));
 	write(line);
 	write("\t},\n");
 

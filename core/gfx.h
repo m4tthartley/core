@@ -19,6 +19,7 @@
 #include "core.h"
 #include "math.h"
 // #include "opengl_extensions.h"
+#include "font.h"
 
 #ifdef __WIN32__
 #   include <gl/gl.h>
@@ -104,6 +105,9 @@ void gfx_circle(vec2_t pos, f32 size, int segments);
 void gfx_line_circle(vec2_t pos, f32 size, int segments);
 void gfx_line(vec2_t start, vec2_t end);
 void gfx_text(window_t* window, vec2_t pos, char* str, ...);
+void gfx_draw_text_centered(embedded_font_t* font, vec2_t pos, char* str);
+void gfx_draw_text(embedded_font_t* font, vec2_t _pos, char* str);
+void gfx_draw_text_internal(embedded_font_t* font, vec2_t pos, char* str);
 
 
 #ifdef CORE_IMPL
@@ -111,7 +115,6 @@ void gfx_text(window_t* window, vec2_t pos, char* str, ...);
 
 #include "video.h"
 #include "math.h"
-#include "font.h"
 
 gfx_texture_t* _gfx_active_texture = NULL;
 // vec2_t _gfx_coord_system = {1.0f, 1.0f};
@@ -121,6 +124,8 @@ v2 _gfx_ortho_res_scale = {1.0f, 1.0f};
 float _gfx_sprite_scale = 1.0f;
 float _gfx_sprite_tile_size = 8.0f;
 float _gfx_font_wrap_width = 0.0f;
+v2 _gfx_font_glyph_size = {8.0f, 8.0f};
+v2 _gfx_pixel_size = {1.0f, 1.0f};
 
 #ifndef __MACOS__
 void _opengl_debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char* message, const void *userParam) {
@@ -328,6 +333,9 @@ void gfx_ortho_projection(int fb_width, int fb_height, f32 left, f32 right, f32 
 	glLoadIdentity();
 	glOrtho(left, right, bottom, top, -10, 10);
 	glMatrixMode(GL_MODELVIEW);
+
+    _gfx_pixel_size = mul2(vec2f(_gfx_sprite_scale), _gfx_ortho_res_scale);
+    _gfx_font_glyph_size = mul2(vec2f(8.0f), _gfx_pixel_size);
 }
 
 void gfx_ortho_projection_centered(int fb_width, int fb_height, f32 width, f32 height) {
@@ -340,6 +348,8 @@ void gfx_color(v4 color) {
 
 void gfx_sprite_scale(float scale) {
 	_gfx_sprite_scale = scale;
+    _gfx_pixel_size = mul2(vec2f(_gfx_sprite_scale), _gfx_ortho_res_scale);
+    _gfx_font_glyph_size = mul2(vec2f(8.0f), _gfx_pixel_size);
 }
 
 void gfx_sprite_tile_size(float size) {
@@ -533,82 +543,84 @@ void gfx_text(window_t* window, vec2_t pos, char* str, ...) {
 	}
 }
 
-void gfx_draw_text(embedded_font_t* font, vec2_t pos, char* str, ...) {
-	if (!_gfx_active_texture) {
-		print_error("gfx_text: No active texture");
-		return;
-	}
+v2 gfx_layout_text(embedded_font_t* font, char* str) {
+    v2 max_size = {0};
+    v2 char_pos = {0};
+	for (int i=0; *str; ++i,++str) {
+		if(*str != '\n') {
+            font_kern_result_t kern = font_get_kerning(font, *str, str[1]);
 
-	char b[1024*100];
-	va_list args;
-	va_start(args, str);
-	// int length = vsnprintf(0, 0, layout.text, args) + 1;
-	// char* buffer = pushMemory(&ui->transient, length);
-	vsnprintf(b, sizeof(b), str, args);
+            char_pos.x += (8.0f-kern.x) * _gfx_pixel_size.x;
 
-	// vec2_t pixel_size = vec2(1.0f/(window->width/8), 1.0f/(window->height/8));
-	// vec2_t s = {
-	// 	(pixel_size.x)*2.0f * (f32)scale,
-	// 	(pixel_size.y)*2.0f * (f32)scale,
-	// };
-	
-	// vec2_t percent_of_screen = vec2(1.0f/((f32)window->width/8), 1.0f/((f32)window->height/8));
-	// vec2_t s = {
-	// 	(percent_of_screen.x/*/_gfx_coord_system.x*/) * (f32)scale,
-	// 	(percent_of_screen.y/*/_gfx_coord_system.y*/) * (f32)scale,
-	// };
-
-	gfx_texture_t* t = _gfx_active_texture;
-	int chars_per_row = t->width / 8;
-	int chars_per_col = t->height / 8;
-
-    v2 char_pos = pos;
-    v2 char_size = mul2(vec2(8.0f*_gfx_sprite_scale, 8.0f*_gfx_sprite_scale), _gfx_ortho_res_scale);
-	
-	// float charSize = 1.0f*0.05f;
-	char* buffer = b;
-	for (int i=0; *buffer; ++i,++buffer) {
-		if(*buffer != '\n') {
-			// vec2_t uv = vec2((float)(*buffer%chars_per_row) / (float)chars_per_row,
-			// 		(float)(*buffer/chars_per_row) / (float)chars_per_col);
-			// vec2_t uvt = vec2(1.0f/(float)chars_per_row, 1.0f/(float)chars_per_col);
-			// vec2_t charPos = add2(pos, vec2(i * s.x, 0));
-			// glBegin(GL_QUADS);
-			// glTexCoord2f(uv.x,       uv.y+uvt.y); glVertex2f(charPos.x,            charPos.y+s.y);
-			// glTexCoord2f(uv.x+uvt.x, uv.y+uvt.y); glVertex2f(charPos.x+(s.x), charPos.y+s.y);
-			// glTexCoord2f(uv.x+uvt.x, uv.y);       glVertex2f(charPos.x+(s.x), charPos.y);
-			// glTexCoord2f(uv.x,       uv.y);       glVertex2f(charPos.x,            charPos.y);
-			// glEnd();
-
-            u8 xkern = font->kerning.offsets[*buffer] >> 4;
-            u8 ykern = font->kerning.offsets[*buffer] & 0xF;
-
-            if (buffer[1]) {
-                u8 kern_pair = font_get_kerning(font, *buffer, buffer[1]);
-                xkern += kern_pair;
-            }
-
-			v2 pixel_offset = vec2(*buffer%chars_per_row * 8, *buffer/chars_per_row * 8);
-			// gfx_sprite(window, char_pos, pixel_offset.x, pixel_offset.y, 8, 8, scale);
-            v2 draw_pos = sub2(char_pos, mul2(vec2(0, ykern*_gfx_sprite_scale), _gfx_ortho_res_scale));
-			gfx_draw_sprite_rect(add2(draw_pos, mul2f(char_size, 0.5f)), pixel_offset, vec2(8, 8));
-
-			char_pos = add2(char_pos, mul2(vec2((8.0f-xkern)*_gfx_sprite_scale, 0), _gfx_ortho_res_scale));
-
-            if (_gfx_font_wrap_width>1.0f && *buffer == ' ') {
-                char* scan = buffer;
+            if (_gfx_font_wrap_width>1.0f && *str == ' ') {
+                char* scan = str+1;
                 v2 scan_pos = char_pos;
-                ++scan;
                 while (*scan && *scan != '\n' && *scan != ' ') {
                     u8 xkern = font->kerning.offsets[*scan] >> 4;
-                    scan_pos = add2(scan_pos, mul2(vec2((8.0f-xkern)*_gfx_sprite_scale, 0), _gfx_ortho_res_scale));
-                    if (scan_pos.x > pos.x + _gfx_font_wrap_width) {
-                        char_pos = vec2(pos.x, char_pos.y - 12.0f*_gfx_sprite_scale*_gfx_ortho_res_scale.y);
+                    scan_pos.x += (8.0f-xkern) * _gfx_pixel_size.x;
+                    if (scan_pos.x > _gfx_font_wrap_width) {
+                        *str-- = '\n';
                         break;
                     }
                     ++scan;
                 }
             }
+        } else {
+            char_pos = vec2(0.0f, char_pos.y - 12.0f*_gfx_pixel_size.y);
+        }
+
+        if (char_pos.x > max_size.x) max_size.x = char_pos.x;
+        if (char_pos.y < max_size.y) max_size.y = char_pos.y;
+    }
+
+    return max_size;
+}
+
+void gfx_draw_text_centered(embedded_font_t* font, vec2_t pos, char* str) {
+    char* str_copy = str_create(str);
+    str = str_copy;
+
+    v2 max_size = gfx_layout_text(font, str_copy);
+
+    max_size.y += _gfx_font_glyph_size.y * 1.0f;
+    pos = sub2(pos, mul2f(max_size, 0.5f));
+    gfx_draw_text_internal(font, pos, str_copy);
+
+    str_free(str_copy);
+}
+
+void gfx_draw_text(embedded_font_t* font, vec2_t pos, char* str) {
+    char* str_copy = str_create(str);
+    str = str_copy;
+
+    gfx_layout_text(font, str_copy);
+
+    gfx_draw_text_internal(font, pos, str_copy);
+
+    str_free(str_copy);
+}
+
+void gfx_draw_text_internal(embedded_font_t* font, vec2_t pos, char* str) {
+	if (!_gfx_active_texture) {
+		print_error("gfx_text: No active texture");
+		return;
+	}
+
+	int chars_per_row = _gfx_active_texture->width / 8;
+	int chars_per_col = _gfx_active_texture->height / 8;
+
+    v2 char_pos = pos;
+	
+	for (int i=0; *str; ++i,++str) {
+		if(*str != '\n') {
+            font_kern_result_t kern = font_get_kerning(font, *str, str[1]);
+
+			v2 texture_offset = vec2(*str%chars_per_row * 8, *str/chars_per_row * 8);
+            v2 draw_pos = char_pos;
+            draw_pos.y -= (float)kern.y*_gfx_pixel_size.y;
+			gfx_draw_sprite_rect(add2(draw_pos, mul2f(_gfx_font_glyph_size, 0.5f)), texture_offset, vec2(8, 8));
+
+            char_pos.x += (8.0f-kern.x) * _gfx_pixel_size.x;
 		} else {
             char_pos = vec2(pos.x, char_pos.y - 12.0f*_gfx_sprite_scale*_gfx_ortho_res_scale.y);
         }

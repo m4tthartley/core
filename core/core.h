@@ -161,6 +161,7 @@ void list_remove(llist_t* list, llnode_t* item);
 typedef struct {
 	llnode_t node;
 	u64 size;
+    u32 debug_id; // This is set to something specific to debug check if a memory block is kosher
 } memblock_t;
 typedef struct {
 	void* address;
@@ -253,6 +254,8 @@ void dynarr_clear(dynarr_t* arr);
 
 typedef char* core_string_t;
 typedef char* str_t;
+
+void str_set_allocator(allocator_t* allocator);
 
 int 			str_len(char* str);
 

@@ -25,6 +25,10 @@ CORE_INLINE vec2_t vec2(float x, float y) {
 	vec2_t a = {x, y};
 	return a;
 }
+CORE_INLINE vec2_t vec2f(float f) {
+	vec2_t a = {f, f};
+	return a;
+}
 CORE_INLINE vec2_t point_to_vec2(point_t p) {
 	vec2_t a = {p.x, p.y};
 	return a;
@@ -33,12 +37,20 @@ CORE_INLINE vec3_t vec3(float x, float y, float z) {
 	vec3_t a = {x, y, z};
 	return a;
 }
+CORE_INLINE vec3_t vec3f(float f) {
+	vec3_t a = {f, f, f};
+	return a;
+}
 CORE_INLINE vec3_t vec3f2(vec2_t v, float z) {
 	vec3_t a = {v.x, v.y, z};
 	return a;
 }
 CORE_INLINE vec4_t vec4(float x, float y, float z, float w) {
 	vec4_t a = {x, y, z, w};
+	return a;
+}
+CORE_INLINE vec4_t vec4f(float f) {
+	vec4_t a = {f, f, f, f};
 	return a;
 }
 CORE_INLINE vec4_t vec4f2(vec2_t v, float z, float w) {
