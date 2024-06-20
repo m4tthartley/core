@@ -19,12 +19,20 @@
 #include "core.h"
 
 
+enum {
+	NET_STREAM = 0x1,
+	NET_DATAGRAM = 0x2,
+};
+
 typedef struct {
 	int fd;
+	int flags;
 	struct addrinfo* servinfo;
 } netsocket;
 
-netsocket net_socket_create(u16 port) {
+// netsocket net_socket_datagram_create(u16 port);
+
+netsocket net_socket_create(u16 port, int flags) {
 	netsocket sock;
 
 	struct addrinfo hints = {0};
