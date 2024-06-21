@@ -10,13 +10,9 @@
 #define __CORE_NET_HEADER__
 
 
-#include <string.h>
-#include <errno.h>
 // #include <sys/socket.h>
 #include <netdb.h>
 #include <arpa/inet.h>
-
-#include "core.h"
 
 
 enum {
@@ -29,6 +25,13 @@ typedef struct {
 	int flags;
 	struct addrinfo* servinfo;
 } netsocket;
+
+
+#ifdef CORE_IMPL
+
+
+#include "core.h"
+
 
 // netsocket net_socket_datagram_create(u16 port);
 
@@ -55,9 +58,16 @@ netsocket net_socket_create(u16 port, int flags) {
 
 	struct addrinfo* addr = sock.servinfo;
 	while (addr) {
-		char* ip;
-		char ipstr[INET6_ADDRSTRLEN];
-		inet_ntop(addr->ai_family, addr, ipstr, sizeof(ipstr));
+		// char* ip;
+		char ipstr[INET6_ADDRSTRLEN] = {0};
+		if (addr->ai_family == AF_INET) {
+			struct sockaddr_in* ipv4 = (struct sockaddr_in*)addr->ai_addr;
+			inet_ntop(addr->ai_family, &ipv4->sin_addr, ipstr, sizeof(ipstr));
+		}
+		if (addr->ai_family == AF_INET6) {
+			struct sockaddr_in6* ipv6 = (struct sockaddr_in6*)addr->ai_addr;
+			inet_ntop(addr->ai_family, &ipv6->sin6_addr, ipstr, sizeof(ipstr));
+		}
 		print("ip %s", ipstr);
 		addr = addr->ai_next;
 	}
@@ -78,7 +88,7 @@ void net_socket_listen(netsocket sock) {
 	}
 
 #ifdef __WIN32__
-	int timeout = 5000; // Windows only, linux needs timeval
+	int timeout = 5000;
 #elif defined(__POSIX__)
 	struct timeval timeout = {5, 0};
 #endif
@@ -91,7 +101,75 @@ void net_socket_listen(netsocket sock) {
 	}
 
 	freeaddrinfo(sock.servinfo);
+
+	if (listen(sock.fd, 10) == -1) {
+		print_error("listen() failed");
+	}
+}
+
+netsocket net_conn_accept(netsocket sock) {
+	struct sockaddr_storage conn_addr;
+	socklen_t addrlen = sizeof(conn_addr);
+	socket_t conn = accept(sock.fd, (struct sockaddr*)&conn_addr, &addrlen);
+	if (conn == -1) {
+		print_error("accept failed");
+	}
+
+	struct sockaddr_storage addr = {0};
+	socklen_t addr_len = sizeof(addr);
+	if (getpeername(conn, (struct sockaddr*)&addr, &addr_len) != -1) {
+		// core_print()
+		// remote_addr.
+		int x  = 0;
+	} else {
+		print_error("getpeername error:");
+	}
+
+	char buffer[INET6_ADDRSTRLEN];
+	if (addr.ss_family == AF_INET) {
+		struct sockaddr_in ipv4 = *(struct sockaddr_in*)&addr;
+		inet_ntop(AF_INET, &ipv4, buffer, sizeof(buffer));
+		print("ipv4 connection from %s", buffer);
+	}
+	if (addr.ss_family == AF_INET6) {
+		struct sockaddr_in6 ipv6 = *(struct sockaddr_in6*)&addr;
+		inet_ntop(AF_INET6, &ipv6, buffer, sizeof(buffer));
+		print("ipv6 connection from %s", buffer);
+	}
+
+	netsocket result = {
+		.fd = conn
+	};
+	return result;
+}
+
+void net_conn_close(netsocket sock) {
+#ifdef __WIN32__
+	closesocket(sock);
+#endif
+#ifdef __POSIX__
+	close(sock.fd);
+#endif
+}
+
+size_t net_receive(netsocket conn, void* buffer, size_t buf_size) {
+	// char buffer[0x10000] = {0};
+	// int written = 0;
+	int bytes = recv(conn.fd, buffer, buf_size, 0);
+	return bytes;
+	// while ((bytes = recv(conn, buffer+written, sizeof(buffer)-written, 0)) > 0) {
+	// 	written += bytes;
+	// 	if (s_find(buffer, "\r\n\r\n", NULL)) {
+	// 		http_response(conn, buffer);
+	// 		goto next;
+	// 	}
+	// }
+
+	// if (!s_find(buffer, "\r\n\r\n", NULL)) {
+	// 	core_print("Incomplete request");
+	// }
 }
 
 
+#endif
 #endif

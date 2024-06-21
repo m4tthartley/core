@@ -15,4 +15,7 @@ cd ../tools/fonter
 cd ../../test
 
 options="-std=c99 -g -I~/code/core"
+
 clang $options invaders.c -o build/invaders -I.. -D__SDL__ -framework OpenGL
+
+clang $options scoreserver.c -o build/scoreserver -I..
