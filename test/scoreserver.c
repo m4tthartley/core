@@ -7,8 +7,16 @@
 
 #include "score.h"
 
+highscore scores[] = {
+	{ "ABCD", 255 },
+	{ {'B', 'A', 'B', 'E'}, 255 },
+	{ {'M', 'A', 'T', 'T'}, 255 },
+};
+
 int main() {
 	print("Score Server");
+
+	allocator_t allocator = create_allocator(NULL, MB(1));
 
 	char hostname[64];
 	gethostname(hostname, 64);
@@ -24,18 +32,41 @@ int main() {
 		int size;
 		while ((size = net_receive(conn, buffer, 1024))) {
 			// print_inline("%s", buffer);
-			scorepacket score;
-			score = *(scorepacket*)buffer;
+			
+			packetheader header = *(packetheader*)buffer;
 
-			if (score.header.id != PACKET_ID) {
-				print_error("invalid packet: %x, %u", score.header.id, score.header.size);
+			if (header.key != PACKET_KEY_CODE) {
+				print_error("invalid packet: %x, %u", header.key, header.size);
 				continue;
 			}
-			if (score.header.size != sizeof(scorepacket)) {
-				print_error("invalid packet: %x, %u", score.header.id, score.header.size);
+			if (header.size != size) {
+				print_error("Sizes don't match");
 				continue;
 			}
-			print("score: %c%c%c%c, %u", score.name[0], score.name[1], score.name[2], score.name[3], score.value);
+			if (header.command == PACKET_SUBMIT_SCORE) {
+
+				if (header.size != sizeof(scorepacket)) {
+					print_error("invalid packet: %x, %u", header.key, header.size);
+					continue;
+				}
+
+				scorepacket score;
+				score = *(scorepacket*)buffer;
+				print("score submitted: %c%c%c%c, %u", score.score.name[0], score.score.name[1], score.score.name[2], score.score.name[3], score.score.value);
+			}
+			if (header.command == PACKET_REQUEST_SCORES) {
+				print("scores requested");
+
+				int size = sizeof(packetheader)+(sizeof(highscore)*array_size(scores));
+				packetheader* header = alloc_memory_in(&allocator, size);
+				header->key = PACKET_KEY_CODE;
+				header->size = size;
+				header->command = PACKET_SCORES;
+				copy_memory(header+1, scores, sizeof(scores));
+				net_send(conn, header, size);
+				// print("memory usage: %i", allocator.)
+				free_memory_in(&allocator, header);
+			}
 		}
 	}
 	

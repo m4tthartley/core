@@ -264,17 +264,9 @@ state_t* start_system() {
 
 	glPointSize(PIXEL_SCALE);
 
-	{
-		netsocket sock = net_connect("localhost", 6000);
-		packetheader header = { PACKET_ID, sizeof(scorepacket) };
-		scorepacket packet = {
-			.header = header,
-			.value = 255,
-			.name = { 'a', 'b', 'c', 'd' }
-		};
-		net_send(sock, &packet, header.size);
-		net_close(sock);
-	}
+	submit_score((char[]){ 'a', 'b', 'c', 'd' }, 255);
+
+	request_high_scores(&_allocator);
 
 	return state;
 }
