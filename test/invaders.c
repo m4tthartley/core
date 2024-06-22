@@ -44,6 +44,7 @@
 #include <core/net.h>
 
 #include "words.c"
+#include "score.h"
 
 float SCREEN_LEFT = -20;
 float SCREEN_RIGHT = 20;
@@ -262,6 +263,18 @@ state_t* start_system() {
 	state->font_texture = gfx_generate_font_texture(&state->memory, &FONT_DEFAULT);
 
 	glPointSize(PIXEL_SCALE);
+
+	{
+		netsocket sock = net_connect("localhost", 6000);
+		packetheader header = { PACKET_ID, sizeof(scorepacket) };
+		scorepacket packet = {
+			.header = header,
+			.value = 255,
+			.name = { 'a', 'b', 'c', 'd' }
+		};
+		net_send(sock, &packet, header.size);
+		net_close(sock);
+	}
 
 	return state;
 }
