@@ -33,12 +33,12 @@ typedef struct {
 	u32 count;
 } highscorelist;
 
-void submit_score(char name[4], u32 value) {
+void submit_score(highscore score) {
 	netsocket sock = net_connect("localhost", 6000);
 	packetheader header = { PACKET_KEY_CODE, sizeof(scorepacket), PACKET_SUBMIT_SCORE };
 	scorepacket packet = {
 		.header = header,
-		.score = { { 'a', 'b', 'c', 'd' }, 255 },
+		.score = score,
 	};
 	net_send(sock, &packet, header.size);
 	net_close(sock);
@@ -58,8 +58,10 @@ highscorelist request_high_scores(allocator_t* allocator) {
 	highscorelist list;
 	if (header->key == PACKET_KEY_CODE && header->command==PACKET_SCORES) {
 		list.count = (header->size-sizeof(header)) / sizeof(highscore);
-		list.scores = alloc_memory_in(allocator, list.count*sizeof(highscore));
-		copy_memory(list.scores, header+1, list.count*sizeof(highscore));
+		if (list.count) {
+			list.scores = alloc_memory_in(allocator, list.count*sizeof(highscore));
+			copy_memory(list.scores, header+1, list.count*sizeof(highscore));
+		}
 	}
 	net_close(sock);
 	FOR (i, list.count) {

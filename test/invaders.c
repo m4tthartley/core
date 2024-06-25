@@ -264,9 +264,9 @@ state_t* start_system() {
 
 	glPointSize(PIXEL_SCALE);
 
-	submit_score((char[]){ 'a', 'b', 'c', 'd' }, 255);
-
-	request_high_scores(&_allocator);
+	// submit_score((char[]){ 'a', 'b', 'c', 'd' }, 255);
+	// print_arena(&allocator);
+	request_high_scores(&state->memory);
 
 	return state;
 }
@@ -316,6 +316,8 @@ void switch_to_menu(game_t* game) {
 void switch_to_gameover(game_t* game) {
 	game->mode = GAMEMODE_GAMEOVER;
 	game->menu_zoom = 0.0f;
+
+	submit_score((highscore){"MATT", 10});
 }
 
 void switch_to_play(state_t* state, game_t* game) {
@@ -713,7 +715,8 @@ int main() {
 				game->restart_timer -= time.dt;
 				if (game->restart_timer < 0.0f) {
 					// start_game(game);
-					game->mode = GAMEMODE_GAMEOVER;
+					// game->mode = GAMEMODE_GAMEOVER;
+					switch_to_gameover(game);
 				}
 			}
 		}

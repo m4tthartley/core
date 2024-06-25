@@ -231,6 +231,10 @@ char* format_time(time_t timestamp) {
 
 
 // Files
+b32 file_valid(file_t file) {
+	return (file != -1);
+}
+
 #define _print_file_error()\
 	print_error("%s: %s", path, strerror(errno))
 
@@ -240,16 +244,14 @@ file_t file_open(char* path) {
 		if (errno != EACCES) {
 			_print_file_error();
 		}
-		return NULL;
 	}
 	return handle;
 }
 
 file_t file_create(char* path) {
-	int handle = open(path, O_RDWR | O_CREAT);
+	int handle = open(path, O_RDWR | O_CREAT, 0644);
 	if(handle == HANDLE_NULL) {
 		_print_file_error();
-		return NULL;
 	}
 	return handle;
 }
@@ -323,7 +325,6 @@ file_t file_open_dir(char* path) {
 		if (errno != EACCES) {
 			_print_file_error();
 		}
-		return NULL;
 	}
 	return handle;
 }
@@ -332,7 +333,6 @@ file_t file_create_dir(char* path) {
 	int handle = open(path, O_RDONLY | O_CREAT | O_DIRECTORY);
 	if(handle == HANDLE_NULL) {
 		_print_file_error();
-		return NULL;
 	}
 	return handle;
 }

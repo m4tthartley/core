@@ -407,6 +407,7 @@ void* alloc_memory_in(allocator_t* arena, size_t size) {
 	// }
 	assert(arena);
 	assert(arena->address);
+	assert(size);
 	// This shouldnt be needed for alloc?
 	// It will be caught at the bottom
 	// assert(arena->stack + size <= arena->size);
