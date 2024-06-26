@@ -356,6 +356,10 @@ void gfx_sprite_tile_size(float size) {
 	_gfx_sprite_tile_size = size;
 }
 
+void gfx_font_wrap_width(float size) {
+	_gfx_font_wrap_width = size;
+}
+
 void gfx_point(vec2_t pos) {
 	glBegin(GL_POINTS);
 	glVertex2f(pos.x, pos.y);
@@ -576,6 +580,17 @@ v2 gfx_layout_text(embedded_font_t* font, char* str) {
     return max_size;
 }
 
+void gfx_draw_text(embedded_font_t* font, vec2_t pos, char* str) {
+    char* str_copy = str_create(str);
+    str = str_copy;
+
+    gfx_layout_text(font, str_copy);
+
+    gfx_draw_text_internal(font, pos, str_copy);
+
+    str_free(str_copy);
+}
+
 void gfx_draw_text_centered(embedded_font_t* font, vec2_t pos, char* str) {
     char* str_copy = str_create(str);
     str = str_copy;
@@ -587,22 +602,17 @@ void gfx_draw_text_centered(embedded_font_t* font, vec2_t pos, char* str) {
     gfx_draw_text_internal(font, new_pos, str_copy);
 
     str_free(str_copy);
-
-    // gfx_texture_t* t = _gfx_active_texture;
-    // gfx_texture(NULL);
-    // gfx_color(vec4(1, 0, 0, 1));
-    // gfx_point(pos);
-    // gfx_color(vec4(1, 1, 1, 1));
-    // gfx_texture(t);
 }
 
-void gfx_draw_text(embedded_font_t* font, vec2_t pos, char* str) {
+void gfx_draw_text_right_aligned(embedded_font_t* font, vec2_t pos, char* str) {
     char* str_copy = str_create(str);
     str = str_copy;
 
-    gfx_layout_text(font, str_copy);
+    v2 max_size = gfx_layout_text(font, str_copy);
 
-    gfx_draw_text_internal(font, pos, str_copy);
+    max_size.y += _gfx_font_glyph_size.y * 1.0f;
+    v2 new_pos = sub2(pos, vec2(max_size.x, 0));
+    gfx_draw_text_internal(font, new_pos, str_copy);
 
     str_free(str_copy);
 }

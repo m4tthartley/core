@@ -128,6 +128,8 @@ typedef struct {
 	int score;
 	int level;
 	float next_level_timer;
+
+	highscorelist highscores;
 } game_t;
 
 typedef struct {
@@ -149,6 +151,12 @@ typedef struct {
 
 	game_t game;
 } state_t;
+
+void switch_to_menu(game_t* game);
+void switch_to_gameover(game_t* game);
+void switch_to_play(state_t* state, game_t* game);
+
+#include "menus.h"
 
 void add_bullet(game_t* game, v2 pos) {
 	FOR (i, array_size(game->bullets)) {
@@ -266,7 +274,7 @@ state_t* start_system() {
 
 	// submit_score((char[]){ 'a', 'b', 'c', 'd' }, 255);
 	// print_arena(&allocator);
-	request_high_scores(&state->memory);
+	state->game.highscores = request_high_scores(&state->memory);
 
 	return state;
 }
@@ -317,7 +325,7 @@ void switch_to_gameover(game_t* game) {
 	game->mode = GAMEMODE_GAMEOVER;
 	game->menu_zoom = 0.0f;
 
-	submit_score((highscore){"MATT", 10});
+	submit_score((highscore){"MATT", game->score});
 }
 
 void switch_to_play(state_t* state, game_t* game) {
@@ -358,7 +366,7 @@ int main() {
 	// glDisable(GL_BLEND);
 	// glDisable(GL_ALPHA_TEST);
 
-	state->game.mode = GAMEMODE_MENU;
+	state->game.mode = GAMEMODE_GAMEOVER;
 
 	while (!window.quit) {
 		update_window(&window);
@@ -723,97 +731,7 @@ int main() {
 
 		if (game->mode == GAMEMODE_MENU ||
 			game->mode == GAMEMODE_GAMEOVER) {
-			gfx_bind_framebuffer(&state->menu_framebuffer);
-			gfx_clear(vec4(0.0f, 0.0f, 0.0f, 0.0f));
-			gfx_color(vec4(1, 1, 1, 1));
-			gfx_texture(&state->font_texture);
-
-			// static float zoom = -1.0f;
-			if (game->mode == GAMEMODE_MENU) {
-				game->menu_zoom += max((3.0f-game->menu_zoom) * 1.0f, 0.5f) * time.dt;
-				game->menu_zoom = min(game->menu_zoom, 3.0f);
-			}
-			if (game->mode == GAMEMODE_GAMEOVER) {
-				game->menu_zoom += time.dt * 2.0f;
-				game->menu_zoom = min(game->menu_zoom, 2.0f);
-			}
-			if (game->menu_zoom > 0.0f) {
-				gfx_sprite_scale(game->menu_zoom);
-				if (game->mode == GAMEMODE_MENU) {
-					// v2 size = gfx_layout_text(&FONT_DEFAULT, "Galactic\nConquerors");
-					// gfx_texture(NULL);
-					// gfx_color(vec4(1, 0, 0, 1));
-					// gfx_quad(vec2(0, 5), size);
-					// gfx_texture(&state->font_texture);
-					// gfx_color(vec4(1, 1, 1, 1));
-
-					gfx_draw_text_centered(&FONT_DEFAULT, vec2(0, 5), "Galactic\nConquerors");
-				}
-				if (game->mode == GAMEMODE_GAMEOVER) {
-					gfx_draw_text_centered(&FONT_DEFAULT, vec2(0, 0), "Game Over");
-				}
-				gfx_sprite_scale(1.0f);
-			}
-
-			if (game->menu_zoom > (game->mode == GAMEMODE_MENU ? 2.99f : 1.99f)) {
-				static int selected_item = 0;
-				static float movement = 0.0f;
-				movement += time.dt * 8.0f;
-
-				gfx_sprite_scale(1.0f);
-				char* menu_items[] = {
-					"Play",
-					"Exit",
-				};
-				if (game->mode == GAMEMODE_GAMEOVER) {
-					menu_items[0] = "Restart";
-					menu_items[1] = "Menu";
-				}
-				
-				if (window.keyboard[KEY_DOWN].pressed) {
-					++selected_item;
-				}
-				if (window.keyboard[KEY_UP].pressed) {
-					--selected_item;
-				}
-				if (window.keyboard[KEY_RETURN].released) {
-					switch (selected_item) {
-						case 0:
-							switch_to_play(state, game);
-							break;
-						case 1:
-							if (game->mode == GAMEMODE_MENU) {
-								exit(0);
-							} else {
-								switch_to_menu(game);
-							}
-							break;
-					}
-				}
-				selected_item = min(max(selected_item, 0), array_size(menu_items)-1);
-
-				FOR (i, array_size(menu_items)) {
-					if (selected_item == i) {
-						gfx_color(lerp4(vec4(1, 1, 1, 1), vec4(1, 1, 0.5f, 1), sinf(movement)));
-						gfx_draw_text_centered(&FONT_DEFAULT, vec2(-6.0f + (sinf(movement)*0.5f), -8 - i*3.0f), ">");
-						// gfx_color(lerp4(vec4(1, 1, 1, 1), vec4(1, 1, 0.5f, 1), sinf(movement)));
-						gfx_draw_text_centered(&FONT_DEFAULT, vec2(6.0f - (sinf(movement)*0.5f), -8 - i*3.0f), "<");
-
-						// gfx_color(lerp4(vec4(1, 1, 1, 1), vec4(1, 1, 0.5f, 1), sinf(movement)));
-					} else {
-						gfx_color(vec4(1, 1, 1, 1));
-					}
-
-					// v2 size = gfx_layout_text(&FONT_DEFAULT, menu_items[i]);
-					// gfx_texture(NULL);
-					// gfx_color(vec4(1, 0, 0, 1));
-					// gfx_quad(vec2(0, -8 - i*3.0f), size);
-					// gfx_texture(&state->font_texture);
-					// gfx_color(vec4(1, 1, 1, 1));
-
-					gfx_draw_text_centered(&FONT_DEFAULT, vec2(0, -8 - i*3.0f), menu_items[i]);
-				}
-			}
+			do_menus(state, &window, &time);
 		}
 
 		// if (game->mode == GAMEMODE_GAMEOVER) {
@@ -864,7 +782,7 @@ int main() {
 			}
 			scroll -= wheel_momentum*0.5f;
 			scroll = max(scroll, 0.0f);
-			_gfx_font_wrap_width = 30.0f;
+			gfx_font_wrap_width(30.0f);
 			char* rwby =
 				"Red like roses\n"
 				"Fills my head with dreams and finds me\n"
@@ -929,6 +847,7 @@ int main() {
 		}
 
 		opengl_swap_buffers(&window);
+		clear_allocator(&state->scratch_buffer);
 	}
 
 	exit(0);

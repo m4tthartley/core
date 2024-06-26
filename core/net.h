@@ -77,6 +77,10 @@ void __net_print_conn_ip() {
 	
 }
 
+b32 net_socket_valid(netsocket sock) {
+	return sock.fd != -1;
+}
+
 netsocket net_server(u16 port, int flags) {
 	netsocket sock = {0};
 
@@ -251,8 +255,8 @@ netsocket net_connect(char* address, int port) {
 	// __net_print_socket_ips(sock);
 	sock.port = __net_prepare_port(port);
 
-	struct addrinfo* addr = sock.servinfo;
-	while (addr) {
+	struct addrinfo* addr;
+	for (addr = sock.servinfo; addr; addr = addr->ai_next) {
 		sock.fd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
 		if (sock.fd == -1) {
 			print_error("socket() failed");
@@ -268,17 +272,26 @@ netsocket net_connect(char* address, int port) {
 	}
 
 	if (!addr) {
+		sock.fd = -1;
 		print_error("Failed to connect to %s", address);
 	}
 
 	return sock;
 }
 
-void net_send(netsocket conn, void* data, u32 size) {
-	int result = send(conn.fd, data, size, 0);
-	if (result == -1) {
-		print_error("send() failed");
+b32 net_send(netsocket conn, void* data, u32 size) {
+	if (net_socket_valid(conn)) {
+		int result = send(conn.fd, data, size, 0);
+		if (result == -1) {
+			print_error("send() failed");
+			return FALSE;
+		}
+	} else {
+		print_error("trying to send() on invalid socket");
+		return FALSE;
 	}
+
+	return TRUE;
 }
 
 void net_close(netsocket sock) {

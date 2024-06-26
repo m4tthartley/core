@@ -474,7 +474,7 @@ void free_memory(void* block) {
 void clear_allocator(allocator_t* arena) {
 	arena->blocks = (llist_t){0};
 	arena->free = (llist_t){0};
-	((memblock_t*)arena->address)->size = arena->commit;
+	((memblock_t*)arena->address)->size = arena->commit ? arena->commit : arena->size;
 	list_add(&arena->free, (llnode_t*)arena->address);
 }
 

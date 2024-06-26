@@ -33,39 +33,47 @@ typedef struct {
 	u32 count;
 } highscorelist;
 
-void submit_score(highscore score) {
+b32 submit_score(highscore score) {
 	netsocket sock = net_connect("localhost", 6000);
+	if (net_socket_valid(sock)) return FALSE;
 	packetheader header = { PACKET_KEY_CODE, sizeof(scorepacket), PACKET_SUBMIT_SCORE };
 	scorepacket packet = {
 		.header = header,
 		.score = score,
 	};
-	net_send(sock, &packet, header.size);
+	if (!net_send(sock, &packet, header.size)) return FALSE;
 	net_close(sock);
+
+	return TRUE;
 }
 
 highscorelist request_high_scores(allocator_t* allocator) {
 	netsocket sock = net_connect("localhost", 6000);
-	packetheader pack = {
-		.key = PACKET_KEY_CODE,
-		.size = sizeof(packetheader),
-		.command = PACKET_REQUEST_SCORES,
-	};
-	net_send(sock, &pack, sizeof(pack));
-	u8 buffer[1024];
-	net_receive(sock, buffer, 1024);
-	packetheader* header = (packetheader*)buffer;
-	highscorelist list;
-	if (header->key == PACKET_KEY_CODE && header->command==PACKET_SCORES) {
-		list.count = (header->size-sizeof(header)) / sizeof(highscore);
-		if (list.count) {
-			list.scores = alloc_memory_in(allocator, list.count*sizeof(highscore));
-			copy_memory(list.scores, header+1, list.count*sizeof(highscore));
+	if (net_socket_valid(sock)) {
+		packetheader pack = {
+			.key = PACKET_KEY_CODE,
+			.size = sizeof(packetheader),
+			.command = PACKET_REQUEST_SCORES,
+		};
+		net_send(sock, &pack, sizeof(pack));
+		u8 buffer[1024];
+		net_receive(sock, buffer, 1024);
+		packetheader* header = (packetheader*)buffer;
+		highscorelist list;
+		if (header->key == PACKET_KEY_CODE && header->command==PACKET_SCORES) {
+			list.count = (header->size-sizeof(header)) / sizeof(highscore);
+			if (list.count) {
+				list.scores = alloc_memory_in(allocator, list.count*sizeof(highscore));
+				copy_memory(list.scores, header+1, list.count*sizeof(highscore));
+			}
 		}
+		net_close(sock);
+		FOR (i, list.count) {
+			print("- %.4s %u", list.scores[i].name, list.scores[i].value);
+		}
+		return list;
 	}
-	net_close(sock);
-	FOR (i, list.count) {
-		print("- %.4s %u", list.scores[i].name, list.scores[i].value);
-	}
-	return list;
+
+	print_error("Failed to connect to score server");
+	return (highscorelist){0};
 }

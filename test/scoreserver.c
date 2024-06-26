@@ -16,19 +16,28 @@ struct {
 } data = {0};
 
 void add_score(highscore score) {
+	b32 inserted = FALSE;
 	FOR (i, data.count) {
 		if (score.value > data.scores[i].value) {
 			print("adding score at index %i", i);
-			copy_memory(data.scores + i, data.scores + i + 1, array_size(data.scores)-i-1);
+			// copy_memory(data.scores + i + 1, data.scores + i, array_size(data.scores)-i-1);
+			// this needs to copy in reverse so it doesn't overwrite its own data
+			FOR (copy_index, array_size(data.scores) - i) {
+				data.scores[array_size(data.scores)-1-copy_index] = data.scores[array_size(data.scores)-2-copy_index];
+			}
 			data.scores[i] = score;
 			++data.count;
+			inserted = TRUE;
 			break;
 		}
 	}
 
-	if (!data.count) {
-		data.scores[0] = score;
-		++data.count;
+	// if (!data.count) {
+	// 	data.scores[0] = score;
+	// 	++data.count;
+	// }
+	if (!inserted && data.count < array_size(data.scores)) {
+		data.scores[data.count++] = score;
 	}
 
 	file_t score_file = file_open("scores.dat");
@@ -92,6 +101,9 @@ int main() {
 			if (header.command == PACKET_REQUEST_SCORES) {
 				print("scores requested");
 				print("count: %i", data.count);
+				FOR (i, data.count) {
+					print("%.4s - %u", data.scores[i].name, data.scores[i].value);
+				}
 
 				int size = sizeof(packetheader)+(sizeof(highscore)*data.count);
 				packetheader* header = alloc_memory_in(&allocator, size);
