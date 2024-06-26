@@ -729,9 +729,12 @@ int main() {
 			}
 		}
 
-		if (game->mode == GAMEMODE_MENU ||
-			game->mode == GAMEMODE_GAMEOVER) {
-			do_menus(state, &window, &time);
+		if (game->mode == GAMEMODE_MENU) {
+			do_main_menu(state, &window, &time);
+		}
+
+		if (game->mode == GAMEMODE_GAMEOVER) {
+			do_gameover_menu(state, &window, &time);
 		}
 
 		// if (game->mode == GAMEMODE_GAMEOVER) {

@@ -1,6 +1,91 @@
 
 #include <core/gfx.h>
 
+enum {
+	MENUBUTTON_DEFAULT,
+	MENUBUTTON_INPUT,
+};
+
+typedef struct {
+	int type;
+	char* name;
+	int input_size;
+	char input[16];
+	int selected_char;
+} menubutton;
+
+typedef struct {
+	int selected;
+	b32 input_mode;
+	int button_count;
+	float movement;
+	menubutton buttons[];
+} menugroup;
+
+menugroup gameover_menu = {
+	.button_count = 2,
+	.buttons = {
+		{ MENUBUTTON_INPUT, "Name", .input_size=4, .input="ABCD" },
+		{ MENUBUTTON_DEFAULT, "Restart" }
+	},
+};
+
+void run_menugroup(menugroup* group, window_t* window, float dt, v2 pos) {
+	group->movement += dt * 8.0f;
+
+	if (window->keyboard[KEY_DOWN].pressed) {
+		++group->selected;
+	}
+	if (window->keyboard[KEY_UP].pressed) {
+		--group->selected;
+	}
+	group->selected = min(max(group->selected, 0), group->button_count-1);
+
+	FOR (i, group->button_count) {
+		menubutton* button = group->buttons+i;
+		float y = pos.y - i*3.0f;
+		if (!group->input_mode && group->selected == i) {
+			gfx_color(lerp4(vec4(1, 1, 1, 1), vec4(1, 1, 0.5f, 1), sinf(group->movement)));
+			gfx_draw_text_centered(&FONT_DEFAULT, vec2(pos.x-6.0f + (sinf(group->movement)*0.5f), pos.y - i*3.0f), ">");
+			gfx_draw_text_centered(&FONT_DEFAULT, vec2(pos.x+6.0f - (sinf(group->movement)*0.5f), pos.y - i*3.0f), "<");
+		} else {
+			gfx_color(vec4(1, 1, 1, 1));
+		}
+
+		if (button->type == MENUBUTTON_INPUT) {
+			// if (!name_mode && selected_item==0) {
+			// 	gfx_color(lerp4(vec4(1, 1, 1, 1), vec4(1, 1, 0.5f, 1), sinf(movement)));
+			// }
+			FOR (char_index, 4) {
+				gfx_color(vec4(1, 1, 1, 1));
+				if (group->input_mode && group->selected == i && button->selected_char == char_index) {
+					gfx_color(lerp4(vec4(1, 1, 1, 1), vec4(1, 1, 0.5f, 1), sinf(group->movement)));
+					if (group->input_mode) {
+						gfx_draw_text_centered(&FONT_DEFAULT, vec2(-3 + 2.0f*char_index, y - 1.8f + sinf(group->movement)*0.3f), "^");
+					}
+				}
+				gfx_draw_text_centered(&FONT_DEFAULT, vec2(-3 + 2.0f*char_index, y), str_format("%.1s", button->input+char_index));
+			}
+		} else {
+			gfx_draw_text_centered(&FONT_DEFAULT, vec2(pos.x, y), group->buttons[i].name);
+		}
+	}
+}
+
+void do_gameover_menu(state_t* state, window_t* window, gametime_t* time) {
+	game_t* game = &state->game;
+	gfx_bind_framebuffer(&state->menu_framebuffer);
+	gfx_clear(vec4(0.0f, 0.0f, 0.0f, 0.0f));
+	gfx_color(vec4(1, 1, 1, 1));
+	gfx_texture(&state->font_texture);
+
+	run_menugroup(&gameover_menu, window, time->dt, vec2(0, 2));
+}
+
+void do_main_menu(state_t* state, window_t* window, gametime_t* time) {
+
+}
+
 void do_menus(state_t* state, window_t* window, gametime_t* time) {
 	game_t* game = &state->game;
 	gfx_bind_framebuffer(&state->menu_framebuffer);
