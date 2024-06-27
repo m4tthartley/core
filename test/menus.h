@@ -6,12 +6,15 @@ enum {
 	MENUBUTTON_INPUT,
 };
 
+typedef void (*menubutton_action_proc)(game_t* game);
+
 typedef struct {
 	int type;
 	char* name;
 	int input_size;
 	char input[16];
 	int selected_char;
+	menubutton_action_proc action;
 } menubutton;
 
 typedef struct {
@@ -22,24 +25,56 @@ typedef struct {
 	menubutton buttons[];
 } menugroup;
 
+// void action_switch_to_menu(game_t* game) {
+
+// }
+
 menugroup gameover_menu = {
-	.button_count = 2,
+	.button_count = 3,
 	.buttons = {
 		{ MENUBUTTON_INPUT, "Name", .input_size=4, .input="ABCD" },
-		{ MENUBUTTON_DEFAULT, "Restart" }
+		{ MENUBUTTON_DEFAULT, "Restart" },
+		{ MENUBUTTON_DEFAULT, "Menu", .action=switch_to_menu }
 	},
 };
 
-void run_menugroup(menugroup* group, window_t* window, float dt, v2 pos) {
+void run_menugroup(menugroup* group, game_t* game, window_t* window, float dt, v2 pos) {
 	group->movement += dt * 8.0f;
 
-	if (window->keyboard[KEY_DOWN].pressed) {
-		++group->selected;
+	if (group->input_mode) {
+		menubutton* button = group->buttons + group->selected;
+		char* letter = button->input + button->selected_char;
+		if (window->keyboard[KEY_DOWN].pressed) {
+			++*letter;
+		}
+		if (window->keyboard[KEY_UP].pressed) {
+			--*letter;
+		}
+		if (*letter < 'A') *letter += 26;
+		if (*letter > 'Z') *letter -= 26;
+		
+		if (window->keyboard[KEY_RIGHT].pressed) ++button->selected_char;
+		if (window->keyboard[KEY_LEFT].pressed) --button->selected_char;
+		button->selected_char = min(max(button->selected_char, 0), button->input_size-1);
+	} else {
+		if (window->keyboard[KEY_DOWN].pressed) {
+			++group->selected;
+		}
+		if (window->keyboard[KEY_UP].pressed) {
+			--group->selected;
+		}
+		group->selected = min(max(group->selected, 0), group->button_count-1);
 	}
-	if (window->keyboard[KEY_UP].pressed) {
-		--group->selected;
+
+	menubutton* selected_button = group->buttons + group->selected;
+	if (window->keyboard[KEY_RETURN].released) {
+		if (selected_button->action) {
+			selected_button->action(game);
+		}
+		if (selected_button->type == MENUBUTTON_INPUT) {
+			group->input_mode = !group->input_mode;
+		}
 	}
-	group->selected = min(max(group->selected, 0), group->button_count-1);
 
 	FOR (i, group->button_count) {
 		menubutton* button = group->buttons+i;
@@ -79,11 +114,23 @@ void do_gameover_menu(state_t* state, window_t* window, gametime_t* time) {
 	gfx_color(vec4(1, 1, 1, 1));
 	gfx_texture(&state->font_texture);
 
-	run_menugroup(&gameover_menu, window, time->dt, vec2(0, 2));
+	game->menu_zoom += time->dt * 2.0f;
+	game->menu_zoom = min(game->menu_zoom, 2.0f);
+	if (game->menu_zoom > 0.0f) {
+		gfx_sprite_scale(game->menu_zoom);
+		gfx_draw_text_centered(&FONT_DEFAULT, vec2(0, 10), "Game Over");
+		gfx_sprite_scale(1.0f);
+	}
+
+	run_menugroup(&gameover_menu, game, window, time->dt, vec2(0, 2));
 }
 
 void do_main_menu(state_t* state, window_t* window, gametime_t* time) {
-
+	game_t* game = &state->game;
+	gfx_bind_framebuffer(&state->menu_framebuffer);
+	gfx_clear(vec4(0.0f, 0.0f, 0.0f, 0.0f));
+	gfx_color(vec4(1, 1, 1, 1));
+	gfx_texture(&state->font_texture);
 }
 
 void do_menus(state_t* state, window_t* window, gametime_t* time) {
