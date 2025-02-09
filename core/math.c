@@ -481,6 +481,15 @@ CORE_INLINE void mat4_rotate_z(mat4_t *m, float rads) {
 	};
 	*m = mat4_mul(*m, result);
 }
+CORE_INLINE void mat4_scale(mat4_t *m, vec3_t s) {
+	mat4_t result = {
+		s.x, 0, 0, 0,
+		0, s.y, 0, 0,
+		0, 0, s.z, 0,
+		0, 0, 0, 1,
+	};
+	*m = mat4_mul(*m, result);
+}
 
 vec4_t vec4_mul_mat4(vec4_t in, mat4_t mat) {
 	vec4_t result = {0};

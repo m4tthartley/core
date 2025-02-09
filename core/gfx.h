@@ -28,8 +28,13 @@
 #   include <gl/gl.h>
 #endif
 #ifdef __MACOS__
-#   define GL_SILENCE_DEPRECATION
-#   include <OpenGL/gl.h>
+#	include <TargetConditionals.h>
+#	if TARGET_OS_IPHONE
+#		include <OpenGLES/ES3/gl.h>
+#	else
+#		define GL_SILENCE_DEPRECATION
+#		include <OpenGL/gl.h>
+#	endif
 #endif
 
 #pragma pack(push, 1)

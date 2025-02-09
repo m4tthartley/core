@@ -162,50 +162,54 @@ typedef struct {
 	llnode_t node;
 	u64 size;
     u32 debug_id; // This is set to something specific to debug check if a memory block is kosher
-} memblock_t;
+} allocator_block_t;
+// typedef struct {
+// 	void* address;
+// 	u64 size;
+// 	u64 stack;
+// 	u64 commit;
+// } memstack_t;
+typedef enum {
+	ALLOCATOR_HEAP,
+	ALLOCATOR_BUMP,
+} allocator_type_t;
 typedef struct {
+	allocator_type_t type;
 	void* address;
 	u64 size;
-	u64 stack;
 	u64 commit;
-} memstack_t;
-typedef struct {
-	void* address;
-	u64 size;
-	u64 commit;
-	llist_t blocks;
-	llist_t free;
+	union {
+		struct {
+			llist_t blocks;
+			llist_t free;
+		};
+		struct {
+			u64 stackptr;
+		};
+	};
 } allocator_t;
 
-// void zero(u8* address, int size);
-// void copy(u8* dest, u8* src, int size);
-memstack_t create_stack(u8* buffer, size_t size);
-memstack_t create_virtual_stack(size_t size, size_t commit);
-allocator_t create_allocator(u8* buffer, size_t size);
-allocator_t create_virtual_allocator(size_t size, size_t commit);
-void use_allocator(allocator_t* arena);
+CORE_API allocator_t bump_allocator(u8* buffer, size_t size);
+CORE_API allocator_t virtual_bump_allocator(size_t size, size_t commit);
+CORE_API allocator_t heap_allocator(u8* buffer, size_t size);
+CORE_API allocator_t virtual_heap_allocator(size_t size, size_t commit);
+CORE_API void use_allocator(allocator_t* arena);
+CORE_API void* push_memory(allocator_t* arena, size_t size);
+CORE_API void pop_memory(allocator_t* arena, size_t size);
+CORE_API void pop_memory_and_shift(allocator_t* arena, size_t offset, size_t size);
+CORE_API void* alloc_memory(allocator_t* arena, size_t size);
+CORE_API void* galloc_memory(size_t size);
+CORE_API void free_memory(allocator_t* arena, void* block);
+CORE_API void gfree_memory(void* block);
+CORE_API void clear_allocator(allocator_t* arena);
+CORE_API void clear_global_allocator();
 
-void* push_memory_into_virtual(memstack_t* arena, size_t size);
-void* push_memory(memstack_t* arena, size_t size);
-void  pop_memory(memstack_t* arena, size_t size);
-void  pop_memory_and_shift(memstack_t* arena, size_t offset, size_t size);
-
-// void  core_defrag_free_block(core_allocator_t* arena, core_memblock_t* block);
-// void* _core_alloc_into_free(core_allocator_t* arena, core_memblock_t* free, size_t size);
-// void _core_virtual_allocator_commit(core_allocator_t* arena, size_t size);
-void* alloc_memory_in(allocator_t* arena, size_t size);
-void* alloc_memory(size_t size);
-void  free_memory_in(allocator_t* arena, void* block);
-void  free_memory(void* block);
-void  clear_allocator(allocator_t* arena);
-void  clear_global_allocator();
-
-void print_arena(allocator_t* arena);
+CORE_API void print_arena(allocator_t* arena);
 
 
 // Dynarr definitions
 typedef struct {
-	memstack_t arena;
+	allocator_t arena;
 	int stride;
 	int max;
 	int count;
