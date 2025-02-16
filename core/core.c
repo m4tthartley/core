@@ -402,6 +402,7 @@ void* _alloc_into_free(allocator_t* arena, allocator_block_t* free, size_t size)
 
 void _virtual_allocator_commit(allocator_t* arena, size_t size) {
 	assert(arena->type == ALLOCATOR_HEAP);
+	assert(arena->commit < arena->size);
 	u64 commit = align64(size, PAGE_SIZE);
 	allocator_block_t* new_memory = commit_virtual_memory((u8*)arena->address+arena->commit, commit);
 	arena->commit += commit;

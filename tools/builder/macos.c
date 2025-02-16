@@ -26,7 +26,7 @@ int directory_count = 0;
 char* build_command = "./build.sh";
 
 int build(char* filename) {
-	print_inline(TERM_CLEAR);
+	// print_inline(TERM_CLEAR);
 
     print("[%s] \n", filename);
 
@@ -34,7 +34,7 @@ int build(char* filename) {
 	f64 start = time_get_seconds();
 	int result = system(cmd);
 	f64 end = time_get_seconds();
-	free_memory(cmd);
+	gfree_memory(cmd);
 
 	float time = (end-start);
 	if(!result) {
@@ -56,15 +56,26 @@ void callback(
 ) {
     char** files = (char**)event_paths;
     FOR (i, num_events) {
+		core_string_t parts[8];
+		int numParts = str_split(parts, 8, files[i], ".");
+		core_string_t ext = parts[numParts-1];
         if(
-            str_find(files[i], ".c") ||
-			str_find(files[i], ".h") ||
-			str_find(files[i], ".txt") ||
-			str_find(files[i], ".sh")
+            str_compare(ext, "c") ||
+			str_compare(ext, "h") ||
+			str_compare(ext, "txt") ||
+			str_compare(ext, "sh") ||
+			str_compare(ext, "m") ||
+			str_compare(ext, "vert") ||
+			str_compare(ext, "frag") ||
+			str_compare(ext, "glsl")
         ) {
             // print("File: %s", files[i]);
             build(files[i]);
         }
+
+		FOR(si, numParts) {
+			str_free(parts[si]);
+		}
     }
 }
 
@@ -95,8 +106,9 @@ int main(int argc, char** argv) {
     print(TERM_BRIGHT_YELLOW_FG "Builder %s \n" TERM_RESET, VERSION);
 
     u8 buffer[1024];
-    allocator_t allocator = create_allocator(buffer, sizeof(buffer));
+    allocator_t allocator = heap_allocator(buffer, sizeof(buffer));
     use_allocator(&allocator);
+	str_set_allocator(&allocator);
 
     for (int i=1; i<argc; ++i) {
 		char* arg = argv[i];
