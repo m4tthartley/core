@@ -276,6 +276,7 @@ CORE_INLINE mat4_t mat4_identity();
 CORE_INLINE mat4_t mat4_translation(vec3_t pos);
 CORE_INLINE mat4_t perspective_matrix(float fov, float aspect, float near, float far);
 CORE_INLINE mat4_t mat4_camera(vec3_t position, vec3_t direction, vec3_t up);
+CORE_INLINE mat4_t mat4_inverse(mat4_t m);
 CORE_INLINE mat4_t mat4_mul(mat4_t m1, mat4_t m2);
 CORE_INLINE void mat4_translate(mat4_t *m, vec3_t pos);
 CORE_INLINE void mat4_rotate_x(mat4_t *m, float rads);

@@ -432,6 +432,46 @@ CORE_INLINE mat4_t mat4_camera(vec3_t position, vec3_t direction, vec3_t up) {
 	return result;
 }
 
+CORE_INLINE mat4_t mat4_inverse(mat4_t m) {
+	float augmented[4][8];
+	for (int i=0; i<4; ++i) {
+		for (int j=0; j<4; ++j) {
+			augmented[i][j] = m.f[i*4+j];
+		}
+		for (int j=4; j<8; ++j) {
+			augmented[i][j] = (float)(i==j-4);
+		}
+	}
+
+	for (int i=0; i<4; ++i) {
+		float diag = augmented[i][i];
+		if (fabs(diag) < 1e-10) {
+			print_error("Matrix cannot be inversed");
+		}
+		for (int j=0; j<8; ++j) {
+			augmented[i][j] /= diag;
+		}
+
+		for (int j=0; j<4; ++j) {
+			if (i!=j) {
+				float factor = augmented[j][i];
+				for (int k=0; k<8; ++k) {
+					augmented[j][k] -= factor * augmented[i][k];
+				}
+			}
+		}
+	}
+
+	mat4_t inverse;
+	for (int i=0; i<4; ++i) {
+		for (int j=0; j<4; ++j) {
+			inverse.f[i*4+j] = augmented[i][j+4];
+		}
+	}
+
+	return inverse;
+}
+
 CORE_INLINE mat4_t mat4_mul(mat4_t m1, mat4_t m2) {
 	mat4_t out = {0};
 	
