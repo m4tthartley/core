@@ -387,16 +387,6 @@ CORE_INLINE mat4_t mat4_identity() {
 	return result;
 }
 
-CORE_INLINE mat4_t mat4_translation(vec3_t pos) {
-	mat4_t result = {
-		1, 0, 0, 0,
-		0, 1, 0, 0,
-		0, 0, 1, 0,
-		pos.x, pos.y, pos.z, 1,
-	};
-	return result;
-}
-
 CORE_INLINE mat4_t perspective_matrix(float fov, float aspect, float near, float far) {
 	float f = 1.0f / tanf((fov/180.0f*PI) / 2.0f);
 	mat4_t mat = {
@@ -485,7 +475,16 @@ CORE_INLINE mat4_t mat4_mul(mat4_t m1, mat4_t m2) {
 	
 	return out;
 }
-CORE_INLINE void mat4_translate(mat4_t *m, vec3_t pos) {
+CORE_INLINE mat4_t mat4_translate(vec3_t pos) {
+	mat4_t result = {
+		1, 0, 0, 0,
+		0, 1, 0, 0,
+		0, 0, 1, 0,
+		pos.x, pos.y, pos.z, 1,
+	};
+	return result;
+}
+CORE_INLINE void mat4_apply_translate(mat4_t *m, vec3_t pos) {
 	mat4_t result = {
 		1, 0, 0, 0,
 		0, 1, 0, 0,
@@ -494,7 +493,16 @@ CORE_INLINE void mat4_translate(mat4_t *m, vec3_t pos) {
 	};
 	*m = mat4_mul(*m, result);
 }
-CORE_INLINE void mat4_rotate_x(mat4_t *m, float rads) {
+CORE_INLINE mat4_t mat4_rotate_x(float rads) {
+	mat4_t result = {
+		1, 0,          0,           0,
+		0, cosf(rads), -sinf(rads), 0,
+		0, sinf(rads), cosf(rads),  0,
+		0, 0,          0,           1,
+	};
+	return result;
+}
+CORE_INLINE void mat4_apply_rotate_x(mat4_t *m, float rads) {
 	mat4_t result = {
 		1, 0,          0,           0,
 		0, cosf(rads), -sinf(rads), 0,
@@ -503,7 +511,16 @@ CORE_INLINE void mat4_rotate_x(mat4_t *m, float rads) {
 	};
 	*m = mat4_mul(*m, result);
 }
-CORE_INLINE void mat4_rotate_y(mat4_t *m, float rads) {
+CORE_INLINE mat4_t mat4_rotate_y(float rads) {
+	mat4_t result = {
+		cosf(rads),  0, sinf(rads), 0,
+		0,           1, 0,          0,
+		-sinf(rads), 0, cosf(rads), 0,
+		0,           0, 0,          1,
+	};
+	return result;
+}
+CORE_INLINE void mat4_apply_rotate_y(mat4_t *m, float rads) {
 	mat4_t result = {
 		cosf(rads),  0, sinf(rads), 0,
 		0,           1, 0,          0,
@@ -512,7 +529,16 @@ CORE_INLINE void mat4_rotate_y(mat4_t *m, float rads) {
 	};
 	*m = mat4_mul(*m, result);
 }
-CORE_INLINE void mat4_rotate_z(mat4_t *m, float rads) {
+CORE_INLINE mat4_t mat4_rotate_z(float rads) {
+	mat4_t result = {
+		cosf(rads), -sinf(rads), 0, 0,
+		sinf(rads), cosf(rads),  0, 0,
+		0,          0,           1, 0,
+		0,          0,           0, 1,
+	};
+	return result;
+}
+CORE_INLINE void mat4_apply_rotate_z(mat4_t *m, float rads) {
 	mat4_t result = {
 		cosf(rads), -sinf(rads), 0, 0,
 		sinf(rads), cosf(rads),  0, 0,
@@ -521,7 +547,16 @@ CORE_INLINE void mat4_rotate_z(mat4_t *m, float rads) {
 	};
 	*m = mat4_mul(*m, result);
 }
-CORE_INLINE void mat4_scale(mat4_t *m, vec3_t s) {
+CORE_INLINE mat4_t mat4_scale(vec3_t s) {
+	mat4_t result = {
+		s.x, 0, 0, 0,
+		0, s.y, 0, 0,
+		0, 0, s.z, 0,
+		0, 0, 0, 1,
+	};
+	return result;
+}
+CORE_INLINE void mat4_apply_scale(mat4_t *m, vec3_t s) {
 	mat4_t result = {
 		s.x, 0, 0, 0,
 		0, s.y, 0, 0,
@@ -531,7 +566,7 @@ CORE_INLINE void mat4_scale(mat4_t *m, vec3_t s) {
 	*m = mat4_mul(*m, result);
 }
 
-vec4_t vec4_mul_mat4(vec4_t in, mat4_t mat) {
+CORE_INLINE vec4_t vec4_mul_mat4(vec4_t in, mat4_t mat) {
 	vec4_t result = {0};
 	for (int col = 0; col < 4; ++col) {
 		for (int i = 0; i < 4; ++i) {
@@ -540,7 +575,7 @@ vec4_t vec4_mul_mat4(vec4_t in, mat4_t mat) {
 	}
 	return result;
 }
-vec3_t vec3_mul_mat4(vec3_t in, mat4_t mat) {
+CORE_INLINE vec3_t vec3_mul_mat4(vec3_t in, mat4_t mat) {
 	vec4_t vec = vec4f3(in, 1);
 	vec4_t result = {0};
 	for (int col = 0; col < 4; ++col) {
@@ -550,7 +585,7 @@ vec3_t vec3_mul_mat4(vec3_t in, mat4_t mat) {
 	}
 	return result.xyz;
 }
-vec2_t vec2_mul_mat4(vec2_t in, mat4_t mat) {
+CORE_INLINE vec2_t vec2_mul_mat4(vec2_t in, mat4_t mat) {
 	vec4_t vec = vec4f2(in, 0, 1);
 	vec4_t result = {0};
 	for (int col = 0; col < 4; ++col) {

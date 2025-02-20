@@ -20,7 +20,7 @@
 #define PI 3.14159265359f
 #define PI2 (PI*2.0f)
 
-#define CORE_INLINE 
+#define CORE_INLINE
 // __attribute__((always_inline))
 
 typedef union {
@@ -183,7 +183,6 @@ float fbm (vec2_t st);*/
 //#ifndef _MATH_DECLARATIONS
 //#undef  _MATH_DECLARATIONS
 
-
 CORE_INLINE int2_t int2(int x, int y);
 CORE_INLINE int2_t point(int x, int y);
 CORE_INLINE int3_t int3(int x, int y, int z);
@@ -241,6 +240,7 @@ CORE_INLINE vec4_t diff4(vec4_t a, vec4_t b);
 CORE_INLINE float dot2(vec2_t a, vec2_t b);
 CORE_INLINE float dot3(vec3_t a, vec3_t b);
 CORE_INLINE float dot4(vec4_t a, vec4_t b);
+// CORE_INLINE vec2_t cross2(vec2_t a, vec2_t b);
 CORE_INLINE vec3_t cross3(vec3_t a, vec3_t b);
 CORE_INLINE float mix(float a, float b, float t);
 CORE_INLINE vec2_t mix2(vec2_t a, vec2_t b, float t);
@@ -273,19 +273,23 @@ CORE_INLINE float smoothstep(float x, float y, float a);
 CORE_INLINE float todeg(float rad);
 CORE_INLINE float torad(float deg);
 CORE_INLINE mat4_t mat4_identity();
-CORE_INLINE mat4_t mat4_translation(vec3_t pos);
 CORE_INLINE mat4_t perspective_matrix(float fov, float aspect, float near, float far);
 CORE_INLINE mat4_t mat4_camera(vec3_t position, vec3_t direction, vec3_t up);
 CORE_INLINE mat4_t mat4_inverse(mat4_t m);
 CORE_INLINE mat4_t mat4_mul(mat4_t m1, mat4_t m2);
-CORE_INLINE void mat4_translate(mat4_t *m, vec3_t pos);
-CORE_INLINE void mat4_rotate_x(mat4_t *m, float rads);
-CORE_INLINE void mat4_rotate_y(mat4_t *m, float rads);
-CORE_INLINE void mat4_rotate_z(mat4_t *m, float rads);
-CORE_INLINE void mat4_scale(mat4_t *m, vec3_t s);
-vec4_t vec4_mul_mat4(vec4_t in, mat4_t mat);
-vec3_t vec3_mul_mat4(vec3_t in, mat4_t mat);
-vec2_t vec2_mul_mat4(vec2_t in, mat4_t mat);
+CORE_INLINE mat4_t mat4_translate(vec3_t pos);
+CORE_INLINE void mat4_apply_translate(mat4_t *m, vec3_t pos);
+CORE_INLINE mat4_t mat4_rotate_x(float rads);
+CORE_INLINE void mat4_apply_rotate_x(mat4_t *m, float rads);
+CORE_INLINE mat4_t mat4_rotate_y(float rads);
+CORE_INLINE void mat4_apply_rotate_y(mat4_t *m, float rads);
+CORE_INLINE mat4_t mat4_rotate_z(float rads);
+CORE_INLINE void mat4_apply_rotate_z(mat4_t *m, float rads);
+CORE_INLINE mat4_t mat4_scale(vec3_t s);
+CORE_INLINE void mat4_apply_scale(mat4_t *m, vec3_t s);
+CORE_INLINE vec4_t vec4_mul_mat4(vec4_t in, mat4_t mat);
+CORE_INLINE vec3_t vec3_mul_mat4(vec3_t in, mat4_t mat);
+CORE_INLINE vec2_t vec2_mul_mat4(vec2_t in, mat4_t mat);
 CORE_INLINE quaternion_t qidentity();
 CORE_INLINE quaternion_t qmul(quaternion_t q1, quaternion_t q2);
 CORE_INLINE quaternion_t qdiv(quaternion_t q, float f);
