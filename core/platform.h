@@ -36,6 +36,11 @@ typedef struct {
 	char filename[MAX_PATH_LENGTH];
 } stat_t;
 
+typedef struct {
+	stat_t stat;
+	u8 data[];
+} file_data_t;
+
 
 // Platform functions
 // void core_zero(byte* address, int size);

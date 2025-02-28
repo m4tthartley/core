@@ -263,6 +263,9 @@ CORE_API allocator_t heap_allocator(u8* buffer, size_t size) {
 }
 
 CORE_API allocator_t virtual_heap_allocator(size_t size, size_t commit) {
+	if (!commit) {
+		commit = size;
+	}
 	assert(size >= commit);
 	allocator_t arena = {0};
 	arena.type = ALLOCATOR_HEAP;

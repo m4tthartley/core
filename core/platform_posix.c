@@ -297,6 +297,7 @@ stat_t file_stat(file_t file) {
 	int stat_result = fstat(file, &stats);
 	if (stat_result == -1) {
 		print_error(strerror(errno));
+		return result;
 	}
 	result.created = 0;
 #ifdef __MACOS__
