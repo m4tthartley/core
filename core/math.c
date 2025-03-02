@@ -221,6 +221,21 @@ CORE_INLINE vec4_t diff4(vec4_t a, vec4_t b) {
 	return result;
 }
 
+CORE_INLINE int idiff(int a, int b) {
+	return a-b;
+}
+CORE_INLINE int2_t idiff2(int2_t a, int2_t b) {
+	return int2(b.x-a.x, b.y-a.y);
+}
+CORE_INLINE int3_t idiff3(int3_t a, int3_t b) {
+	int3_t result = {b.x-a.x, b.y-a.y, b.z-a.z};
+	return result;
+}
+CORE_INLINE int4_t idiff4(int4_t a, int4_t b) {
+	int4_t result = {b.x-a.x, b.y-a.y, b.z-a.z, b.w-a.w};
+	return result;
+}
+
 CORE_INLINE float dot2(vec2_t a, vec2_t b) {
 	return a.x*b.x + a.y*b.y;
 }

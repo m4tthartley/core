@@ -13,7 +13,7 @@
 typedef void (*reload_entry_point_func_t)();
 typedef struct {
 	char* name;
-	void* exePtr;
+	// void* exePtr;
 	void* tmpPtr;
 	u32 size;
 } hotreload_lib_state_t;
@@ -67,12 +67,14 @@ void _reload_load_lib() {
 	// }
 
 	FOR (i, hotreload.libStateCount) {
-		void* libPtr = dlsym(hotreload.lib, hotreload.libState[i].name);
-		if (!libPtr) {
-			print_error("Failed to load state pointer: %s", hotreload.libState[i].name);
-			exit(1);
+		if (hotreload.libState[i].tmpPtr) {
+			void* libPtr = dlsym(hotreload.lib, hotreload.libState[i].name);
+			if (!libPtr) {
+				print_error("Failed to load state pointer: %s", hotreload.libState[i].name);
+				exit(1);
+			}
+			copy_memory(libPtr, hotreload.libState[i].tmpPtr, hotreload.libState[i].size);
 		}
-		copy_memory(libPtr, hotreload.libState[i].exePtr, hotreload.libState[i].size);
 	}
 }
 
@@ -83,7 +85,10 @@ void _reload_unload_lib() {
 			print_error("Failed to load state pointer: %s", hotreload.libState[i].name);
 			exit(1);
 		}
-		copy_memory(hotreload.libState[i].exePtr, libPtr, hotreload.libState[i].size);
+		if (!hotreload.libState[i].tmpPtr) {
+			hotreload.libState[i].tmpPtr = malloc(hotreload.libState[i].size);
+		}
+		copy_memory(hotreload.libState[i].tmpPtr, libPtr, hotreload.libState[i].size);
 	}
 
 	hotreload.libFuncCount = 0;
@@ -124,7 +129,7 @@ void reload_update() {
 void reload_register_state(char* name, void* ptr, u32 size) {
 	assert(hotreload.libStateCount < 64);
 	hotreload.libState[hotreload.libStateCount].name = name;
-	hotreload.libState[hotreload.libStateCount].exePtr = ptr;
+	// hotreload.libState[hotreload.libStateCount].exePtr = ptr;
 	hotreload.libState[hotreload.libStateCount].size = size;
 	++hotreload.libStateCount;
 }
@@ -146,6 +151,7 @@ void reload_run_func(char* name, void* data) {
 	assert(hotreload.libFuncCount < 64);
 	hotreload.libFuncs[hotreload.libFuncCount].name = name;
 	hotreload.libFuncs[hotreload.libFuncCount].func = libPtr;
+	hotreload.libFuncs[hotreload.libFuncCount].func(data);
 	++hotreload.libFuncCount;
 }
 

@@ -36,6 +36,7 @@ typedef union {
 		int w;
 		int h;
 	};
+	int i[2];
 } int2_t;
 typedef int2_t point_t;
 
@@ -51,7 +52,33 @@ typedef union {
 		int a;
 	};
 	int2_t xy;
+	int i[3];
 } int3_t;
+
+typedef union {
+	struct {
+		int x;
+		int y;
+		int z;
+		int w;
+	};
+	struct {
+		int r;
+		int g;
+		int b;
+		int a;
+	};
+	struct {
+		int left;
+		int bottom;
+		int right;
+		int top;
+	};
+	int3_t xyz;
+	int3_t rgb;
+	int2_t xy;
+	int i[4];
+} int4_t;
 
 typedef union {
 	struct {
@@ -92,6 +119,12 @@ typedef union {
 		float g;
 		float b;
 		float a;
+	};
+	struct {
+		float left;
+		float bottom;
+		float right;
+		float top;
 	};
 	vec3_t xyz;
 	vec3_t rgb;
@@ -237,6 +270,10 @@ CORE_INLINE float diff(float a, float b);
 CORE_INLINE vec2_t diff2(vec2_t a, vec2_t b);
 CORE_INLINE vec3_t diff3(vec3_t a, vec3_t b);
 CORE_INLINE vec4_t diff4(vec4_t a, vec4_t b);
+CORE_INLINE int idiff(int a, int b);
+CORE_INLINE int2_t idiff2(int2_t a, int2_t b);
+CORE_INLINE int3_t idiff3(int3_t a, int3_t b);
+CORE_INLINE int4_t idiff4(int4_t a, int4_t b);
 CORE_INLINE float dot2(vec2_t a, vec2_t b);
 CORE_INLINE float dot3(vec3_t a, vec3_t b);
 CORE_INLINE float dot4(vec4_t a, vec4_t b);

@@ -233,6 +233,10 @@ CORE_API allocator_t bump_allocator(u8* buffer, size_t size) {
 }
 
 CORE_API allocator_t virtual_bump_allocator(size_t size, size_t commit) {
+	if (!commit) {
+		commit = size;
+	}
+	assert(size >= commit);
 	allocator_t arena = {0};
 	arena.type = ALLOCATOR_BUMP;
 	arena.size = size;
@@ -682,7 +686,13 @@ int str_get_aligned_size(int size) {
 }
 
 core_string_t _allocate_string(size_t len) {
-	core_string_t result = alloc_memory(_global_str_allocator, str_get_aligned_size(len));
+	core_string_t result = NULL;
+	if (_global_str_allocator->type == ALLOCATOR_HEAP) {
+		result = alloc_memory(_global_str_allocator, str_get_aligned_size(len));
+	}
+	if (_global_str_allocator->type == ALLOCATOR_BUMP) {
+		result = push_memory(_global_str_allocator, str_get_aligned_size(len));
+	}
 	return result;
 }
 
