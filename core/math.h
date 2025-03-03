@@ -37,6 +37,7 @@ typedef union {
 		int h;
 	};
 	int i[2];
+	u64 combined;
 } int2_t;
 typedef int2_t point_t;
 

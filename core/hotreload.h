@@ -108,7 +108,9 @@ void _reload_update_lib_state(void* lib) {
 void reload_init(char* libName) {
 	char_copy(hotreload.libFilename, libName, MAX_PATH_LENGTH);
 	char* ext = ".so";
-	char_append(hotreload.libFilename, ext, MAX_PATH_LENGTH);
+	if (!str_find(hotreload.libFilename, ext)) {
+		char_append(hotreload.libFilename, ext, MAX_PATH_LENGTH);
+	}
 
 	hotreload.libModifiedTime = _get_file_modified_time(hotreload.libFilename);
 
