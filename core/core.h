@@ -119,6 +119,7 @@ typedef u8 byte;
 #define max(a, b) (a>b ? a : b)
 
 
+#define CORE_ALWAYS_INLINE __attribute__((always_inline))
 #define CORE_API 
 
 
