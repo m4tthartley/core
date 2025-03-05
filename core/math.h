@@ -164,59 +164,6 @@ typedef union {
 	float f[16];
 } mat4_t;
 
-/*int align(int n, int stride);
-int iRoundUp(int n, int stride);
-int iRoundDown(int n, int stride);
-
-point _point(int x, int y);
-vec2_t vec2_create(float x, float y);
-vec2_t add2(vec2_t a, vec2_t b);
-vec2_t mul2(vec2_t a, vec2_t b);
-vec2_t sub2(vec2_t a, vec2_t b);
-vec2_t normalize2(vec2_t v);
-float len2(vec2_t a);
-vec2_t floor2(vec2_t a);
-vec2_t fract2(vec2_t a);
-float dot2(vec2_t a, vec2_t b);
-
-vec3_t vec3_create(float x, float y, float z);
-vec3_t mix3(vec3_t a, vec3_t b, float t);
-vec3_t add3(vec3_t a, vec3_t b);
-vec3_t sub3(vec3_t a, vec3_t b);
-vec3_t mul3(vec3_t a, vec3_t b);
-vec3_t div3(vec3_t a, vec3_t b);
-
-vec3_t diff3(vec3_t a, vec3_t b);
-vec3_t normalize3(vec3_t v);
-vec3_t cross3(vec3_t a, vec3_t b);
-
-int ipow(int num, int e);
-float randf();
-float randfr(float min, float max);
-float min(float a, float b);
-float max(float a, float b);
-int mini(int a, int b);
-int maxi(int a, int b);
-float diff(float a, float b);
-float len(float x, float y);
-float clamp(float a, float minimum, float maximum);
-int clampi(int a, int minimum, int maximum);
-float smoothstep(float x, float y, float a);
-float mix(float x, float y, float a);
-float fract(float a);
-
-mat4 perspective_matrix(float fov, float aspect, float near, float far);
-
-quaternion qidentity();
-quaternion qmul(quaternion q1, quaternion q2);
-void qrotate(quaternion *q, vec3_t axis, float angle);
-
-float rand2d(vec2_t st);
-float noise (vec2_t st);
-float fbm (vec2_t st);*/
-
-//#ifndef _MATH_DECLARATIONS
-//#undef  _MATH_DECLARATIONS
 
 CORE_MATH_FUNC int2_t int2(int x, int y);
 CORE_MATH_FUNC int2_t point(int x, int y);
@@ -346,6 +293,7 @@ CORE_MATH_FUNC float noise (vec2_t st);
 CORE_MATH_FUNC float fbm (vec2_t st);
 
 #endif
+
 
 #ifdef CORE_IMPL
 

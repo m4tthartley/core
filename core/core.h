@@ -27,8 +27,19 @@
 #	define __POSIX__
 #endif
 #ifdef __APPLE__
-#	define __MACOS__
 #	define __POSIX__
+#	include <TargetConditionals.h>
+#	if TARGET_OS_OSX
+#		define __MACOS__
+#	endif
+#	if TARGET_OS_IOS
+#		define __IOS__
+#	endif
+#	if TARGET_OS_SIMULATOR
+#		define __SIM__
+#	endif
+#	if TARGET_ASDskdjfbshbf
+#	endif
 #endif
 
 
@@ -124,11 +135,12 @@ typedef u8 byte;
 
 
 // Printing definitions
-CORE_API void print_inline(char* fmt, ...);
-CORE_API void print(char* fmt, ...);
-CORE_API void print_error(char* fmt, ...);
-CORE_API int print_to_buffer(char* buffer, size_t len, char* fmt, ...);
-CORE_API int print_to_buffer_va(char* buffer, size_t len, char* fmt, va_list args);
+#define CORE_PRINT_FUNC
+CORE_PRINT_FUNC void print_inline(char* fmt, ...);
+CORE_PRINT_FUNC void print(char* fmt, ...);
+CORE_PRINT_FUNC void print_error(char* fmt, ...);
+CORE_PRINT_FUNC int print_to_buffer(char* buffer, size_t len, char* fmt, ...);
+CORE_PRINT_FUNC int print_to_buffer_va(char* buffer, size_t len, char* fmt, va_list args);
 
 
 // Misc definitions
@@ -318,5 +330,50 @@ u32 murmur3(u8* key);
 
 #include "platform.h"
 #include "terminal.h"
+
+#endif
+
+
+#ifdef CORE_IMPL
+
+
+// PRINTING
+CORE_PRINT_FUNC void print_inline(char* fmt, ...) {
+	char str[1024];
+	va_list va;
+	va_start(va, fmt);
+	vsnprintf(str, 1024, fmt, va);
+	fputs(str, stdout);
+	va_end(va);
+}
+CORE_PRINT_FUNC void print(char* fmt, ...) {
+	char str[1024];
+	va_list va;
+	va_start(va, fmt);
+	vsnprintf(str, 1024, fmt, va);
+	puts(str);
+	va_end(va);
+}
+CORE_PRINT_FUNC void print_error(char* fmt, ...) {
+	assert(fmt > (char*)TRUE); // Might be using old format with boolean as first parameter
+	char str[1024];
+	va_list va;
+	va_start(va, fmt);
+	vsnprintf(str, 1024, fmt, va);
+	print(TERM_RED_FG "%s" TERM_RESET, str);
+	va_end(va);
+}
+CORE_PRINT_FUNC int print_to_buffer(char* buffer, size_t len, char* fmt, ...) {
+	va_list va;
+	va_start(va, fmt);
+	int result = vsnprintf(buffer, len, fmt, va);
+	va_end(va);
+	return result;
+}
+CORE_PRINT_FUNC int print_to_buffer_va(char* buffer, size_t len, char* fmt, va_list args) {
+	int result = vsnprintf(buffer, len, fmt, args);
+	return result;
+}
+
 
 #endif

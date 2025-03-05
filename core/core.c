@@ -26,44 +26,6 @@
 // #endif
 
 
-// PRINTING
-void print_inline(char* fmt, ...) {
-	char str[1024];
-	va_list va;
-	va_start(va, fmt);
-	vsnprintf(str, 1024, fmt, va);
-	fputs(str, stdout);
-	va_end(va);
-}
-void print(char* fmt, ...) {
-	char str[1024];
-	va_list va;
-	va_start(va, fmt);
-	vsnprintf(str, 1024, fmt, va);
-	puts(str);
-	va_end(va);
-}
-void print_error(char* fmt, ...) {
-	assert(fmt > (char*)TRUE); // Might be using old format with boolean as first parameter
-	char str[1024];
-	va_list va;
-	va_start(va, fmt);
-	vsnprintf(str, 1024, fmt, va);
-	print(TERM_RED_FG "%s" TERM_RESET, str);
-	va_end(va);
-}
-int print_to_buffer(char* buffer, size_t len, char* fmt, ...) {
-	va_list va;
-	va_start(va, fmt);
-	int result = vsnprintf(buffer, len, fmt, va);
-	va_end(va);
-	return result;
-}
-int print_to_buffer_va(char* buffer, size_t len, char* fmt, va_list args) {
-	int result = vsnprintf(buffer, len, fmt, args);
-	return result;
-}
-
 
 // MISC
 f32 randf() {
