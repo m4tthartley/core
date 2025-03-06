@@ -12,6 +12,10 @@
 // Window resizeable flag
 // Remove CRT file api from bmp and wav loading
 
+// More print options
+// Convert print functions to using posix functions
+// Use use dup2 to print to stdout and log file
+
 
 #ifndef __CORE_HEADER__
 #define __CORE_HEADER__
@@ -128,6 +132,7 @@ typedef u8 byte;
 #endif
 #define min(a, b) (a<b ? a : b)
 #define max(a, b) (a>b ? a : b)
+#define TOSTRING(a) __STRING(a)
 
 
 #define CORE_ALWAYS_INLINE __attribute__((always_inline))
@@ -136,9 +141,13 @@ typedef u8 byte;
 
 // Printing definitions
 #define CORE_PRINT_FUNC
-CORE_PRINT_FUNC void print_inline(char* fmt, ...);
-CORE_PRINT_FUNC void print(char* fmt, ...);
-CORE_PRINT_FUNC void print_error(char* fmt, ...);
+#define print_inline(...) _print_inline(__VA_ARGS__)
+#define print(fmt, ...) _print_with_info(__FILE__, __func__, __LINE__, fmt, ##__VA_ARGS__)
+#define print_error(fmt, ...) _print_with_info(__FILE__, __func__, __LINE__, fmt, ##__VA_ARGS__)
+CORE_PRINT_FUNC void _print_with_info(const char* filename, const char* function, int line, char* fmt, ...);
+CORE_PRINT_FUNC void _print_inline(char* fmt, ...);
+CORE_PRINT_FUNC void _print(char* fmt, ...);
+CORE_PRINT_FUNC void _print_error(char* fmt, ...);
 CORE_PRINT_FUNC int print_to_buffer(char* buffer, size_t len, char* fmt, ...);
 CORE_PRINT_FUNC int print_to_buffer_va(char* buffer, size_t len, char* fmt, va_list args);
 
@@ -147,9 +156,9 @@ CORE_PRINT_FUNC int print_to_buffer_va(char* buffer, size_t len, char* fmt, va_l
 int valign(int n, int stride);
 u64 align64(u64 size, u64 align);
 u32 align32(u32 size, u32 align);
-f32 randf();
-f32 randf_range(f32 a, f32 b);
-int randi(int min, int max);
+// f32 randf();
+// f32 randf_range(f32 a, f32 b);
+// int randi(int min, int max);
 
 
 // Linked list definitions
@@ -335,10 +344,28 @@ u32 murmur3(u8* key);
 
 
 #ifdef CORE_IMPL
+#	ifndef __CORE_HEADER_IMPL__
+#	define __CORE_HEADER_IMPL__
 
 
 // PRINTING
-CORE_PRINT_FUNC void print_inline(char* fmt, ...) {
+// CORE_PRINT_FUNC void print_init_log_file(char* filename) {
+// 	int logFile = open(filename, O_WRONLY | O_CREAT | OAPPEND, 0644);
+// }
+CORE_PRINT_FUNC void _print_with_info(const char* filename, const char* function, int line, char* fmt, ...) {
+	char headerStr[MAX_PATH_LENGTH];
+	snprintf(headerStr, sizeof(headerStr), "[%s:%i] ", function, line);
+	
+	char str[1024];
+	va_list va;
+	va_start(va, fmt);
+	vsnprintf(str, 1024, fmt, va);
+	va_end(va);
+
+	fputs(headerStr, stdout);
+	puts(str);
+}
+CORE_PRINT_FUNC void _print_inline(char* fmt, ...) {
 	char str[1024];
 	va_list va;
 	va_start(va, fmt);
@@ -346,7 +373,7 @@ CORE_PRINT_FUNC void print_inline(char* fmt, ...) {
 	fputs(str, stdout);
 	va_end(va);
 }
-CORE_PRINT_FUNC void print(char* fmt, ...) {
+CORE_PRINT_FUNC void _print(char* fmt, ...) {
 	char str[1024];
 	va_list va;
 	va_start(va, fmt);
@@ -354,7 +381,7 @@ CORE_PRINT_FUNC void print(char* fmt, ...) {
 	puts(str);
 	va_end(va);
 }
-CORE_PRINT_FUNC void print_error(char* fmt, ...) {
+CORE_PRINT_FUNC void _print_error(char* fmt, ...) {
 	assert(fmt > (char*)TRUE); // Might be using old format with boolean as first parameter
 	char str[1024];
 	va_list va;
@@ -376,4 +403,5 @@ CORE_PRINT_FUNC int print_to_buffer_va(char* buffer, size_t len, char* fmt, va_l
 }
 
 
+#	endif
 #endif

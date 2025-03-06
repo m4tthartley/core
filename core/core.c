@@ -28,19 +28,19 @@
 
 
 // MISC
-f32 randf() {
-	f32 result = (f32)rand() / (f32)RAND_MAX;
-	return result;
-}
-f32 randf_range(f32 a, f32 b) {
-	f32 result = (f32)rand() / (f32)RAND_MAX;
-	result = a + (b-a)*result;
-	return result;
-}
-int randi(int min, int max) {
-	int result = rand() % (max-min);
-	return min + result;
-}
+// f32 randf() {
+// 	f32 result = (f32)rand() / (f32)RAND_MAX;
+// 	return result;
+// }
+// f32 randf_range(f32 a, f32 b) {
+// 	f32 result = (f32)rand() / (f32)RAND_MAX;
+// 	result = a + (b-a)*result;
+// 	return result;
+// }
+// int randi(int min, int max) {
+// 	int result = rand() % (max-min);
+// 	return min + result;
+// }
 
 
 // ALIGNMENT
