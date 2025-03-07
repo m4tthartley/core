@@ -8,6 +8,8 @@
 
 #include <dlfcn.h>
 #include <objc/runtime.h>
+
+#include "system.h"
 #include "core.h"
 
 typedef void (*reload_entry_point_func_t)();
@@ -43,14 +45,14 @@ hotreload_t hotreload = {0};
 
 u64 _get_file_modified_time(char* filename) {
 	u64 result;
-	file_t file = file_open(filename);
+	file_t file = sys_open(filename);
 	if (!file) {
 		print_error("Library file not found: %s", filename);
 		exit(1);
 	}
-	stat_t stat = file_stat(file);
+	stat_t stat = sys_stat(file);
 	result = stat.modified;
-	file_close(file);
+	sys_close(file);
 	return result;
 }
 
@@ -73,7 +75,7 @@ void _reload_load_lib() {
 				print_error("Failed to load state pointer: %s", hotreload.libState[i].name);
 				exit(1);
 			}
-			copy_memory(libPtr, hotreload.libState[i].tmpPtr, hotreload.libState[i].size);
+			sys_copy_memory(libPtr, hotreload.libState[i].tmpPtr, hotreload.libState[i].size);
 		}
 	}
 }
@@ -88,7 +90,7 @@ void _reload_unload_lib() {
 		if (!hotreload.libState[i].tmpPtr) {
 			hotreload.libState[i].tmpPtr = malloc(hotreload.libState[i].size);
 		}
-		copy_memory(hotreload.libState[i].tmpPtr, libPtr, hotreload.libState[i].size);
+		sys_copy_memory(hotreload.libState[i].tmpPtr, libPtr, hotreload.libState[i].size);
 	}
 
 	hotreload.libFuncCount = 0;
@@ -101,7 +103,7 @@ void _reload_unload_lib() {
 void _reload_update_lib_state(void* lib) {
 	void* statePtr = dlsym(lib, "hotreload");
 	if (statePtr) {
-		copy_memory(statePtr, &hotreload, sizeof(hotreload));
+		sys_copy_memory(statePtr, &hotreload, sizeof(hotreload));
 	}
 }
 

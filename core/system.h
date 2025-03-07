@@ -1,14 +1,26 @@
 //
-//  platform.h
-//  Core
-//
 //  Created by Matt Hartley on 16/09/2023.
 //  Copyright 2023 GiantJelly. All rights reserved.
 //
 
-#ifndef __CORE_PLATFORM_HEADER__
-#define __CORE_PLATFORM_HEADER__
+#ifndef __CORE_SYSTEM_HEADER__
+#define __CORE_SYSTEM_HEADER__
 
+
+#include <stddef.h>
+#include <stdint.h>
+#include <time.h>
+
+#include "platforms.h"
+
+#define CORE_SYSTEM_FUNC
+#define CORE_MEMORY_FUNC
+#define CORE_FILE_FUNC
+#define CORE_DYLIB_FUNC
+#define CORE_TIME_FUNC
+
+// #define TRUE (1)
+// #define FALSE (0)
 
 #define MAX_PATH_LENGTH 256
 
@@ -29,16 +41,16 @@ enum {
 // typedef u64 core_time_nano_t;
 
 typedef struct {
-	u64 created;
-	u64 modified;
+	uint64_t created;
+	uint64_t modified;
 	size_t size;
-	b32 is_directory;
+	_Bool is_directory;
 	char filename[MAX_PATH_LENGTH];
 } stat_t;
 
 typedef struct {
 	stat_t stat;
-	u8 data[];
+	uint8_t data[];
 } file_data_t;
 
 
@@ -55,20 +67,23 @@ typedef struct {
 // void s_ncopy(char* dest, char* src, int n);
 // b32 s_compare(char* a, char* b);
 
+void sys_print(char* str);
+void sys_print_err(char* str);
+
 
 // Threading
-typedef b32 thread_barrier_t;
+typedef _Bool thread_barrier_t;
 
 inline void thread_lock_barrier(volatile thread_barrier_t* barrier) {
 	int num = 0;
-	while (!__sync_bool_compare_and_swap((long volatile*)barrier, TRUE, FALSE)) {
+	// Todo: what size are these working with?
+	while (!__sync_bool_compare_and_swap((long volatile*)barrier, (_Bool)1, (_Bool)0)) {
 		++num;
 	}
-	print("SPIN LOCK %i", num); // debug
 }
 
 inline void thread_unlock_barrier(volatile thread_barrier_t* barrier) {
-	__sync_lock_test_and_set((long volatile*)barrier, FALSE);
+	__sync_lock_test_and_set((long volatile*)barrier, (_Bool)0);
 }
 
 
@@ -102,15 +117,17 @@ typedef int socket_t;
 // Misc definitions
 void message_box(char* msg, char* caption, int type);
 
-// Memory definitions
-void* reserve_virtual_memory(size_t size);
-void* commit_virtual_memory(void* addr, size_t size);
-void* allocate_virtual_memory(size_t size);
-void free_virtual_memory(void* addr, size_t size);
-void zero_memory(void* addr, size_t size);
-void copy_memory(void* dest, void* source, size_t size);
 
-// Atomic definitions
+// MEMORY
+CORE_MEMORY_FUNC void* sys_reserve_memory(size_t size);
+CORE_MEMORY_FUNC void* sys_commit_memory(void* addr, size_t size);
+CORE_MEMORY_FUNC void* sys_alloc_memory(size_t size);
+CORE_MEMORY_FUNC void sys_free_memory(void* addr, size_t size);
+CORE_MEMORY_FUNC void sys_zero_memory(void* addr, size_t size);
+CORE_MEMORY_FUNC void sys_copy_memory(void* dest, void* src, size_t size);
+
+
+// ATOMICS
 typedef struct {
 #ifdef __WIN32__
 	CRITICAL_SECTION handle;
@@ -121,29 +138,31 @@ void init_critical_section(critical_section_t* section);
 void enter_critical_section(critical_section_t* section);
 void exit_critical_section(critical_section_t* section);
 int sync_swap32(void *ptr, int swap);
-b32 sync_compare_swap32(void *ptr, int cmp, int swap);
+_Bool sync_compare_swap32(void *ptr, int cmp, int swap);
 int sync_add32(void *ptr, int value);
 int sync_sub32(void *ptr, int value);
 int sync_read32(void *ptr);
 
-// Time definitions
-time_t system_time();
-char* format_time(time_t time);
 
-// File definitions
-file_t 		file_open(char* path);
-file_t 		file_create(char* path);
-b32 		file_read(file_t file, size_t offset, void* output, size_t size);
-b32 		file_write(file_t file, size_t offset, void* data, size_t size);
-b32         file_truncate(file_t file, size_t size);
-stat_t 		file_stat(file_t file);
-void 		file_close(file_t file);
+// TIME
+CORE_TIME_FUNC time_t sys_time();
+CORE_TIME_FUNC char* sys_format_time(time_t timestamp);
 
-file_t 		file_open_dir(char* path);
-file_t 		file_create_dir(char* path);
-int 		file_list_dir(char* path, b32 recursive, stat_t* output, int length);
-char* 		file_current_dir(char* output, size_t size);
-void 		file_change_dir(char* path);
+
+// FILES
+CORE_FILE_FUNC file_t	sys_open(char* path);
+CORE_FILE_FUNC file_t	sys_create(char* path);
+CORE_FILE_FUNC _Bool	sys_read(file_t file, size_t offset, void* buffer, size_t size);
+CORE_FILE_FUNC _Bool	sys_write(file_t file, size_t offset, void* buffer, size_t size);
+CORE_FILE_FUNC _Bool	sys_truncate(file_t file, size_t size);
+CORE_FILE_FUNC stat_t	sys_stat(file_t file);
+CORE_FILE_FUNC void		sys_close(file_t file);
+CORE_FILE_FUNC file_t	sys_open_dir(char* path);
+CORE_FILE_FUNC file_t	sys_create_dir(char* path);
+CORE_FILE_FUNC int		sys_list_dir(char* path, _Bool recursive, stat_t* output, int length);
+CORE_FILE_FUNC char*	sys_current_dir(char* output, size_t size);
+CORE_FILE_FUNC void		sys_change_dir(char* path);
+
 
 // Dynamic libraries
 typedef struct {
@@ -185,4 +204,27 @@ int wait_for_directory_changes(directory_watcher_t* watcher, file_change_t* outp
 #endif
 
 
+#endif
+
+
+#ifdef CORE_IMPL
+#	ifndef __CORE_SYSTEM_HEADER_IMPL__
+#	define __CORE_SYSTEM_HEADER_IMPL__
+
+
+#ifdef __POSIX__
+#	include "system_posix.h"
+#endif
+#ifdef __APPLE__
+#	include "system_apple.h"
+#endif
+// #ifdef __LINUX__
+// #	include "system_linux.h"
+// #endif
+#ifdef __WIN32__
+#	include "system_win32.h"
+#endif
+
+
+#	endif
 #endif

@@ -6,16 +6,25 @@
 //  Copyright 2023 GiantJelly. All rights reserved.
 //
 
+#ifndef __CORE_SYSTEM_HEADER__
+#	define sys_reserve_memory(...) (0)
+#	define sys_commit_memory(...) (0)
+#	define sys_alloc_memory(...) (0)
+#	define sys_free_memory(...) (0)
+#	define sys_zero_memory(...) (0)
+#	define sys_copy_memory(...) (0)
+#endif
+
 #include "core.h"
 
 
-#ifdef __WIN32__
-#	include "platform_win32.c"
-#endif
+// #ifdef __WIN32__
+// #	include "platform_win32.c"
+// #endif
 
-#ifdef __POSIX__
-#	include "platform_posix.c"
-#endif
+// #ifdef __POSIX__
+// #	include "platform_posix.c"
+// #endif
 
 // #ifdef __LINUX__
 // #	include "platform_linux.c"
@@ -203,8 +212,8 @@ CORE_API allocator_t virtual_bump_allocator(size_t size, size_t commit) {
 	arena.type = ALLOCATOR_BUMP;
 	arena.size = size;
 	arena.commit = align64(commit, PAGE_SIZE);
-	arena.address = reserve_virtual_memory(arena.size);
-	commit_virtual_memory(arena.address, arena.commit);
+	arena.address = sys_reserve_memory(arena.size);
+	sys_commit_memory(arena.address, arena.commit);
 	arena.stackptr = 0;
 	return arena;
 }
@@ -215,7 +224,7 @@ CORE_API allocator_t heap_allocator(u8* buffer, size_t size) {
 	if (buffer) {
 		arena.address = buffer;
 	} else {
-		arena.address = allocate_virtual_memory(size);
+		arena.address = sys_alloc_memory(size);
 	}
 	arena.size = size;
 
@@ -237,8 +246,8 @@ CORE_API allocator_t virtual_heap_allocator(size_t size, size_t commit) {
 	arena.type = ALLOCATOR_HEAP;
 	arena.size = size;
 	arena.commit = align64(commit, PAGE_SIZE);
-	arena.address = reserve_virtual_memory(arena.size);
-	commit_virtual_memory(arena.address, arena.commit);
+	arena.address = sys_reserve_memory(arena.size);
+	sys_commit_memory(arena.address, arena.commit);
 
 	arena.blocks.first = NULL;
 	arena.blocks.last = NULL;
@@ -286,7 +295,7 @@ CORE_API void* push_memory(allocator_t* arena, size_t size) {
 		// return m_push_into_reserve(arena, size);
 		if(arena->stackptr+size > arena->commit) {
 			size_t extra_commit = align64(arena->stackptr+size - arena->commit, PAGE_SIZE);
-			commit_virtual_memory((u8*)arena->address+arena->commit, extra_commit);
+			sys_commit_memory((u8*)arena->address+arena->commit, extra_commit);
 			arena->commit += extra_commit;
 		}
 	}
@@ -303,14 +312,14 @@ CORE_API void* push_memory(allocator_t* arena, size_t size) {
 CORE_API void pop_memory(allocator_t* arena, size_t size) {
 	assert(arena->type == ALLOCATOR_BUMP);
 	// TODO: Should we zero this?
-	zero_memory(arena->address + arena->stackptr - size, size);
+	sys_zero_memory(arena->address + arena->stackptr - size, size);
 	arena->stackptr -= size;
 }
 
 CORE_API void pop_memory_and_shift(allocator_t* arena, size_t offset, size_t size) {
 	assert(arena->type == ALLOCATOR_BUMP);
 	assert(arena->stackptr >= offset + size);
-	copy_memory(arena->address + offset, arena->address + offset + size, arena->stackptr - (offset+size));
+	sys_copy_memory(arena->address + offset, arena->address + offset + size, arena->stackptr - (offset+size));
 	pop_memory(arena, size);
 }
 
@@ -373,7 +382,7 @@ void _virtual_allocator_commit(allocator_t* arena, size_t size) {
 	assert(arena->type == ALLOCATOR_HEAP);
 	assert(arena->commit < arena->size);
 	u64 commit = align64(size, PAGE_SIZE);
-	allocator_block_t* new_memory = commit_virtual_memory((u8*)arena->address+arena->commit, commit);
+	allocator_block_t* new_memory = sys_commit_memory((u8*)arena->address+arena->commit, commit);
 	arena->commit += commit;
 	new_memory->size = commit;
 	list_add(&arena->free, (llnode_t*)new_memory);
@@ -616,7 +625,7 @@ dynarr_t dynarr(int stride) {
 
 void dynarr_push(dynarr_t* arr, void* item) {
 	void* result = push_memory(&arr->arena, arr->stride);
-	copy_memory(result, item, arr->stride);
+	sys_copy_memory(result, item, arr->stride);
 	++arr->count;
 }
 
@@ -673,7 +682,7 @@ core_string_t str_create(char* str) {
 	u64 len = str_len(str);
 	core_string_t result = _allocate_string(len);
 	if (result) {
-		copy_memory(result, str, len+1);
+		sys_copy_memory(result, str, len+1);
 	}
 	return result;
 }
@@ -736,11 +745,11 @@ void str_copy(core_string_t* dest, core_string_t src) {
 	u64 alen = str_get_aligned_size(destlen);
 	if(srclen + 1 > alen) {
 		core_string_t newStr = _allocate_string(srclen);
-		copy_memory(newStr, src, srclen+1);
+		sys_copy_memory(newStr, src, srclen+1);
 		str_free(*dest);
 		*dest = newStr;
 	} else {
-		copy_memory(*dest, src, srclen+1);
+		sys_copy_memory(*dest, src, srclen+1);
 	}
 }
 
@@ -804,11 +813,11 @@ void str_append(core_string_t* str, core_string_t append) {
 	u64 alen = align64(len+1, 64);
 	if(len + 1 + len2 > alen) {
 		core_string_t newStr = _allocate_string(len + len2);
-		copy_memory(newStr, *str, len);
+		sys_copy_memory(newStr, *str, len);
 		gfree_memory(*str);
 		*str = newStr;
 	}
-	copy_memory(*str + len, append, len2+1);
+	sys_copy_memory(*str + len, append, len2+1);
 }
 
 void char_prepend(char* dest, char* src, int buf_size) {
@@ -820,7 +829,7 @@ void char_prepend(char* dest, char* src, int buf_size) {
 	while (destlen) {
 		dest[end--] = dest[destlen-- -1];
 	}
-	copy_memory(dest, src, srclen);
+	sys_copy_memory(dest, src, srclen);
 
 	// while (*src && buf_size > 1) {
 	// 	--buf_size;
@@ -841,13 +850,13 @@ void str_prepend(core_string_t* str, core_string_t prepend) {
 	u64 newLen = len + len2 + 1;
 	if(newLen > block->size) {
 		core_string_t newStr = _allocate_string(newLen);
-		copy_memory(newStr+len2, *str, len+1);
+		sys_copy_memory(newStr+len2, *str, len+1);
 		gfree_memory(*str);
 		*str = newStr;
 	} else {
-		copy_memory(*str+len2, *str, len+1);
+		sys_copy_memory(*str+len2, *str, len+1);
 	}
-	copy_memory(*str, prepend, len2);
+	sys_copy_memory(*str, prepend, len2);
 }
 
 void char_insert(char* dest, int index, char* src, int buf_size) {
@@ -859,7 +868,7 @@ void char_insert(char* dest, int index, char* src, int buf_size) {
 	while (destlen >= index) {
 		dest[end--] = dest[destlen-- -1];
 	}
-	copy_memory(dest+index, src, srclen);
+	sys_copy_memory(dest+index, src, srclen);
 }
 void str_insert(core_string_t* str, int index, core_string_t insert) {
 	u64 len = str_len(*str);
@@ -868,9 +877,9 @@ void str_insert(core_string_t* str, int index, core_string_t insert) {
 	assert(index < len);
 
 	core_string_t result = _allocate_string(result_len);
-	copy_memory(result, *str, index);
-	copy_memory(result+index, insert, len2);
-	copy_memory(result+index+len2, *str+index, len-index);
+	sys_copy_memory(result, *str, index);
+	sys_copy_memory(result+index, insert, len2);
+	sys_copy_memory(result+index+len2, *str+index, len-index);
 	result[result_len] = NULL;
 
 	gfree_memory(*str);
@@ -915,7 +924,7 @@ void str_replace(core_string_t* str, core_string_t find, core_string_t replace) 
 	core_string_t o = newStr;
 	while(*s) {
 		if(str_ncompare(s, find, flen)) {
-			copy_memory(o, replace, rlen);
+			sys_copy_memory(o, replace, rlen);
 			o += rlen;
 			s += flen;
 		} else {
@@ -945,12 +954,12 @@ void str_replace_first(core_string_t* str, core_string_t find, core_string_t rep
 	int i = 0;
 	while(*s) {
 		if(str_ncompare(s, find, flen)) {
-			copy_memory(newStr, *str, i);
-			copy_memory(o, replace, rlen);
+			sys_copy_memory(newStr, *str, i);
+			sys_copy_memory(o, replace, rlen);
 			s += flen;
 			o += rlen;
 			i += flen;
-			copy_memory(o, s, len-i+1);
+			sys_copy_memory(o, s, len-i+1);
 			break;
 		}
 		++s;
@@ -979,7 +988,7 @@ int str_split(core_string_t* buffer, size_t size, core_string_t str, core_string
 			int chunk_size = str2-str1;
 			if (size && chunk_size > 0) {
 				core_string_t result = _allocate_string(chunk_size);
-				copy_memory(result, str1, chunk_size);
+				sys_copy_memory(result, str1, chunk_size);
 				result[chunk_size] = NULL;
 				*buffer = result;
 				++buffer;
@@ -996,7 +1005,7 @@ int str_split(core_string_t* buffer, size_t size, core_string_t str, core_string
 	int chunk_size = str2-str1;
 	if (size && chunk_size > 0) {
 		core_string_t result = _allocate_string(chunk_size);
-		copy_memory(result, str1, chunk_size);
+		sys_copy_memory(result, str1, chunk_size);
 		result[chunk_size] = NULL;
 		*buffer = result;
 		++buffer;
@@ -1013,7 +1022,7 @@ void char_substr(char*buffer, size_t buf_size, char* str, int start, int len) {
 }
 core_string_t str_substr(core_string_t str, int start, int len) {
 	core_string_t result = _allocate_string(len);
-	copy_memory(result, str+start, len);
+	sys_copy_memory(result, str+start, len);
 	result[len] = NULL;
 	return result;
 }
@@ -1030,7 +1039,7 @@ void str_trim(core_string_t* str) {
 	while (*start == ' ' || *start == '\t' || *start == '\r' || *start == '\n') ++start;
 	while (*end == ' ' || *end == '\t' || *end == '\r' || *end == '\n') --end;
 	len = end-start + 1;
-	copy_memory(result, start, len);
+	sys_copy_memory(result, start, len);
 	result[len] = NULL;
 	gfree_memory(*str);
 	*str = result;
@@ -1092,7 +1101,7 @@ u32 murmur3(u8* key) {
 	u32 k;
 
 	for(int i = len>>2; i; --i) {
-		copy_memory(&k, key, sizeof(u32));
+		sys_copy_memory(&k, key, sizeof(u32));
 		key += sizeof(u32);
 		hash ^= murmur3_scramble(k);
 		hash = (hash << 13) | (hash >> 19);

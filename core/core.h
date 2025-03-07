@@ -17,34 +17,17 @@
 // Use use dup2 to print to stdout and log file
 
 
+#ifndef __CORE_SYSTEM_HEADER__
+// #	error "system.h must be included before core.h"
+// #	include "system.h"
+#endif
+
+
 #ifndef __CORE_HEADER__
 #define __CORE_HEADER__
 
 
-// Define standard platform defs
-#ifdef _WIN32
-#	undef __WIN32__
-#	define __WIN32__
-#endif
-#ifdef __linux__
-#	define __LINUX__
-#	define __POSIX__
-#endif
-#ifdef __APPLE__
-#	define __POSIX__
-#	include <TargetConditionals.h>
-#	if TARGET_OS_OSX
-#		define __MACOS__
-#	endif
-#	if TARGET_OS_IOS
-#		define __IOS__
-#	endif
-#	if TARGET_OS_SIMULATOR
-#		define __SIM__
-#	endif
-#	if TARGET_ASDskdjfbshbf
-#	endif
-#endif
+#include "platforms.h"
 
 
 #ifdef __POSIX__
@@ -337,7 +320,7 @@ void 			str_upper(char* str);
 u32 murmur3(u8* key);
 
 
-#include "platform.h"
+// #include "platform.h"
 #include "terminal.h"
 
 #endif
@@ -353,7 +336,7 @@ u32 murmur3(u8* key);
 // 	int logFile = open(filename, O_WRONLY | O_CREAT | OAPPEND, 0644);
 // }
 CORE_PRINT_FUNC void _print_with_info(const char* filename, const char* function, int line, char* fmt, ...) {
-	char headerStr[MAX_PATH_LENGTH];
+	char headerStr[256];
 	snprintf(headerStr, sizeof(headerStr), "[%s:%i] ", function, line);
 	
 	char str[1024];
@@ -362,7 +345,7 @@ CORE_PRINT_FUNC void _print_with_info(const char* filename, const char* function
 	vsnprintf(str, 1024, fmt, va);
 	va_end(va);
 
-	fputs(headerStr, stdout);
+	// fputs(headerStr, stdout);
 	puts(str);
 }
 CORE_PRINT_FUNC void _print_inline(char* fmt, ...) {

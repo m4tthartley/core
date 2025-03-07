@@ -1,13 +1,7 @@
 //
-//  platform_posix.c
-//  Core
-//
 //  Created by Matt Hartley on 26/10/2023.
 //  Copyright 2023 GiantJelly. All rights reserved.
 //
-
-#include "core.h"
-#include "platform.h"
 
 #include <sys/mman.h>
 #include <fcntl.h>
@@ -23,25 +17,38 @@
 
 #include <dlfcn.h>
 
-#define HANDLE_NULL (-1)
-#define HANDLE_STDOUT STDOUT_FILENO
+// #include "core.h"
+#include "system.h"
+
+// #define HANDLE_NULL (-1)
+// #define HANDLE_STDOUT STDOUT_FILENO
 
 
-char* error_with_source_location(char* errstr, char* file, int line_number) {
-	char* buffer = malloc(64);
-	snprintf(buffer, 64, "%s (%s:%i)", errstr, file, line_number);
-	return buffer;
+// char* error_with_source_location(char* errstr, char* file, int line_number) {
+// 	char* buffer = malloc(64);
+// 	snprintf(buffer, 64, "%s (%s:%i)", errstr, file, line_number);
+// 	return buffer;
+// }
+// #define strerror(err)\
+// 	error_with_source_location(strerror(errno), __FILE__, __LINE__)
+
+
+void sys_print(char* str) {
+	
 }
-#define strerror(err)\
-	error_with_source_location(strerror(errno), __FILE__, __LINE__)
+
+void sys_print_err(char* str) {
+	// int fd = open()
+	write(STDERR_FILENO, str, strlen(str));
+}
 
 
 // Virtual memory
-void* reserve_virtual_memory(size_t size) {
-	return mmap(NULL, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, HANDLE_NULL, 0);
+CORE_MEMORY_FUNC void* sys_reserve_memory(size_t size) {
+	return mmap(NULL, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 }
 
-void* commit_virtual_memory(void* addr, size_t size) {
+CORE_MEMORY_FUNC void* sys_commit_memory(void* addr, size_t size) {
 	int result = mprotect(addr, size, PROT_READ | PROT_WRITE);
 	if (!result) {
 		return addr;
@@ -50,26 +57,26 @@ void* commit_virtual_memory(void* addr, size_t size) {
 	}
 }
 
-void* allocate_virtual_memory(size_t size) {
-	return mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, HANDLE_NULL, 0);
+CORE_MEMORY_FUNC void* sys_alloc_memory(size_t size) {
+	return mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 }
 
-void free_virtual_memory(void* addr, size_t size) {
+CORE_MEMORY_FUNC void sys_free_memory(void* addr, size_t size) {
 	munmap(addr, size);
 }
 
-void zero_memory(void* addr, size_t size) {
-	u8* p = addr;
-	u8* end = p+size;
+CORE_MEMORY_FUNC void sys_zero_memory(void* addr, size_t size) {
+	uint8_t* p = addr;
+	uint8_t* end = p+size;
 	while(p<end) {
 		*p++ = 0;
 	}
 }
 
-void copy_memory(void* dest, void* src, size_t size) {
-	u8* out = dest;
-	u8* in = src;
-	u8* end = out+size;
+CORE_MEMORY_FUNC void sys_copy_memory(void* dest, void* src, size_t size) {
+	uint8_t* out = dest;
+	uint8_t* in = src;
+	uint8_t* end = out+size;
 	while(out<end) {
 		*out++ = *in++;
 	}
@@ -95,7 +102,7 @@ int sync_swap32(void *ptr, int swap) {
 	return __sync_lock_test_and_set((long volatile*)ptr, swap);
 }
 
-b32 sync_compare_swap32(void *ptr, int cmp, int swap) {
+_Bool sync_compare_swap32(void *ptr, int cmp, int swap) {
 	return __sync_val_compare_and_swap((long volatile*)ptr, swap, cmp) == cmp;
 }
 
@@ -120,7 +127,7 @@ void core_message_box(char* msg, char* caption, int type) {
 
 
 // Time and Dates
-time_t system_time() {
+CORE_TIME_FUNC time_t sys_time() {
 	// number of 100-nanosecond intervals
 	// FILETIME time;
 	// GetSystemTimeAsFileTime(&time);
@@ -142,23 +149,7 @@ time_t system_time() {
 	return result;
 }
 
-char* format_time(time_t timestamp) {
-	// char d[64];
-	// char t[64];
-	// if (!time.msec) {
-	// 	GetDateFormatA(LOCALE_SYSTEM_DEFAULT, 0, NULL, "ddd, dd MMM yyyy", d, 64);
-	// 	GetTimeFormatA(LOCALE_SYSTEM_DEFAULT, 0, NULL, "HH:mm:ss", t, 64);
-	// } else {
-	// 	u64 nsec100 = time.msec * 10000;
-	// 	FILETIME ft = *(FILETIME*)&nsec100;
-	// 	SYSTEMTIME st;
-	// 	FileTimeToSystemTime(&ft, &st);
-	// 	GetDateFormatA(LOCALE_SYSTEM_DEFAULT, 0, &st, "ddd, dd MMM yyyy", d, 64);
-	// 	GetTimeFormatA(LOCALE_SYSTEM_DEFAULT, 0, &st, "HH:mm:ss", t, 64);
-	// }
-	// char* result = s_format("%s %s GMT", d, t);
-	// return result;
-
+CORE_TIME_FUNC char* sys_format_time(time_t timestamp) {
 	char* months[] = {
 		"January",
 		"February",
@@ -224,79 +215,100 @@ char* format_time(time_t timestamp) {
 		date->tm_min,
 		date->tm_sec);
 
-	char* result = malloc(str_len(buffer));
+	// Todo: EW
+	char* result = malloc(strlen(buffer));
 	strcpy(result, buffer);
 	return result;
 }
 
 
 // Files
-b32 file_valid(file_t file) {
+_Bool _sys_valid_handle(file_t file) {
 	return (file != -1);
 }
 
-#define _print_file_error()\
-	print_error("%s: %s", path, strerror(errno))
+// #define _print_file_error()\
+// 	print_error("%s: %s", path, strerror(errno))
 
-file_t file_open(char* path) {
+CORE_FILE_FUNC file_t sys_open(char* path) {
 	int handle = open(path, O_RDWR);
-	if(handle == HANDLE_NULL) {
-		if (errno != EACCES) {
-			_print_file_error();
-		}
+	if (handle == 0) {
+		// Note: Somehow we got stdout,
+		// dup new handle so 0 can be NULL
+		int newFd = dup(handle);
+		close(handle);
+		handle = newFd;
+	}
+	if(!_sys_valid_handle(handle)) {
+		sys_print_err(strerror(errno));
+		sys_print_err(": ");
+		sys_print_err(path);
+		sys_print_err("\n");
+		// if (errno != EACCES) {
+		// }
+		return 0;
 	}
 	return handle;
 }
 
-file_t file_create(char* path) {
+CORE_FILE_FUNC file_t sys_create(char* path) {
 	int handle = open(path, O_RDWR | O_CREAT, 0644);
-	if(handle == HANDLE_NULL) {
-		_print_file_error();
+	if (handle == 0) {
+		// Note: Somehow we got stdout,
+		// dup new handle so 0 can be NULL
+		int newFd = dup(handle);
+		close(handle);
+		handle = newFd;
+	}
+	if(!_sys_valid_handle(handle)) {
+		// _print_file_error();
+		sys_print_err(strerror(errno));
+		return 0;
 	}
 	return handle;
 }
 
-b32 file_read(file_t file, size_t offset, void* buffer, size_t size) {
+CORE_FILE_FUNC _Bool sys_read(file_t file, size_t offset, void* buffer, size_t size) {
 	int result = pread(file, buffer, size, offset);
 	if (result == -1) {
-		print_error(strerror(errno));
+		sys_print_err(strerror(errno));
 		return FALSE;
 	}
 	if (result != size) {
-		print_error(strerror(errno));
+		sys_print_err(strerror(errno));
 		return FALSE;
 	}
 	return result;
 }
 
-b32 file_write(file_t file, size_t offset, void* buffer, size_t size) {
+CORE_FILE_FUNC _Bool sys_write(file_t file, size_t offset, void* buffer, size_t size) {
 	int result = pwrite(file, buffer, size, offset);
 	if (result == -1) {
-		print_error(strerror(errno));
+		sys_print_err(strerror(errno));
 		return FALSE;
 	}
 	if (result != size) {
-		print_error(strerror(errno));
+		sys_print_err(strerror(errno));
 		return FALSE;
 	}
 	return result;
 }
 
-b32 file_truncate(file_t file, size_t size) {
+CORE_FILE_FUNC _Bool sys_truncate(file_t file, size_t size) {
     int result = ftruncate(file, size);
     if (result != 0) {
-        print_error(strerror(errno));
+        sys_print_err(strerror(errno));
 		return FALSE;
     }
     return TRUE;
 }
 
-stat_t file_stat(file_t file) {
+CORE_FILE_FUNC stat_t sys_stat(file_t file) {
 	stat_t result = {0};
 	struct stat stats;
 	int stat_result = fstat(file, &stats);
 	if (stat_result == -1) {
-		print_error(strerror(errno));
+		sys_print_err(strerror(errno));
 		return result;
 	}
 	result.created = 0;
@@ -314,31 +326,48 @@ stat_t file_stat(file_t file) {
 	return result;
 }
 
-void file_close(file_t file) {
-	if(file) {
+CORE_FILE_FUNC void sys_close(file_t file) {
+	if(file != -1) {
 		close(file);
 	}
 }
 
-file_t file_open_dir(char* path) {
+CORE_FILE_FUNC file_t sys_open_dir(char* path) {
 	int handle = open(path, O_RDONLY | O_DIRECTORY);
-	if(handle == HANDLE_NULL) {
-		if (errno != EACCES) {
-			_print_file_error();
-		}
+	if (handle == 0) {
+		// Note: Somehow we got stdout,
+		// dup new handle so 0 can be NULL
+		int newFd = dup(handle);
+		close(handle);
+		handle = newFd;
+	}
+	if(!_sys_valid_handle(handle)) {
+		// if (errno != EACCES) {
+		// 	_print_file_error();
+		// }
+		sys_print_err(strerror(errno));
+		return 0;
 	}
 	return handle;
 }
 
-file_t file_create_dir(char* path) {
+CORE_FILE_FUNC file_t sys_create_dir(char* path) {
 	int handle = open(path, O_RDONLY | O_CREAT | O_DIRECTORY);
-	if(handle == HANDLE_NULL) {
-		_print_file_error();
+	if (handle == 0) {
+		// Note: Somehow we got stdout,
+		// dup new handle so 0 can be NULL
+		int newFd = dup(handle);
+		close(handle);
+		handle = newFd;
+	}
+	if(!_sys_valid_handle(handle)) {
+		// _print_file_error();
+		sys_print_err(strerror(errno));
 	}
 	return handle;
 }
 
-int file_list_dir(char* path, b32 recursive, stat_t* output, int length) {
+CORE_FILE_FUNC int sys_list_dir(char* path, _Bool recursive, stat_t* output, int length) {
 	int output_index = 0;
 
 	DIR* dir = opendir(path);
@@ -349,7 +378,7 @@ int file_list_dir(char* path, b32 recursive, stat_t* output, int length) {
 				char dirpath[256];
 				char* name = ent->d_name;
 				snprintf(dirpath, 256, "%s/%s", path, name);
-				output_index += file_list_dir(
+				output_index += sys_list_dir(
 					dirpath,
 					TRUE,
 					output+output_index,
@@ -373,17 +402,17 @@ int file_list_dir(char* path, b32 recursive, stat_t* output, int length) {
 	return output_index;
 }
 
-char* file_current_dir(char* output, size_t size) {
+CORE_FILE_FUNC char* sys_current_dir(char* output, size_t size) {
 	return getcwd(output, size);
 }
 
-void file_change_dir(char* path) {
+CORE_FILE_FUNC void sys_change_dir(char* path) {
 	chdir(path);
 }
 
 
 // Dynamic libraries
-dylib_t load_dynamic_library(char *file) {
+CORE_DYLIB_FUNC dylib_t sys_load_lib(char *file) {
 	dylib_t lib;
 	char path[256];
 // #ifdef __MACOS__
@@ -395,23 +424,33 @@ dylib_t load_dynamic_library(char *file) {
 
 	snprintf(path, 255, file, file);
 
-	file_t test = file_open(path);
-	if (!test) print_error("Unable to open library: %s", path);
-	else {
-		print("Found library: %s", path);
-		file_close(test);
+	file_t test = sys_open(path);
+	if (!test) {
+		// print_error("Unable to open library: %s", path);
+		sys_print_err("Unable to open library: ");
+		sys_print_err(path);
+		sys_print_err("\n");
+	} else {
+		// print("Found library: %s", path);
+		sys_print_err("Found library: ");
+		sys_print_err(path);
+		sys_print_err("\n");
+		sys_close(test);
 	}
 
 	lib.handle = dlopen(path, RTLD_LAZY);
 
 	if (!lib.handle) {
 		char* error = dlerror();
-		print_error("Error loading library: %s", error);
+		// print_error("Error loading library: %s", error);
+		sys_print_err("Error loading library: ");
+		sys_print_err(error);
+		sys_print_err("\n");
 	}
 
 	return lib;
 }
 
-void *load_library_proc(dylib_t lib, char *proc) {
+CORE_DYLIB_FUNC void *sys_load_lib_sym(dylib_t lib, char *proc) {
 	return dlsym(lib.handle, proc);
 }
