@@ -1,7 +1,4 @@
 //
-//  core.h
-//  Core
-//
 //  Created by Matt Hartley on 02/09/2023.
 //  Copyright 2023 GiantJelly. All rights reserved.
 //

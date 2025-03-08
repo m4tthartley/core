@@ -10,35 +10,47 @@
 #define __CORE_FONT_HEADER__
 
 
-#include "core.h"
+// #include "core.h"
+#include <stdint.h>
 
 
 typedef struct {
 	char a;
 	char b;
-	u8 value;
+	uint8_t value;
 } font_kern_t;
 
 typedef struct {
-    u8 x;
-    u8 y;
+    uint8_t x;
+    uint8_t y;
 } font_kern_result_t;
 
 typedef struct {
-	u64 data[128];
+	uint64_t data[128];
 	struct {
-		u8 offsets[128];
+		uint8_t offsets[128];
 		font_kern_t* pairs;
 		int pair_count;
 	} kerning;
 } embedded_font_t;
 
+uint8_t font_get_kerning_pair(embedded_font_t* font, char a, char b);
+font_kern_result_t font_get_kerning(embedded_font_t* font, char a, char b);
+
+
+#endif
+
+
+#ifdef CORE_IMPL
+#	ifndef __CORE_FONT_HEADER_IMPL__
+#	define __CORE_FONT_HEADER_IMPL__
+
 
 #include "../tools/bin/font_data.h"
 
 
-u8 font_get_kerning_pair(embedded_font_t* font, char a, char b) {
-    FOR (i, font->kerning.pair_count) {
+uint8_t font_get_kerning_pair(embedded_font_t* font, char a, char b) {
+    for (int i=0; i<font->kerning.pair_count; ++i) {
         font_kern_t* kern = font->kerning.pairs + i;
         if (kern->a == a && kern->b == b) {
             return kern->value;
@@ -49,11 +61,11 @@ u8 font_get_kerning_pair(embedded_font_t* font, char a, char b) {
 }
 
 font_kern_result_t font_get_kerning(embedded_font_t* font, char a, char b) {
-    u8 xkern = font->kerning.offsets[a] >> 4;
-    u8 ykern = font->kerning.offsets[a] & 0xF;
+    uint8_t xkern = font->kerning.offsets[a] >> 4;
+    uint8_t ykern = font->kerning.offsets[a] & 0xF;
 
     if (b) {
-        u8 kern_pair = font_get_kerning_pair(font, a, b);
+        uint8_t kern_pair = font_get_kerning_pair(font, a, b);
         xkern += kern_pair;
     }
 
@@ -61,4 +73,5 @@ font_kern_result_t font_get_kerning(embedded_font_t* font, char a, char b) {
 }
 
 
+#	endif
 #endif

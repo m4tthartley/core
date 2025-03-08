@@ -17,13 +17,7 @@
 
 #include <dlfcn.h>
 
-// #include "core.h"
-// #define CORE_IMPL
 #include "system.h"
-
-// #define HANDLE_NULL (-1)
-// #define HANDLE_STDOUT STDOUT_FILENO
-
 
 // char* error_with_source_location(char* errstr, char* file, int line_number) {
 // 	char* buffer = malloc(64);
