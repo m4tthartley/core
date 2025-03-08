@@ -18,6 +18,7 @@
 #include <dlfcn.h>
 
 // #include "core.h"
+// #define CORE_IMPL
 #include "system.h"
 
 // #define HANDLE_NULL (-1)
@@ -34,12 +35,16 @@
 
 
 void sys_print(char* str) {
-	
+	write(STDOUT_FILENO, str, strlen(str));
 }
 
 void sys_print_err(char* str) {
 	// int fd = open()
+	char* esc_red = "\x1B[1;91m";
+	char* esc_reset = "\x1B[0m";
+	write(STDERR_FILENO, esc_red, strlen(esc_red));
 	write(STDERR_FILENO, str, strlen(str));
+	write(STDERR_FILENO, esc_reset, strlen(esc_reset));
 }
 
 
@@ -268,28 +273,26 @@ CORE_FILE_FUNC file_t sys_create(char* path) {
 	return handle;
 }
 
-CORE_FILE_FUNC _Bool sys_read(file_t file, size_t offset, void* buffer, size_t size) {
-	int result = pread(file, buffer, size, offset);
+CORE_FILE_FUNC size_t sys_read(file_t file, size_t offset, void* buffer, size_t size) {
+	ssize_t result = pread(file, buffer, size, offset);
 	if (result == -1) {
 		sys_print_err(strerror(errno));
-		return FALSE;
+		return 0;
 	}
 	if (result != size) {
 		sys_print_err(strerror(errno));
-		return FALSE;
 	}
 	return result;
 }
 
-CORE_FILE_FUNC _Bool sys_write(file_t file, size_t offset, void* buffer, size_t size) {
-	int result = pwrite(file, buffer, size, offset);
+CORE_FILE_FUNC size_t sys_write(file_t file, size_t offset, void* buffer, size_t size) {
+	ssize_t result = pwrite(file, buffer, size, offset);
 	if (result == -1) {
 		sys_print_err(strerror(errno));
-		return FALSE;
+		return 0;
 	}
 	if (result != size) {
 		sys_print_err(strerror(errno));
-		return FALSE;
 	}
 	return result;
 }
@@ -298,9 +301,9 @@ CORE_FILE_FUNC _Bool sys_truncate(file_t file, size_t size) {
     int result = ftruncate(file, size);
     if (result != 0) {
         sys_print_err(strerror(errno));
-		return FALSE;
+		return _False;
     }
-    return TRUE;
+    return _True;
 }
 
 CORE_FILE_FUNC stat_t sys_stat(file_t file) {
@@ -320,7 +323,7 @@ CORE_FILE_FUNC stat_t sys_stat(file_t file) {
 #endif
 	result.size = stats.st_size;
 	if ((stats.st_mode & S_IFMT) == S_IFDIR) {
-		result.is_directory = TRUE;
+		result.is_directory = _True;
 	}
 
 	return result;
@@ -380,7 +383,7 @@ CORE_FILE_FUNC int sys_list_dir(char* path, _Bool recursive, stat_t* output, int
 				snprintf(dirpath, 256, "%s/%s", path, name);
 				output_index += sys_list_dir(
 					dirpath,
-					TRUE,
+					_True,
 					output+output_index,
 					length-output_index);
 				continue;

@@ -19,8 +19,10 @@
 #define CORE_DYLIB_FUNC
 #define CORE_TIME_FUNC
 
-// #define TRUE (1)
-// #define FALSE (0)
+#undef _True
+#undef _False
+#define _True ((_Bool)1)
+#define _False ((_Bool)0)
 
 #define MAX_PATH_LENGTH 256
 
@@ -77,13 +79,13 @@ typedef _Bool thread_barrier_t;
 inline void thread_lock_barrier(volatile thread_barrier_t* barrier) {
 	int num = 0;
 	// Todo: what size are these working with?
-	while (!__sync_bool_compare_and_swap((long volatile*)barrier, (_Bool)1, (_Bool)0)) {
+	while (!__sync_bool_compare_and_swap((long volatile*)barrier, _True, _False)) {
 		++num;
 	}
 }
 
 inline void thread_unlock_barrier(volatile thread_barrier_t* barrier) {
-	__sync_lock_test_and_set((long volatile*)barrier, (_Bool)0);
+	__sync_lock_test_and_set((long volatile*)barrier, _False);
 }
 
 
@@ -152,8 +154,8 @@ CORE_TIME_FUNC char* sys_format_time(time_t timestamp);
 // FILES
 CORE_FILE_FUNC file_t	sys_open(char* path);
 CORE_FILE_FUNC file_t	sys_create(char* path);
-CORE_FILE_FUNC _Bool	sys_read(file_t file, size_t offset, void* buffer, size_t size);
-CORE_FILE_FUNC _Bool	sys_write(file_t file, size_t offset, void* buffer, size_t size);
+CORE_FILE_FUNC size_t	sys_read(file_t file, size_t offset, void* buffer, size_t size);
+CORE_FILE_FUNC size_t	sys_write(file_t file, size_t offset, void* buffer, size_t size);
 CORE_FILE_FUNC _Bool	sys_truncate(file_t file, size_t size);
 CORE_FILE_FUNC stat_t	sys_stat(file_t file);
 CORE_FILE_FUNC void		sys_close(file_t file);
@@ -172,8 +174,9 @@ typedef struct {
 	void* handle;
 #endif
 } dylib_t;
-dylib_t load_dynamic_library(char *file);
-void *load_library_proc(dylib_t lib, char *proc);
+
+CORE_DYLIB_FUNC dylib_t sys_load_lib(char *file);
+CORE_DYLIB_FUNC void *sys_load_lib_sym(dylib_t lib, char *proc);
 
 // Directory watcher definitions
 #ifdef __WIN32__

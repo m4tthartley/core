@@ -1,10 +1,8 @@
 //
-//  platform_win32.c
-//  Core
-//
-//  Created by Matt Hartley on 13/11/2023.
+//  Created by Matt Hartley on 26/10/2023.
 //  Copyright 2023 GiantJelly. All rights reserved.
 //
+
 
 #include <winsock2.h>
 #define WIN32_LEAN_AND_MEAN
