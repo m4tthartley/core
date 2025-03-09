@@ -7,7 +7,7 @@
 #define __CORE_VIDEO_HEADER__
 
 
-// #include "core.h"
+#include <stdint.h>
 
 
 #define CORE_VIDEO_FUNC
@@ -47,15 +47,23 @@ enum {
 	WINDOW_RESIZEABLE = (1<<5),
 };
 
+enum {
+	SYS_MODIFIER_KEY_COMMAND = (1<<0),
+	SYS_MODIFIER_KEY_OPTION = (1<<1),
+	SYS_MODIFIER_KEY_CONTROL = (1<<2),
+	SYS_MODIFIER_KEY_SHIFT = (1<<3),
+};
+
 typedef struct {
 	_Bool down;
 	_Bool pressed;
 	_Bool released;
-} button_t;
+	uint8_t modifiers;
+} sys_button_t;
 
 typedef struct {
-	button_t keys[256];
-} keyboard_t;
+	sys_button_t keys[256];
+} sys_keyboard_t;
 
 typedef struct {
 	struct {
@@ -66,10 +74,10 @@ typedef struct {
 		int x;
 		int y;
 	} pos_dt;
-	button_t left;
-	button_t right;
+	sys_button_t left;
+	sys_button_t right;
 	int wheel_dt;
-} mouse_t;
+} sys_mouse_t;
 
 typedef struct {
 #if defined(__SDL__)
@@ -86,8 +94,15 @@ typedef struct {
 	_Bool quit;
 	_Bool flags;
 	_Bool active;
-	button_t keyboard[256];
-	mouse_t mouse;
+
+	sys_mouse_t mouse;
+	sys_button_t keyboard[256];
+	struct {
+		sys_button_t command;
+		sys_button_t option;
+		sys_button_t control;
+		sys_button_t shift;
+	} modifier_keys;
 
 #	ifdef __APPLE__
 	void* sysApp;
@@ -98,7 +113,7 @@ typedef struct {
 #	ifdef __WIN32__
 	HWND sysWindow;
 #	endif
-} window_t;
+} sys_window_t;
 
 
 // _Bool start_window(window_t* window, char* title, int width, int height, int flags);
@@ -106,9 +121,10 @@ typedef struct {
 // void update_window(window_t* window);
 // void opengl_swap_buffers(window_t* window);
 
-CORE_VIDEO_FUNC window_t sys_init_window(char* title, int width, int height, int flags);
+CORE_VIDEO_FUNC sys_window_t sys_init_window(char* title, int width, int height, int flags);
+CORE_VIDEO_FUNC void sys_poll_events(sys_window_t* win);
 
-static inline void _update_button(button_t *button, _Bool new_state) {
+static inline void _update_button(sys_button_t *button, _Bool new_state) {
 	button->pressed = new_state && !button->down;
 	button->released = !new_state && button->down;
 	button->down = new_state;
