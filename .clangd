@@ -1,0 +1,10 @@
+
+CompileFlags:
+  Add: [-xobjective-c, -DCORE_IMPL]
+
+InlayHints:
+  Enabled: No
+  ParameterNames: NO
+
+Diagnostics:
+  Suppress: "pp_including_mainfile_in_preamble"
