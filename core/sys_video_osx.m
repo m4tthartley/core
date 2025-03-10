@@ -40,10 +40,6 @@ void _sys_video_print(char* str) {
 
 
 CORE_VIDEO_FUNC sys_window_t sys_init_window(char* title, int width, int height, int flags) {
-	// int sys_objc_state_size = sizeof(sys_objc_state_t);
-	// assert(sizeof(sys.objc_state) >= sys_objc_state_size);
-	// sys_objc_state_t* state = (sys_objc_state_t*)sys.objc_state;
-
 	sys_window_t result = {
 		.width = width,
 		.height = height,
@@ -52,8 +48,6 @@ CORE_VIDEO_FUNC sys_window_t sys_init_window(char* title, int width, int height,
 
 	NSApplication* app = [[NSApplication sharedApplication] retain];
 	[app setActivationPolicy: NSApplicationActivationPolicyRegular];
-	// AppDelegate* delegate = [[AppDelegate alloc] init];
-	// [video.app setDelegate: delegate];
 
 	NSWindowStyleMask style = NSWindowStyleMaskClosable;
 	if (flags & WINDOW_RESIZEABLE) {
@@ -74,10 +68,8 @@ CORE_VIDEO_FUNC sys_window_t sys_init_window(char* title, int width, int height,
 		backing: NSBackingStoreBuffered
 		defer: NO
 	] retain];
-	// video.window = window;
 
 	[window setDelegate: delegate];
-	// NSRect frame = NSMakeRect(0, 0, video.screenSize.x, video.screenSize.y);
 	if (flags & WINDOW_CENTERED) {
 		[window center];
 	}
@@ -106,25 +98,26 @@ CORE_VIDEO_FUNC void sys_poll_events(sys_window_t* win) {
 		_update_button(win->keyboard+i, win->keyboard[i].down);
 	}
 
-	// _update_button(&win->mouse.left, win->mouse.left.down);
-	// _update_button(&win->mouse.right, win->mouse.right.down);
-	NSUInteger mouseButtonMask = [NSEvent pressedMouseButtons];
-	_update_button(&win->mouse.left, mouseButtonMask & (1<<0));
-	_update_button(&win->mouse.right, mouseButtonMask & (1<<1));
+	_update_button(&win->mouse.left, win->mouse.left.down);
+	_update_button(&win->mouse.right, win->mouse.right.down);
+	// NSUInteger mouseButtonMask = [NSEvent pressedMouseButtons];
+	// _update_button(&win->mouse.left, mouseButtonMask & (1<<0));
+	// _update_button(&win->mouse.right, mouseButtonMask & (1<<1));
 
-	NSPoint mousePos = [NSEvent mouseLocation];
-	// mousePos = [state->window convertScreenToBase: mousePos]; // needed for old mac versions
-	mousePos = [window convertPointFromScreen: mousePos];
-	win->mouse.pos_dt.x = mousePos.x - win->mouse.pos.x;
-	win->mouse.pos_dt.y = mousePos.y - win->mouse.pos.y;
-	win->mouse.pos.x = mousePos.x;
-	win->mouse.pos.y = mousePos.y;
+	// NSPoint mousePos = [NSEvent mouseLocation];
+	// // mousePos = [state->window convertScreenToBase: mousePos]; // needed for old mac versions
+	// mousePos = [window convertPointFromScreen: mousePos];
+	// win->mouse.pos_dt.x = mousePos.x - win->mouse.pos.x;
+	// win->mouse.pos_dt.y = mousePos.y - win->mouse.pos.y;
+	// win->mouse.pos.x = mousePos.x;
+	// win->mouse.pos.y = mousePos.y;
+
+	win->mouse.pos_dt.x = 0;
+	win->mouse.pos_dt.y = 0;
 	win->mouse.wheel_dt = 0;
 
 	NSEvent* event;
 	while ((event = [app nextEventMatchingMask: NSEventMaskAny untilDate: nil inMode: NSDefaultRunLoopMode dequeue: YES])) {
-		// print("event %i", event.type);
-
 		switch (event.type) {
 			case NSEventTypeKeyDown:
 			case NSEventTypeKeyUp: {
@@ -155,18 +148,34 @@ CORE_VIDEO_FUNC void sys_poll_events(sys_window_t* win) {
 				win->keyboard[keyCode].modifiers = modifierKeys;
 			} break;
 
-			// case NSEventTypeLeftMouseDown: {
-			// 	_update_button(&win->mouse.left, _True);
-			// } break;
-			// case NSEventTypeLeftMouseUp: {
-			// 	_update_button(&win->mouse.left, _False);
-			// } break;
-			// case NSEventTypeRightMouseDown: {
-			// 	_update_button(&win->mouse.right, _True);
-			// } break;
-			// case NSEventTypeRightMouseUp: {
-			// 	_update_button(&win->mouse.right, _False);
-			// } break;
+			case NSEventTypeLeftMouseDown:
+			case NSEventTypeRightMouseDown: {
+				uint32_t button = [event buttonNumber];
+				if (button < 2) {
+					_update_button(&win->mouse.buttons[button], _True);
+				}
+
+				[NSApp sendEvent: event];
+			} break;
+			case NSEventTypeLeftMouseUp:
+			case NSEventTypeRightMouseUp: {
+				uint32_t button = [event buttonNumber];
+				if (button < 2) {
+					_update_button(&win->mouse.buttons[button], _False);
+				}
+
+				[NSApp sendEvent: event];
+			} break;
+
+			case NSEventTypeMouseMoved: {
+				if ([event window]) {
+					NSPoint pos = [event locationInWindow];
+					win->mouse.pos.x = pos.x;
+					win->mouse.pos.y = pos.y;
+				}
+				win->mouse.pos_dt.x = [event deltaX];
+				win->mouse.pos_dt.y = [event deltaY];
+			} break;
 
 			case NSEventTypeScrollWheel: {
 				win->mouse.wheel_dt += [event scrollingDeltaY];
@@ -199,36 +208,28 @@ CORE_VIDEO_FUNC void sys_poll_events(sys_window_t* win) {
 		}
 
 		// [app updateWindows];
-
-		
-
-		// if (event.type == NSEventTypeApplicationDefined) {
-		// 	exit(1);
-		// }
-
-		// if (event.type == NSEventTypeKeyDown) {
-		// 	assert(event.keyCode < 256);
-		// 	_update_button(&win->keyboard[event.keyCode], TRUE);
-		// }
-		// if (event.type == NSEventTypeKeyUp) {
-		// 	assert(event.keyCode < 256);
-		// 	_update_button(&win->keyboard[event.keyCode], FALSE);
-		// }
-
-		// if (event.type == NSEventTypeLeftMouseDown) {
-		// 	_update_button(&win->mouse.left, TRUE);
-		// }
-		// if (event.type == NSEventTypeLeftMouseUp) {
-		// 	_update_button(&win->mouse.left, FALSE);
-		// }
-		// if (event.type == NSEventTypeRightMouseDown) {
-		// 	_update_button(&win->mouse.left, TRUE);
-		// }
-		// if (event.type == NSEventTypeRightMouseUp) {
-		// 	_update_button(&win->mouse.left, FALSE);
-		// }
-		
-		// [app sendEvent: event];
-		// [app updateWindows];
 	}
+}
+
+CORE_VIDEO_FUNC _Bool sys_message_box(char* title, char* msg, char* yesOption, char* noOption) {
+	NSAlert* alert = [[NSAlert alloc] init];
+	[alert setMessageText: [NSString stringWithUTF8String: title]];
+	[alert setInformativeText: [NSString stringWithUTF8String: msg]];
+	[alert addButtonWithTitle: [NSString stringWithUTF8String: yesOption]];
+	if (noOption) {
+		[alert addButtonWithTitle: [NSString stringWithUTF8String: noOption]];
+	}
+	[alert setAlertStyle: NSAlertStyleWarning];
+
+	NSModalResponse result = [alert runModal];
+	[alert release];
+
+	if (result == NSAlertFirstButtonReturn) {
+		return _True;
+	}
+	if (result == NSAlertSecondButtonReturn) {
+		return _False;
+	}
+
+	return _False;
 }

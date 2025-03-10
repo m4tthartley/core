@@ -74,8 +74,13 @@ typedef struct {
 		int x;
 		int y;
 	} pos_dt;
-	sys_button_t left;
-	sys_button_t right;
+	union {
+		struct {
+			sys_button_t left;
+			sys_button_t right;
+		};
+		sys_button_t buttons[2];
+	};
 	int wheel_dt;
 } sys_mouse_t;
 
@@ -123,6 +128,7 @@ typedef struct {
 
 CORE_VIDEO_FUNC sys_window_t sys_init_window(char* title, int width, int height, int flags);
 CORE_VIDEO_FUNC void sys_poll_events(sys_window_t* win);
+CORE_VIDEO_FUNC _Bool sys_message_box(char* title, char* msg, char* yesOption, char* noOption);
 
 static inline void _update_button(sys_button_t *button, _Bool new_state) {
 	button->pressed = new_state && !button->down;
@@ -212,7 +218,7 @@ typedef enum {
 // #	include "system_posix.h"
 // #endif
 #ifdef __APPLE__
-#	include "sys_video_apple.m"
+#	include "sys_video_osx.m"
 #endif
 #ifdef __LINUX__
 #	include "sys_video_linux.h"
