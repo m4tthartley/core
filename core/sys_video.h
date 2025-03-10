@@ -112,6 +112,9 @@ typedef struct {
 #	ifdef __APPLE__
 	void* sysApp;
 	void* sysWindow;
+	void* mtlDevice;
+	void* mtlLayer;
+	void* mtlCommandQueue;
 #	endif
 #	ifdef __LINUX__
 #	endif
@@ -129,6 +132,8 @@ typedef struct {
 CORE_VIDEO_FUNC sys_window_t sys_init_window(char* title, int width, int height, int flags);
 CORE_VIDEO_FUNC void sys_poll_events(sys_window_t* win);
 CORE_VIDEO_FUNC _Bool sys_message_box(char* title, char* msg, char* yesOption, char* noOption);
+
+CORE_VIDEO_FUNC void sys_init_metal(sys_window_t* win);
 
 static inline void _update_button(sys_button_t *button, _Bool new_state) {
 	button->pressed = new_state && !button->down;

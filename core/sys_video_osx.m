@@ -5,6 +5,8 @@
 
 // #include <AppKit/AppKit.h>
 #include <Cocoa/Cocoa.h>
+#include <Metal/Metal.h>
+#include <QuartzCore/CAMetalLayer.h>
 #include <unistd.h>
 
 #include "sys_video.h"
@@ -232,4 +234,47 @@ CORE_VIDEO_FUNC _Bool sys_message_box(char* title, char* msg, char* yesOption, c
 	}
 
 	return _False;
+}
+
+@interface SysVideoMetalView : NSView
+@end
+@implementation SysVideoMetalView
+
+- (instancetype) initWithFrame: (NSRect) frame {
+	self = [super initWithFrame: frame];
+	if (self) {
+		self.wantsLayer = YES;
+	}
+	return self;
+}
+
+@end
+
+void _sys_init_metal_cocoa_view(sys_window_t* win) {
+	NSWindow* window = win->sysWindow;
+
+	NSRect frame = NSMakeRect(0, 0, win->width, win->height);
+	SysVideoMetalView* metalView = [[[SysVideoMetalView alloc] initWithFrame: frame] retain];
+	[window setContentView: metalView];
+}
+
+CORE_VIDEO_FUNC void sys_init_metal(sys_window_t* win) {
+	_sys_init_metal_cocoa_view(win);
+
+	NSWindow* window = win->sysWindow;
+
+	id<MTLDevice> device = [MTLCreateSystemDefaultDevice() retain];
+	CAMetalLayer* layer = [CAMetalLayer layer];
+
+	layer.device = device;
+	layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+	layer.framebufferOnly = YES;
+	layer.frame = window.contentView.bounds;
+	layer.drawableSize = window.contentView.bounds.size;
+
+	id<MTLCommandQueue> commandQueue = [[device newCommandQueue] retain];
+
+	win->mtlDevice = device;
+	win->mtlLayer = layer;
+	win->mtlCommandQueue = commandQueue;
 }
