@@ -216,10 +216,10 @@ int wait_for_directory_changes(directory_watcher_t* watcher, file_change_t* outp
 
 
 #ifdef __POSIX__
-#	include "system_posix.h"
+#	include "sys_posix.h"
 #endif
 #ifdef __APPLE__
-#	include "system_apple.h"
+#	include "sys_apple.h"
 #endif
 // #ifdef __LINUX__
 // #	include "system_linux.h"

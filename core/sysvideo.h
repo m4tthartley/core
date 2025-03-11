@@ -219,11 +219,8 @@ typedef enum {
 #	define __CORE_VIDEO_HEADER_IMPL__
 
 
-// #ifdef __POSIX__
-// #	include "system_posix.h"
-// #endif
 #ifdef __APPLE__
-#	include "sys_video_osx.m"
+#	include "sysvideo_osx.m"
 #endif
 #ifdef __LINUX__
 #	include "sys_video_linux.h"

@@ -8,7 +8,7 @@
 
 #include <dlfcn.h>
 
-#include "system.h"
+#include "sys.h"
 
 
 // Dynamic libraries
