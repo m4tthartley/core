@@ -9,7 +9,7 @@
 #include <dlfcn.h>
 #include <objc/runtime.h>
 
-#include "system.h"
+#include "sys.h"
 #include "core.h"
 
 typedef void (*reload_entry_point_func_t)();

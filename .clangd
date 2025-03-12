@@ -1,6 +1,6 @@
 
 CompileFlags:
-  Add: [-xobjective-c, -DCORE_IMPL]
+  Add: [-xobjective-c, -DCORE_IMPL, -D__EDITOR__]
 
 InlayHints:
   Enabled: No

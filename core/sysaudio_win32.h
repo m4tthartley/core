@@ -6,7 +6,15 @@
 //  Copyright 2023 GiantJelly. All rights reserved.
 //
 
-#include "audio.h"
+#include "sysaudio.h"
+
+#define COBJMACROS
+#include <initguid.h>
+#include <mmdeviceapi.h>
+#include <audioclient.h>
+
+_Bool wasapi_init_audio(core_audio_t* audio);
+DWORD _wasapi_audio_thread(void* arg);
 
 u32 terminate_threads = 0;
 
@@ -22,7 +30,7 @@ b32 core_init_audio(core_audio_t* audio, CORE_AUDIO_MIXER_PROC mixer_proc, u32 f
 	b32 wasapi_result = wasapi_init_audio(audio);
 
 	if (wasapi_result) {
-		CreateThread(0, 0, wasapi_audio_thread, audio, 0, 0);
+		CreateThread(0, 0, _wasapi_audio_thread, audio, 0, 0);
 		return TRUE;
 	}
 }
@@ -42,7 +50,7 @@ void core_play_sound(core_audio_t* audio, audio_buffer_t* buffer, float volume) 
 	}
 }
 
-void CORE_AUDIO_DEFAULT_MIXER_PROC(audio_sample_t* output, size_t sample_count, void* userp) {
+void sysaudio_default_mixer(audio_sample_t* output, size_t sample_count, void* userp) {
 	core_audio_t* audio = userp;
 	memset(output, 0, sample_count * sizeof(audio_sample_t));
 
@@ -201,7 +209,7 @@ done:
 	return FALSE;
 }
 
-DWORD wasapi_audio_thread(void* arg) {
+DWORD _wasapi_audio_thread(void* arg) {
 	core_audio_t* audio = (core_audio_t*)arg;
 	HRESULT hr;
 	// TODO sort out the error handling dude
