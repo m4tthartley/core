@@ -35,6 +35,8 @@ OSStatus _AURenderCallback(
 
 _Bool sys_init_audio(sysaudio_t* audio, sysaudio_spec_t spec) {
 	*audio = (sysaudio_t){0};
+	audio->spec = spec;
+	audio->spec.mixer = NULL;
 
 	AudioComponentDescription desc = {
 		.componentType = kAudioUnitType_Output,
@@ -88,9 +90,28 @@ _Bool sys_init_audio(sysaudio_t* audio, sysaudio_spec_t spec) {
 
 	AudioUnitInitialize(outputUnit);
 	AudioOutputUnitStart(outputUnit);
+	audio->outputUnit = outputUnit;
+
+	return _True;
 
 init_audio_err:
 	return _False;
+}
+
+void sys_set_audio_callback(sysaudio_t* audio, SYSAUDIO_MIXER_PROC mixer) {
+	AudioUnit outputUnit = audio->outputUnit;
+
+	AURenderCallbackStruct callback;
+	callback.inputProc = _AURenderCallback;
+	callback.inputProcRefCon = audio;
+	AudioUnitSetProperty(
+		outputUnit,
+		kAudioUnitProperty_SetRenderCallback,
+		kAudioUnitScope_Input,
+		0,
+		&callback,
+		sizeof(callback)
+	);
 }
 
 void sys_play_sound(sysaudio_t* audio, audio_buffer_t* buffer, float volume) {

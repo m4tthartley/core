@@ -43,6 +43,10 @@ typedef struct {
 
 hotreload_t hotreload = {0};
 
+void _hotreload_print(char* str) {
+	write(STDOUT_FILENO, str, strlen(str));
+}
+
 u64 _get_file_modified_time(char* filename) {
 	u64 result;
 	file_t file = sys_open(filename);
@@ -57,7 +61,7 @@ u64 _get_file_modified_time(char* filename) {
 }
 
 void _reload_load_lib() {
-	hotreload.lib = dlopen(hotreload.libFilename, RTLD_LOCAL | RTLD_LAZY);
+	hotreload.lib = dlopen(hotreload.libFilename, RTLD_LOCAL | RTLD_NOW);
 	if (!hotreload.lib) {
 		print_error("Library file failed to load: %s", hotreload.libFilename);
 		exit(1);
@@ -78,6 +82,15 @@ void _reload_load_lib() {
 			sys_copy_memory(libPtr, hotreload.libState[i].tmpPtr, hotreload.libState[i].size);
 		}
 	}
+
+	_hotreload_print(hotreload.libFilename);
+	_hotreload_print(" loaded \n");
+
+	char* err = dlerror();
+	if (err) {
+		_hotreload_print(err);
+		_hotreload_print("\n");
+	}
 }
 
 void _reload_unload_lib() {
@@ -97,6 +110,12 @@ void _reload_unload_lib() {
 
 	if (hotreload.lib) {
 		dlclose(hotreload.lib);
+	}
+
+	char* err = dlerror();
+	if (err) {
+		_hotreload_print(err);
+		_hotreload_print("\n");
 	}
 }
 
@@ -125,6 +144,7 @@ void reload_update() {
 		hotreload.libModifiedTime = modifiedTime;
 
 		// RELOAD
+		_hotreload_print("Hotreloading... \n");
 		_reload_unload_lib();
 		_reload_load_lib();
 	}
@@ -151,6 +171,8 @@ void reload_run_func(char* name, void* data) {
 		print_error("Failed to load state pointer: %s", name);
 		exit(1);
 	}
+
+	printf("%s = %p \n", name, libPtr);
 
 	assert(hotreload.libFuncCount < 64);
 	hotreload.libFuncs[hotreload.libFuncCount].name = name;
