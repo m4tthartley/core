@@ -129,7 +129,7 @@ typedef struct {
 // void update_window(window_t* window);
 // void opengl_swap_buffers(window_t* window);
 
-CORE_VIDEO_FUNC sys_window_t sys_init_window(char* title, int width, int height, int flags);
+CORE_VIDEO_FUNC _Bool sys_init_window(sys_window_t* win, char* title, int width, int height, int flags);
 CORE_VIDEO_FUNC void sys_poll_events(sys_window_t* win);
 CORE_VIDEO_FUNC _Bool sys_message_box(char* title, char* msg, char* yesOption, char* noOption);
 

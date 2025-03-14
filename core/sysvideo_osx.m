@@ -41,7 +41,7 @@ void _sys_video_print(char* str) {
 @end
 
 
-CORE_VIDEO_FUNC sys_window_t sys_init_window(char* title, int width, int height, int flags) {
+CORE_VIDEO_FUNC _Bool sys_init_window(sys_window_t* win, char* title, int width, int height, int flags) {
 	sys_window_t result = {
 		.width = width,
 		.height = height,
@@ -81,10 +81,12 @@ CORE_VIDEO_FUNC sys_window_t sys_init_window(char* title, int width, int height,
 	result.sysApp = app;
 	result.sysWindow = window;
 	result.active = TRUE;
-	return result;
+	
+	*win = result;
+	return _True;
 
 init_window_err:
-	return (sys_window_t){0};
+	return _False;
 }
 
 CORE_VIDEO_FUNC void sys_poll_events(sys_window_t* win) {

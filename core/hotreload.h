@@ -6,8 +6,11 @@
 #ifndef __COREHOTRELOAD__
 #define __COREHOTRELOAD__
 
+
 #include <dlfcn.h>
 #include <objc/runtime.h>
+#include <unistd.h>
+#include <string.h>
 
 #include "sys.h"
 #include "core.h"
@@ -17,29 +20,38 @@ typedef struct {
 	char* name;
 	// void* exePtr;
 	void* tmpPtr;
-	u32 size;
+	uint32_t size;
 } hotreload_lib_state_t;
 typedef struct {
 	char* name;
 	void (*func)(void* data);
 } hotreload_lib_func_t;
 typedef struct {
-	b32 active;
-	b32 init;
-	u64 libModifiedTime;
-	char libFilename[MAX_PATH_LENGTH];
+	_Bool active;
+	_Bool init;
+	uint64_t libModifiedTime;
+	char libFilename[256];
 	void* lib;
 	reload_entry_point_func_t libEntryPoint;
-	b32 (*reload)();
+	_Bool (*reload)();
 	hotreload_lib_state_t libState[64];
 	int libStateCount;
 	hotreload_lib_func_t libFuncs[64];
 	int libFuncCount;
 } hotreload_t;
 
+void reload_init(char* libName);
+void reload_update();
+void reload_register_state(char* name, void* ptr, uint32_t size);
+void reload_run_func(char* name, void* data);
+
+
 #endif
 
 #ifdef CORE_IMPL
+#	ifndef __COREHOTRELOAD_IMPL__
+#	define __COREHOTRELOAD_IMPL__
+
 
 hotreload_t hotreload = {0};
 
@@ -47,11 +59,13 @@ void _hotreload_print(char* str) {
 	write(STDOUT_FILENO, str, strlen(str));
 }
 
-u64 _get_file_modified_time(char* filename) {
-	u64 result;
+uint64_t _get_file_modified_time(char* filename) {
+	uint64_t result;
 	file_t file = sys_open(filename);
 	if (!file) {
-		print_error("Library file not found: %s", filename);
+		_hotreload_print("Library file not found: ");
+		_hotreload_print(filename);
+		_hotreload_print("\n");
 		exit(1);
 	}
 	stat_t stat = sys_stat(file);
@@ -63,7 +77,9 @@ u64 _get_file_modified_time(char* filename) {
 void _reload_load_lib() {
 	hotreload.lib = dlopen(hotreload.libFilename, RTLD_LOCAL | RTLD_NOW);
 	if (!hotreload.lib) {
-		print_error("Library file failed to load: %s", hotreload.libFilename);
+		_hotreload_print("Library file failed to load: ");
+		_hotreload_print(hotreload.libFilename);
+		_hotreload_print("\n");
 		exit(1);
 	}
 	// hotreload.libEntryPoint = dlsym(hotreload.lib, "main");
@@ -72,11 +88,13 @@ void _reload_load_lib() {
 	// 	exit(1);
 	// }
 
-	FOR (i, hotreload.libStateCount) {
+	for (int i=0; i<hotreload.libStateCount; ++i) {
 		if (hotreload.libState[i].tmpPtr) {
 			void* libPtr = dlsym(hotreload.lib, hotreload.libState[i].name);
 			if (!libPtr) {
-				print_error("Failed to load state pointer: %s", hotreload.libState[i].name);
+				_hotreload_print("Failed to load state pointer: ");
+				_hotreload_print(hotreload.libState[i].name);
+				_hotreload_print("\n");
 				exit(1);
 			}
 			sys_copy_memory(libPtr, hotreload.libState[i].tmpPtr, hotreload.libState[i].size);
@@ -94,10 +112,12 @@ void _reload_load_lib() {
 }
 
 void _reload_unload_lib() {
-	FOR (i, hotreload.libStateCount) {
+	for (int i=0; i<hotreload.libStateCount; ++i) {
 		void* libPtr = dlsym(hotreload.lib, hotreload.libState[i].name);
 		if (!libPtr) {
-			print_error("Failed to load state pointer: %s", hotreload.libState[i].name);
+			_hotreload_print("Failed to load state pointer: ");
+			_hotreload_print(hotreload.libState[i].name);
+			_hotreload_print("\n");
 			exit(1);
 		}
 		if (!hotreload.libState[i].tmpPtr) {
@@ -139,7 +159,7 @@ void reload_init(char* libName) {
 }
 
 void reload_update() {
-	u64 modifiedTime = _get_file_modified_time(hotreload.libFilename);
+	uint64_t modifiedTime = _get_file_modified_time(hotreload.libFilename);
 	if (modifiedTime > hotreload.libModifiedTime) {
 		hotreload.libModifiedTime = modifiedTime;
 
@@ -238,4 +258,6 @@ void reload_run_func(char* name, void* data) {
 // 	}
 // }
 
+
+#	endif
 #endif

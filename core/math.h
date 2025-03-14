@@ -296,6 +296,8 @@ CORE_MATH_FUNC float fbm (vec2_t st);
 
 
 #ifdef CORE_IMPL
+#	ifndef __CORE_MATH_HEADER_IMPL__
+#	define __CORE_MATH_HEADER_IMPL__
 
 
 // CONSTRUCTORS
@@ -1039,4 +1041,5 @@ CORE_MATH_FUNC float fbm (vec2_t st) {
 }
 
 
+#	endif
 #endif
