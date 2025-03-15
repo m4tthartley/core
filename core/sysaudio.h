@@ -241,7 +241,7 @@ void sysaudio_default_mixer(void* sysaudio, void* buffer, size_t sampleCount) {
 			// 	sound->cursor += 2.0f;
 			// }
 
-			audio_sample16_t* soundData = sound->buffer->data;
+			audio_sample16_t* soundData = (audio_sample16_t*)sound->buffer->data;
 			for (int i=0; i<samplesToMix; ++i) {
 				// audio_sample32_t sample = _mix_sample32_from_sample16(soundData, sound->cursor);
 				audio_sample32_t sample = _mix_sample32(sound->buffer, sound->cursor);

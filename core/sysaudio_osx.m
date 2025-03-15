@@ -28,7 +28,11 @@ OSStatus _AURenderCallback(
 	AudioBufferList* data
 ) {
 	sysaudio_t* audio = refCon;
-	sysaudio_default_mixer(audio, data->mBuffers[0].mData, numFrames);
+	if (data->mBuffers[0].mData) {
+		sysaudio_default_mixer(audio, data->mBuffers[0].mData, numFrames);
+	} else {
+		_sys_audio_print("AURenderCallback buffer is NULL \n");
+	}
 
 	return noErr;
 }
