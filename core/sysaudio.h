@@ -93,7 +93,6 @@ typedef enum {
 } sysaudio_sample_size_t;
 
 typedef struct {
-	SYSAUDIO_MIXER_PROC mixer;
 	sysaudio_sample_rate_t sampleRate;
 	sysaudio_sample_size_t sampleSize;
 } sysaudio_spec_t;
@@ -114,6 +113,7 @@ typedef struct {
 	
 	// SYSAUDIO_MIXER_PROC mixer;
 	sysaudio_spec_t spec;
+	_Atomic SYSAUDIO_MIXER_PROC mixer;
 	void* dataForMixer;
 	
 	audio_sound_t sounds[64];
@@ -122,9 +122,11 @@ typedef struct {
 	_Bool reload;
 } sysaudio_t;
 
-#define SYSAUDIO_DEFAULT_SPEC ((sysaudio_spec_t){ .mixer=sysaudio_default_mixer, .sampleRate=44100/*176400*/, .sampleSize=4 })
+#define SYSAUDIO_DEFAULT_SPEC ((sysaudio_spec_t){ .sampleRate=44100/*176400*/, .sampleSize=4 })
 
 _Bool sys_init_audio(sysaudio_t* audio, sysaudio_spec_t spec);
+void sys_start_audio(sysaudio_t* audio);
+void sys_stop_audio(sysaudio_t* audio);
 void sys_set_audio_callback(sysaudio_t* audio, SYSAUDIO_MIXER_PROC mixer);
 void sys_play_sound(sysaudio_t* audio, audio_buffer_t* buffer, float volume);
 void sysaudio_default_mixer(void* sysaudio, void* output, size_t sample_count);
@@ -172,7 +174,7 @@ audio_sample32_t _mix_sample32(audio_buffer_t* buffer, float cursor) {
 	int shiftAmount = (4-buffer->sampleSize)*8;
 	int index0 = cursor;
 	int index1 = index0 + 1;
-	int stride = buffer->sampleSize*2*2;
+	int stride = buffer->sampleSize*2;
 	float t = cursor - floorf(cursor);
 
 	int32_t* left0Raw = (int32_t*)(buffer->data + index0*stride);
@@ -248,11 +250,12 @@ void sysaudio_default_mixer(void* sysaudio, void* buffer, size_t sampleCount) {
 				audio_sample32_t* output = buffer;
 				output[i].left += sample.left * sound->volume;
 				output[i].right += sample.right * sound->volume;
-				sound->cursor += sampleRateRatio;
+				sound->cursor += sampleRateRatio * 1.0f;
 			}
 
-			if ((int)sound->cursor >= (sound->buffer->sampleCount*sound->buffer->channels)) {
-				sound->buffer = NULL;
+			if ((int)sound->cursor >= (sound->buffer->sampleCount)) {
+				// sound->buffer = NULL;
+				sound->cursor -= sound->buffer->sampleCount;
 			}
 		}
 	}

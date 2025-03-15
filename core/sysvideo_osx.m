@@ -125,25 +125,25 @@ CORE_VIDEO_FUNC void sys_poll_events(sys_window_t* win) {
 		switch (event.type) {
 			case NSEventTypeKeyDown:
 			case NSEventTypeKeyUp: {
-				_sys_video_print("key event");
+				// _sys_video_print("key event");
 				uint32_t keyCode = [event keyCode];
 				assert(keyCode < 256);
 				uint32_t modifierFlags = [event modifierFlags];
 				uint8_t modifierKeys = 0;
 				if (modifierFlags & /*NSCommandKeyMask*/ NSEventModifierFlagCommand) {
-					_sys_video_print("Command modifier\n");
+					// _sys_video_print("Command modifier\n");
 					modifierKeys |= SYS_MODIFIER_KEY_COMMAND;
 				}
 				if (modifierFlags & /*NSAlternateKeyMask*/ NSEventModifierFlagOption) {
-					_sys_video_print("Option modifier\n");
+					// _sys_video_print("Option modifier\n");
 					modifierKeys |= SYS_MODIFIER_KEY_OPTION;
 				}
 				if (modifierFlags & /*NSControlKeyMask*/ NSEventModifierFlagControl) {
-					_sys_video_print("Control modifier\n");
+					// _sys_video_print("Control modifier\n");
 					modifierKeys |= SYS_MODIFIER_KEY_CONTROL;
 				}
 				if (modifierFlags & /*NSShiftKeyMask*/ NSEventModifierFlagShift) {
-					_sys_video_print("Shift modifier\n");
+					// _sys_video_print("Shift modifier\n");
 					modifierKeys |= SYS_MODIFIER_KEY_SHIFT;
 				}
 
@@ -186,19 +186,19 @@ CORE_VIDEO_FUNC void sys_poll_events(sys_window_t* win) {
 			} break;
 
 			case /*NSFlagsChanged*/ NSEventTypeFlagsChanged: {
-				_sys_video_print("NSFlagsChanged\n");
+				// _sys_video_print("NSFlagsChanged\n");
 				uint32_t modifierFlags = [event modifierFlags];
 				if (modifierFlags & /*NSCommandKeyMask*/ NSEventModifierFlagCommand) {
-					_sys_video_print("Command modifier\n");
+					// _sys_video_print("Command modifier\n");
 				}
 				if (modifierFlags & /*NSAlternateKeyMask*/ NSEventModifierFlagOption) {
-					_sys_video_print("Option modifier\n");
+					// _sys_video_print("Option modifier\n");
 				}
 				if (modifierFlags & /*NSControlKeyMask*/ NSEventModifierFlagControl) {
-					_sys_video_print("Control modifier\n");
+					// _sys_video_print("Control modifier\n");
 				}
 				if (modifierFlags & /*NSShiftKeyMask*/ NSEventModifierFlagShift) {
-					_sys_video_print("Shift modifier\n");
+					// _sys_video_print("Shift modifier\n");
 				}
 
 				_update_button(&win->modifier_keys.command, modifierFlags & NSEventModifierFlagCommand);

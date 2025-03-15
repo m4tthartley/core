@@ -17,7 +17,7 @@
 typedef void (*reload_entry_point_func_t)();
 typedef struct {
 	char* name;
-	// void* exePtr;
+	void* libPtr;
 	void* tmpPtr;
 	uint32_t size;
 } hotreload_lib_state_t;
@@ -37,11 +37,15 @@ typedef struct {
 	int libStateCount;
 	hotreload_lib_func_t libFuncs[64];
 	int libFuncCount;
+
+	/*atomic*/ _Bool libLoaded;
 } hotreload_t;
 
 void reload_init(char* libName);
-void reload_update();
+_Bool reload_check_lib_modified();
+void reload_reload();
 void reload_register_state(char* name, void* ptr, uint32_t size);
+void* reload_get_state_ptr(char* name);
 void reload_run_func(char* name, void* data);
 
 
@@ -65,7 +69,7 @@ uint64_t _get_file_modified_time(char* filename) {
 		_hotreload_print("Library file not found: ");
 		_hotreload_print(filename);
 		_hotreload_print("\n");
-		exit(1);
+		return 0;
 	}
 	stat_t stat = sys_stat(file);
 	result = stat.modified;
@@ -74,6 +78,10 @@ uint64_t _get_file_modified_time(char* filename) {
 }
 
 void _reload_load_lib() {
+	_hotreload_print("Loading lib: ");
+	_hotreload_print(hotreload.libFilename);
+	_hotreload_print("\n");
+
 	hotreload.lib = dlopen(hotreload.libFilename, RTLD_LOCAL | RTLD_NOW);
 	if (!hotreload.lib) {
 		_hotreload_print("Library file failed to load: ");
@@ -96,6 +104,7 @@ void _reload_load_lib() {
 				_hotreload_print("\n");
 				exit(1);
 			}
+			hotreload.libState[i].libPtr = libPtr;
 			sys_copy_memory(libPtr, hotreload.libState[i].tmpPtr, hotreload.libState[i].size);
 		}
 	}
@@ -136,6 +145,13 @@ void _reload_unload_lib() {
 		_hotreload_print(err);
 		_hotreload_print("\n");
 	}
+
+	// Check if it's unloaded
+	// void* ptr = dlsym(hotreload.lib, hotreload.libState[0].name);
+	// if (ptr) {
+	// 	_hotreload_print("Lib hasn't been unloaded successfully \n");
+	// }
+
 }
 
 void _reload_update_lib_state(void* lib) {
@@ -157,24 +173,46 @@ void reload_init(char* libName) {
 	_reload_load_lib();
 }
 
-void reload_update() {
+_Bool reload_check_lib_modified() {
 	uint64_t modifiedTime = _get_file_modified_time(hotreload.libFilename);
-	if (modifiedTime > hotreload.libModifiedTime) {
+	if (modifiedTime && modifiedTime > hotreload.libModifiedTime) {
 		hotreload.libModifiedTime = modifiedTime;
-
-		// RELOAD
-		_hotreload_print("Hotreloading... \n");
-		_reload_unload_lib();
-		_reload_load_lib();
+		return _True;
 	}
+
+	return _False;
 }
+
+void reload_reload() {
+	_hotreload_print("Hotreloading... \n");
+	_reload_unload_lib();
+	_reload_load_lib();
+}
+
+// void reload_update() {
+// 	if (reload_check_lib_modified()) {
+// 		// RELOAD
+		
+// 	}
+// }
 
 void reload_register_state(char* name, void* ptr, u32 size) {
 	assert(hotreload.libStateCount < 64);
-	hotreload.libState[hotreload.libStateCount].name = name;
+	hotreload_lib_state_t* state = hotreload.libState + hotreload.libStateCount++;
+	state->name = name;
 	// hotreload.libState[hotreload.libStateCount].exePtr = ptr;
-	hotreload.libState[hotreload.libStateCount].size = size;
-	++hotreload.libStateCount;
+	state->size = size;
+	state->libPtr = dlsym(hotreload.lib, state->name);
+}
+
+void* reload_get_state_ptr(char* name) {
+	for (int i=0; i<hotreload.libStateCount; ++i) {
+		if (str_compare(name, hotreload.libState[i].name)) {
+			return hotreload.libState[i].libPtr;
+		}
+	}
+
+	return NULL;
 }
 
 void reload_run_func(char* name, void* data) {

@@ -5,6 +5,7 @@
 
 #include <AudioToolbox/AudioToolbox.h>
 #include <CoreAudioTypes/CoreAudioTypes.h>
+#include <stdatomic.h>
 
 #include "sysaudio.h"
 
@@ -28,8 +29,15 @@ OSStatus _AURenderCallback(
 	AudioBufferList* data
 ) {
 	sysaudio_t* audio = refCon;
+
+	SYSAUDIO_MIXER_PROC mixer = atomic_load(&audio->mixer);
+	if (!mixer) {
+		return noErr;
+	}
+
 	if (data->mBuffers[0].mData) {
-		sysaudio_default_mixer(audio, data->mBuffers[0].mData, numFrames);
+		// sysaudio_default_mixer(audio, data->mBuffers[0].mData, numFrames);
+		audio->mixer(audio, data->mBuffers[0].mData, numFrames);
 	} else {
 		_sys_audio_print("AURenderCallback buffer is NULL \n");
 	}
@@ -40,7 +48,7 @@ OSStatus _AURenderCallback(
 _Bool sys_init_audio(sysaudio_t* audio, sysaudio_spec_t spec) {
 	*audio = (sysaudio_t){0};
 	audio->spec = spec;
-	audio->spec.mixer = NULL;
+	// audio->spec.mixer = NULL;
 
 	AudioComponentDescription desc = {
 		.componentType = kAudioUnitType_Output,
@@ -80,20 +88,6 @@ _Bool sys_init_audio(sysaudio_t* audio, sysaudio_spec_t spec) {
 		sizeof(streamDesc)
 	);
 
-	AURenderCallbackStruct callback;
-	callback.inputProc = _AURenderCallback;
-	callback.inputProcRefCon = audio;
-	AudioUnitSetProperty(
-		outputUnit,
-		kAudioUnitProperty_SetRenderCallback,
-		kAudioUnitScope_Input,
-		0,
-		&callback,
-		sizeof(callback)
-	);
-
-	AudioUnitInitialize(outputUnit);
-	AudioOutputUnitStart(outputUnit);
 	audio->outputUnit = outputUnit;
 
 	return _True;
@@ -102,20 +96,45 @@ init_audio_err:
 	return _False;
 }
 
-void sys_set_audio_callback(sysaudio_t* audio, SYSAUDIO_MIXER_PROC mixer) {
-	AudioUnit outputUnit = audio->outputUnit;
-
+void sys_start_audio(sysaudio_t* audio) {
 	AURenderCallbackStruct callback;
 	callback.inputProc = _AURenderCallback;
 	callback.inputProcRefCon = audio;
 	AudioUnitSetProperty(
-		outputUnit,
+		audio->outputUnit,
 		kAudioUnitProperty_SetRenderCallback,
 		kAudioUnitScope_Input,
 		0,
 		&callback,
 		sizeof(callback)
 	);
+
+	AudioUnitInitialize(audio->outputUnit);
+
+	AudioOutputUnitStart(audio->outputUnit);
+}
+
+void sys_stop_audio(sysaudio_t* audio) {
+	AudioOutputUnitStop(audio->outputUnit);
+}
+
+void sys_set_audio_callback(sysaudio_t* audio, SYSAUDIO_MIXER_PROC mixer) {
+	// AudioUnit outputUnit = audio->outputUnit;
+
+	// AURenderCallbackStruct callback;
+	// callback.inputProc = _AURenderCallback;
+	// callback.inputProcRefCon = audio;
+	// AudioUnitSetProperty(
+	// 	outputUnit,
+	// 	kAudioUnitProperty_SetRenderCallback,
+	// 	kAudioUnitScope_Input,
+	// 	0,
+	// 	&callback,
+	// 	sizeof(callback)
+	// );
+
+	// atomic_compare_exchange_strong(object, expected, desired)
+	atomic_exchange(&audio->mixer, mixer);
 }
 
 void sys_play_sound(sysaudio_t* audio, audio_buffer_t* buffer, float volume) {
