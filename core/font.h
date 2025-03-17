@@ -1,7 +1,4 @@
 //
-//  font.h
-//  Embedded Fonts
-//
 //  Created by Matt Hartley on 18/06/2024.
 //  Copyright 2024 GiantJelly. All rights reserved.
 //

@@ -10,6 +10,28 @@
 #define __CORE_OPENGL_EXTENSIONS_HEADER__
 
 
+#include "platforms.h"
+
+#	if defined(__WIN32__) || defined(__LINUX__)
+
+
+#ifdef __WIN32__
+#   include <gl/gl.h>
+#endif
+#ifdef __LINUX__
+#   include <gl/gl.h>
+#endif
+#ifdef __MACOS__
+#	include <TargetConditionals.h>
+#	if TARGET_OS_IPHONE
+#		include <OpenGLES/ES3/gl.h>
+#	else
+#		define GL_SILENCE_DEPRECATION
+#		include <OpenGL/gl.h>
+#	endif
+#endif
+
+
 #ifndef APIENTRY
 #	define APIENTRY
 #endif
@@ -175,4 +197,5 @@ void _load_opengl_extensions() {
 }
 
 
+#	endif
 #endif

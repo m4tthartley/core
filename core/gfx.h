@@ -20,6 +20,7 @@
 #include "math.h"
 // #include "opengl_extensions.h"
 #include "font.h"
+#include "sysvideo.h"
 
 #ifdef __WIN32__
 #   include <gl/gl.h>
@@ -109,17 +110,19 @@ void gfx_draw_sprite_tile(v2 pos, int tile);
 void gfx_circle(vec2_t pos, f32 size, int segments);
 void gfx_line_circle(vec2_t pos, f32 size, int segments);
 void gfx_line(vec2_t start, vec2_t end);
-void gfx_text(window_t* window, vec2_t pos, char* str, ...);
+void gfx_text(sys_window_t* window, vec2_t pos, char* str, ...);
 void gfx_draw_text_centered(embedded_font_t* font, vec2_t pos, char* str);
 void gfx_draw_text(embedded_font_t* font, vec2_t _pos, char* str);
 void gfx_draw_text_internal(embedded_font_t* font, vec2_t pos, char* str);
 
 
+#endif
+
+
 #ifdef CORE_IMPL
+#	ifndef __CORE_GFX_HEADER_IMPL__
+#	define __CORE_GFX_HEADER_IMPL__
 
-
-#include "video.h"
-#include "math.h"
 
 gfx_texture_t* _gfx_active_texture = NULL;
 // vec2_t _gfx_coord_system = {1.0f, 1.0f};
@@ -173,7 +176,7 @@ bitmap_t* load_bitmap_file(allocator_t* allocator, char* filename) {
 	rowSize = ((header->colorDepth*header->bitmapWidth+31) / 32) * 4;
 
 	// Possibly check whether to alloc or push
-	bitmap_t* result = alloc_memory_in(allocator, sizeof(bitmap_t) + sizeof(u32)*header->bitmapWidth*header->bitmapHeight);
+	bitmap_t* result = alloc_memory(allocator, sizeof(bitmap_t) + sizeof(u32)*header->bitmapWidth*header->bitmapHeight);
 	result->size = header->size;
 	result->width = header->bitmapWidth;
 	result->height = header->bitmapHeight;
@@ -283,8 +286,8 @@ gfx_texture_t gfx_create_texture(bitmap_t* bitmap) {
 }
 
 gfx_texture_t gfx_generate_font_texture(allocator_t* allocator, embedded_font_t* font) {
-    bitmap_t* bitmap = alloc_memory_in(allocator, sizeof(bitmap_t)+128*64*sizeof(u32));
-    zero_memory(bitmap->data, 128*64*sizeof(u32));
+    bitmap_t* bitmap = alloc_memory(allocator, sizeof(bitmap_t)+128*64*sizeof(u32));
+    sys_zero_memory(bitmap->data, 128*64*sizeof(u32));
     FOR (c, 128) {
         int charx = c%16 * 8;
 		int chary = c/(16) * 8;
@@ -301,7 +304,7 @@ gfx_texture_t gfx_generate_font_texture(allocator_t* allocator, embedded_font_t*
     bitmap->height = 64;
     bitmap->size = bitmap->width + bitmap->height;
     gfx_texture_t texture = gfx_create_texture(bitmap);
-    free_memory_in(allocator, bitmap);
+    free_memory(allocator, bitmap);
     return texture;
 }
 
@@ -500,7 +503,7 @@ void gfx_line(vec2_t start, vec2_t end) {
 	glEnd();
 }
 
-void gfx_text(window_t* window, vec2_t pos, char* str, ...) {
+void gfx_text(sys_window_t* window, vec2_t pos, char* str, ...) {
 	if (!_gfx_active_texture) {
 		print_error("gfx_text: No active texture");
 		return;
@@ -767,11 +770,11 @@ void gfx_bind_framebuffer(gfx_framebuffer_t* framebuffer) {
 	glViewport(0, 0, framebuffer->width, framebuffer->height);
 }
 
-void gfx_bind_window_framebuffer(window_t* window) {
+void gfx_bind_window_framebuffer(sys_window_t* window) {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glViewport(0, 0, window->width, window->height);
 }
 
 
-#endif
+#	endif
 #endif

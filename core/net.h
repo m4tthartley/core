@@ -13,6 +13,9 @@
 // #include <sys/socket.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
+#include <errno.h>
 
 
 enum {
@@ -35,7 +38,12 @@ typedef struct {
 } netsocket;
 
 
+#endif
+
+
 #ifdef CORE_IMPL
+#	ifndef __CORE_NET_HEADER_IMPL__
+#	define __CORE_NET_HEADER_IMPL__
 
 
 #include "core.h"
@@ -47,7 +55,7 @@ netport __net_prepare_port(int port) {
 	netport result = {
 		.value = port,
 	};
-	int length = snprintf(result.str, 6, "%hu", port);
+	int length = snprintf(result.str, 6, "%hu", (unsigned short)port);
 	if (length > 5) {
 		print_error("Port is too large");
 		return (netport){0};
@@ -175,36 +183,34 @@ netsocket net_server(u16 port, int flags) {
 // }
 
 netsocket net_accept(netsocket sock) {
+	netsocket conn = {0};
+
 	struct sockaddr_storage conn_addr;
 	socklen_t addrlen = sizeof(conn_addr);
-	socket_t conn = accept(sock.fd, (struct sockaddr*)&conn_addr, &addrlen);
-	if (conn == -1) {
+	conn.fd = accept(sock.fd, (struct sockaddr*)&conn_addr, &addrlen);
+	if (conn.fd == -1) {
 		print_error("accept failed");
 	}
 
-	netsocket result = {
-		.fd = conn
-	};
-
 	struct sockaddr_storage addr = {0};
 	socklen_t addr_len = sizeof(addr);
-	if (getpeername(conn, (struct sockaddr*)&addr, &addr_len) != -1) {
+	if (getpeername(conn.fd, (struct sockaddr*)&addr, &addr_len) != -1) {
 		// char buffer[INET6_ADDRSTRLEN];
 		if (addr.ss_family == AF_INET) {
 			struct sockaddr_in ipv4 = *(struct sockaddr_in*)&addr;
-			inet_ntop(AF_INET, &ipv4, result.ipstr, sizeof(result.ipstr));
+			inet_ntop(AF_INET, &ipv4, conn.ipstr, sizeof(conn.ipstr));
 			// print("ipv4 connection from %s", conn.ipstr);
 		}
 		if (addr.ss_family == AF_INET6) {
 			struct sockaddr_in6 ipv6 = *(struct sockaddr_in6*)&addr;
-			inet_ntop(AF_INET6, &ipv6, result.ipstr, sizeof(result.ipstr));
+			inet_ntop(AF_INET6, &ipv6, conn.ipstr, sizeof(conn.ipstr));
 			// print("ipv6 connection from %s", conn.ipstr);
 		}
 	} else {
 		print_error("getpeername error:");
 	}
 
-	return result;
+	return conn;
 }
 
 void net_conn_close(netsocket sock) {
@@ -299,5 +305,5 @@ void net_close(netsocket sock) {
 }
 
 
-#endif
+#	endif
 #endif
