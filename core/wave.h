@@ -74,7 +74,6 @@ void _downmix_24bit_samples(int numChannels, int numSamples, audio_sample32_t* o
 			double ch2f = ((ch2 & 0x800000) ? ch2 | 0xFF000000 : ch2) * 256.0;
 			double ch4f = ((ch4 & 0x800000) ? ch4 | 0xFF000000 : ch4) * 256.0;
 			double ch5f = ((ch5 & 0x800000) ? ch5 | 0xFF000000 : ch5) * 256.0;
-			// 4294967295 / 16777215 = 256 ish
 			
 			output[i].left = ch0f + (ch2f*0.7071) + (ch4f*0.7071);
 			output[i].right = ch1f + (ch2f*0.7071) + (ch5f*0.7071);
@@ -110,173 +109,126 @@ audio_buffer_t* sys_decode_wave(allocator_t* allocator, file_data_t* fileData) {
 	WavDataChunk *dataChunk = NULL;
 	char *f = (char*)(header + 1);
 
-	if (data) {
-		// Parse file and collect structures
-		while (f < (char*)data + fileData->stat.size) {
-			int id = *(int*)f;
-			u32 size = *(u32*)(f+4);
-			if (id == (('f'<<0)|('m'<<8)|('t'<<16)|(' '<<24))) {
-				format = (WavFormatChunk*)f;
+	if (!data) {
+		return NULL;
+	}
+
+	// Parse chunks
+	while (f < (char*)data + fileData->stat.size) {
+		int id = *(int*)f;
+		u32 size = *(u32*)(f+4);
+		if (id == (('f'<<0)|('m'<<8)|('t'<<16)|(' '<<24))) {
+			format = (WavFormatChunk*)f;
+		}
+		if (id == (('d'<<0)|('a'<<8)|('t'<<16)|('a'<<24))) {
+			dataChunk = (WavDataChunk*)f;
+			dataChunk->data = f + 8;
+		}
+		f += size + 8;
+	}
+
+	if (!format || !dataChunk) {
+		return NULL;
+	}
+
+	// Parse data
+	assert(
+		(format->formatTag==WAVE_FORMAT_TAG_PCM &&
+			(format->bitsPerSample==8 || format->bitsPerSample==16 || format->bitsPerSample==24 || format->bitsPerSample==32))
+		||
+		(format->formatTag==WAVE_FORMAT_TAG_PCM_FLOAT &&
+			(format->bitsPerSample==32 || format->bitsPerSample==64))
+	);
+
+	audio_buffer_t w = {0};
+	if (format->formatTag == WAVE_FORMAT_TAG_PCM) {
+		w.format = SYSAUDIO_FORMAT_NONE + (format->bitsPerSample/8);
+	} else {
+		if (format->bitsPerSample == 32) {
+			w.format = SYSAUDIO_FORMAT_FLOAT32;
+		} else {
+			w.format = SYSAUDIO_FORMAT_FLOAT64;
+		}
+	}
+	w.channels = 2;
+	w.sampleRate = format->samplesPerSec;
+	w.sampleSize = format->bitsPerSample / 8;
+	w.sampleCount = dataChunk->size / (w.channels * w.sampleSize);
+
+	audio_buffer_t* wave = alloc_memory(allocator, sizeof(audio_buffer_t) + (w.sampleCount * w.sampleSize * 2));
+	*wave = w;
+
+	print("Wave: format %i, ch%i, %ibit, %ihz", format->formatTag, format->channels, format->bitsPerSample, format->samplesPerSec);
+
+	for(int sindex=0; sindex<wave->sampleCount; ++sindex) {
+		if (format->formatTag == WAVE_FORMAT_TAG_PCM) {
+			int8_t* data = dataChunk->data;
+			if (format->channels > 5) {
+				int stride = wave->sampleSize*format->channels;
+				int shiftAmount = (4-wave->sampleSize)*8;
+				int32_t chScaled[6];
+				for (int chindex=0; chindex<6; ++chindex) {
+					int8_t* ch1Raw = data + sindex*stride+(wave->sampleSize*chindex);
+					int32_t chSigned = *(int32_t*)ch1Raw - (wave->sampleSize==1 ? 128 : 0);
+					chScaled[chindex] = chSigned << shiftAmount;
+				}
+				
+				float normCoef = 1.0f + 0.7071f + 0.7071f;
+				int32_t left = (chScaled[0] + (chScaled[2]*0.7071f) + (chScaled[4]*0.7071f)) / normCoef;
+				int32_t right = (chScaled[1] + (chScaled[2]*0.7071f) + (chScaled[5]*0.7071f)) / normCoef;
+				for (int byte=0; byte<wave->sampleSize; ++byte) {
+					wave->data[sindex*wave->sampleSize*2 + byte] = (left >> (shiftAmount + byte*8)) & 0xFF;
+					wave->data[sindex*wave->sampleSize*2 + wave->sampleSize+byte] = (right >> (shiftAmount + byte*8)) & 0xFF;
+				}
 			}
-			if (id == (('d'<<0)|('a'<<8)|('t'<<16)|('a'<<24))) {
-				dataChunk = (WavDataChunk*)f;
-				dataChunk->data = f + 8;
+			else if (format->channels > 1) {
+				for (int bi=0; bi<wave->sampleSize; ++bi) {
+					uint8_t l = data[sindex*wave->sampleSize*format->channels + bi];
+					uint8_t r = data[sindex*wave->sampleSize*format->channels + wave->sampleSize + bi];
+					wave->data[sindex*wave->sampleSize*2 + bi] = l;
+					wave->data[sindex*wave->sampleSize*2 + wave->sampleSize + bi] = r;
+				}
 			}
-			f += size + 8;
+			else if (format->channels == 1) {
+				for (int bi=0; bi<wave->sampleSize; ++bi) {
+					uint32_t m = data[sindex*wave->sampleSize*format->channels + bi];
+					wave->data[sindex*wave->sampleSize*2 + bi] = m;
+					wave->data[sindex*wave->sampleSize*2 + wave->sampleSize + bi] = m;
+				}
+			}
+
+
 		}
 
-		// assert(format->formatTag==WAVE_FORMAT_TAG_PCM || format->formatTag==WAVE_FORMAT_TAG_PCM_FLOAT);
-		assert(
-			(format->formatTag==WAVE_FORMAT_TAG_PCM &&
-			(format->bitsPerSample==8 || format->bitsPerSample==16 || format->bitsPerSample==24 || format->bitsPerSample==32))
-			||
-			(format->formatTag==WAVE_FORMAT_TAG_PCM_FLOAT && format->bitsPerSample==32)
-		);
-
-		audio_buffer_t* wave = alloc_memory(allocator, sizeof(audio_buffer_t) + dataChunk->size*2);
-
-		if (format && dataChunk) {
-			// assert(format->channels <= 2);
-			// assert(format->bitsPerSample == 16);
-			// assert(dataChunk->size ==);
-			// Possibly check whether to alloc or push
-			
-			wave->channels = 2;
-			wave->sampleRate = format->samplesPerSec;
-			wave->sampleSize = format->bitsPerSample / 8;
-			wave->sampleCount = dataChunk->size / (wave->channels * wave->sampleSize);
-
-			// if(format->channels == 1) {
-			// 	// TODO this is temporary solution
-			// 	if (wave->sampleSize == 1) {
-			// 		uint8_t* data = dataChunk->data;
-			// 		audio_sample8_t* output = (audio_sample8_t*)(wave + 1);
-			// 		FOR(i, wave->sampleCount) {
-			// 			output[i].left = data[i];
-			// 			output[i].right = data[i];
-			// 		}
-			// 	}
-			// 	if (wave->sampleSize == 2) {
-			// 		i16* raw_data = dataChunk->data;
-			// 		audio_sample16_t* output = (audio_sample16_t*)(wave + 1);
-			// 		FOR(i, wave->sampleCount) {
-			// 			output[i].left = raw_data[i];
-			// 			output[i].right = raw_data[i];
-			// 		}
-			// 	}
-			// 	if (wave->sampleSize == 3) {
-			// 		uint8_t* raw_data = dataChunk->data;
-			// 		audio_sample32_t* output = (audio_sample32_t*)(wave + 1);
-			// 		FOR(i, wave->sampleCount) {
-			// 			output[i].left = *((int32_t*)(raw_data+i*3)) & 0x00FFFFFF;
-			// 			output[i].right = *((int32_t*)(raw_data+i*3)) & 0x00FFFFFF;
-			// 		}
-			// 	}
-			// 	if (wave->sampleSize == 4) {
-			// 		i32* raw_data = dataChunk->data;
-			// 		audio_sample32_t* output = (audio_sample32_t*)(wave + 1);
-			// 		FOR(i, wave->sampleCount) {
-			// 			output[i].left = raw_data[i];
-			// 			output[i].right = raw_data[i];
-			// 		}
-			// 	}
-			// } else {
-			// 	// wave = alloc_memory(allocator, sizeof(audio_buffer_t) + dataChunk->size);
-			// 	memcpy(wave+1, dataChunk->data, dataChunk->size);
-			// 	wave->channels = format->channels;
-			// 	wave->sampleRate = format->samplesPerSec;
-			// 	wave->sampleSize = format->bitsPerSample / 8;
-			// 	wave->sampleCount = dataChunk->size / (wave->channels * wave->sampleSize);
-			// }
-
-#define		down_mix_channels()\
-			if (format->channels > 5) {\
-				print_inline("6 or more channels \n");\
-				FOR(i, wave->sampleCount) {\
-					output[i].left = data[0] + (data[2]*0.7071f) + (data[4]*0.7071f);\
-					output[i].right = data[1] + (data[2]*0.7071f) + (data[5]*0.7071f);\
-					data += format->channels;\
-				}\
-			} else if (format->channels >= 2) {\
-				print_inline("2 - 5 channels \n");\
-				FOR(i, wave->sampleCount) {\
-					output[i].left = data[0];\
-					output[i].right = data[1];\
-					data += format->channels;\
-				}\
-			} else if (format->channels == 1) {\
-				print_inline("1 channel \n");\
-				FOR(i, wave->sampleCount) {\
-					output[i].left = data[0];\
-					output[i].right = data[0];\
-					data += format->channels;\
-				}\
-			}
-
-// #define		down_mix_channels_24bit()\
-// 			if (format->channels > 5) {\
-// 			   FOR(i, wave->sampleCount) {\
-// 				   output[i].left = data[0] + (data[2]*0.7071f) + (data[4]*0.7071f);\
-// 				   output[i].right = data[1] + (data[2]*0.7071f) + (data[5]*0.7071f);\
-// 				   data += format->channels;\
-// 			   }\
-// 		   } else if (format->channels >= 2) {\
-// 			   FOR(i, wave->sampleCount) {\
-// 				   output[i].left = data[0];\
-// 				   output[i].right = data[1];\
-// 				   data += format->channels;\
-// 			   }\
-// 		   } else if (format->channels == 1) {\
-// 			   FOR(i, wave->sampleCount) {\
-// 				   output[i].left = data[0];\
-// 				   output[i].right = data[0];\
-// 				   data += format->channels;\
-// 			   }\
-// 		   }
-			
-			if (wave->sampleSize == 1) {
-				uint8_t* data = dataChunk->data;
-				audio_sample8_t* output = (audio_sample8_t*)(wave + 1);
-				// FOR(i, wave->sampleCount) {
-				// 	output[i].left = data[i];
-				// 	output[i].right = data[i];
-				// }
-				print_inline("downmixing 8bit, ");
-				down_mix_channels();
-			}
-			if (wave->sampleSize == 2) {
-				i16* data = dataChunk->data;
-				audio_sample16_t* output = (audio_sample16_t*)(wave + 1);
-
-				print_inline("downmixing 16bit, ");
-				down_mix_channels();
-			}
-			if (wave->sampleSize == 3) {
-				uint8_t* raw_data = dataChunk->data;
-				audio_sample32_t* output = (audio_sample32_t*)(wave + 1);
-				// FOR(i, wave->sampleCount) {
-				// 	output[i].left = *((int32_t*)(raw_data+i*3)) & 0x00FFFFFF;
-				// 	output[i].right = *((int32_t*)(raw_data+i*3)) & 0x00FFFFFF;
-				// }
-				print_inline("downmixing 24bit, ");
-				_downmix_24bit_samples(format->channels, wave->sampleCount, output, raw_data);
-			}
+		if (format->formatTag == WAVE_FORMAT_TAG_PCM_FLOAT) {
 			if (wave->sampleSize == 4) {
-				i32* raw_data = dataChunk->data;
-				audio_sample32_t* output = (audio_sample32_t*)(wave + 1);
-				// FOR(i, wave->sampleCount) {
-				// 	output[i].left = raw_data[i];
-				// 	output[i].right = raw_data[i];
-				// }
-				print_inline("downmixing 32bit, ");
-				down_mix_channels();
+				audio_sample_float32_t* output = (audio_sample_float32_t*)wave->data;
+				float* input = dataChunk->data;
+				if (format->channels > 1) {
+					output[sindex].left = input[sindex*format->channels];
+					output[sindex].right = input[sindex*format->channels+1];
+				}
+				else {
+					output[sindex].left = input[sindex*format->channels];
+					output[sindex].right = input[sindex*format->channels];
+				}
 			}
-
-			return wave;
+			if (wave->sampleSize == 8) {
+				audio_sample_float64_t* output = (audio_sample_float64_t*)wave->data;
+				double* input = dataChunk->data;
+				if (format->channels > 1) {
+					output[sindex].left = input[sindex*format->channels];
+					output[sindex].right = input[sindex*format->channels+1];
+				}
+				else {
+					output[sindex].left = input[sindex*format->channels];
+					output[sindex].right = input[sindex*format->channels];
+				}
+			}
 		}
 	}
 
-	return NULL;
+	return wave;
 }
 
 
