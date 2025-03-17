@@ -96,6 +96,7 @@ typedef struct {
 	audio_buffer_t* buffer;
 	double cursor;
 	float volume;
+	float fade;
 } audio_sound_t;
 
 typedef void (*SYSAUDIO_MIXER_PROC)(void* sysaudio, void* output, size_t sample_count);
@@ -199,6 +200,18 @@ audio_sample_float64_t _lerp_float_sample(audio_sample_float64_t a, audio_sample
 	return result;
 }
 
+double _clamp_sample(double sample) {
+	int clampValue = 0x7FFFFFFF;
+	if (sample > clampValue) {
+		return clampValue;
+	}
+	if (sample < -clampValue) {
+		return -clampValue;
+	}
+
+	return sample;
+}
+
 void _mix_sample(sysaudio_t* audio, uint8_t* output, audio_sound_t* sound) {
 	audio_buffer_t* buffer = sound->buffer;
 
@@ -228,21 +241,10 @@ void _mix_sample(sysaudio_t* audio, uint8_t* output, audio_sound_t* sound) {
 			left1Scaled = (*left1Raw - 128) << shiftAmount;
 			right1Scaled = (*right1Raw - 128) << shiftAmount;
 		} else {
-			int32_t left0Signed = *(int32_t*)left0Raw;
-			int32_t right0Signed = *(int32_t*)right0Raw;
-			int32_t left1Signed = *(int32_t*)left1Raw;
-			int32_t right1Signed = *(int32_t*)right1Raw;
-			// for (int i=0; i<buffer->sampleSize; ++i) {
-			// 	left0Signed |= left0Raw[i] << (i*8);
-			// 	right0Signed |= right0Raw[i] << (i*8);
-			// 	left1Signed |= left1Raw[i] << (i*8);
-			// 	right1Signed |= right1Raw[i] << (i*8);
-			// }
-
-			left0Scaled = left0Signed << shiftAmount;
-			right0Scaled = right0Signed << shiftAmount;
-			left1Scaled = left1Signed << shiftAmount;
-			right1Scaled = right1Signed << shiftAmount;
+			left0Scaled = *(int32_t*)left0Raw << shiftAmount;
+			right0Scaled = *(int32_t*)right0Raw << shiftAmount;
+			left1Scaled = *(int32_t*)left1Raw << shiftAmount;
+			right1Scaled = *(int32_t*)right1Raw << shiftAmount;
 		}
 
 		sample0 = (audio_sample_float64_t){
@@ -271,14 +273,51 @@ void _mix_sample(sysaudio_t* audio, uint8_t* output, audio_sound_t* sound) {
 		}
 	}
 
-	audio_sample_float64_t lerpedSample = _lerp_float_sample(sample0, sample1, t);
+	audio_sample_float64_t oldSample;
+	switch (audio->format) {
+		case SYSAUDIO_FORMAT_FLOAT32: {
+			audio_sample_float32_t* input = (audio_sample_float32_t*)output;
+			oldSample.left = input[index0].left * 0x7FFFFFFF;
+			oldSample.right = input[index0].right * 0x7FFFFFFF;
+		} break;
+		case SYSAUDIO_FORMAT_FLOAT64: {
+			audio_sample_float64_t* input = (audio_sample_float64_t*)output;
+			oldSample.left = input[index0].left * 0x7FFFFFFF;
+			oldSample.right = input[index0].right * 0x7FFFFFFF;
+		} break;
+		default: {
+			int shiftAmount = (4-audio->sampleSize)*8;
+			int stride = audio->sampleSize*2;
 
-	lerpedSample.left *= sound->volume;
-	lerpedSample.right *= sound->volume;
+			uint8_t* leftRaw = output;
+			uint8_t* rightRaw = output + audio->sampleSize;
+
+			int32_t leftScaled;
+			int32_t rightScaled;
+			if (sound->buffer->sampleSize==1) {
+				leftScaled = (*leftRaw - 128) << shiftAmount;
+				rightScaled = (*rightRaw - 128) << shiftAmount;
+			}
+			else {
+				leftScaled = *(int32_t*)leftRaw << shiftAmount;
+				rightScaled = *(int32_t*)rightRaw << shiftAmount;
+			}
+
+			oldSample = (audio_sample_float64_t){
+				.left = (int32_t)leftScaled,
+				.right = (int32_t)rightScaled,
+			};
+		}
+	}
+
+	audio_sample_float64_t finalSample = _lerp_float_sample(sample0, sample1, t);
+
+	finalSample.left = oldSample.left + _clamp_sample(finalSample.left) * sound->volume * sound->fade;
+	finalSample.right = oldSample.right + _clamp_sample(finalSample.right) * sound->volume * sound->fade;
 
 	if (audio->format < SYSAUDIO_FORMAT_FLOAT32) {
-		int32_t resultLeft = (int32_t)lerpedSample.left;
-		int32_t resultRight = (int32_t)lerpedSample.right;
+		int32_t resultLeft = (int32_t)finalSample.left;
+		int32_t resultRight = (int32_t)finalSample.right;
 		
 		int outputShift = (4 - audio->sampleSize) * 8;
 		for (int byte=0; byte<audio->sampleSize; ++byte) {
@@ -288,15 +327,15 @@ void _mix_sample(sysaudio_t* audio, uint8_t* output, audio_sound_t* sound) {
 	}
 	else {
 		if (audio->sampleSize==4) {
-			float left = lerpedSample.left / 0x7FFFFFFF;
-			float right = lerpedSample.right / 0x7FFFFFFF;
+			float left = finalSample.left / 0x7FFFFFFF;
+			float right = finalSample.right / 0x7FFFFFFF;
 			float* out = (float*)output;
 			out[0] = left;
 			out[1] = right;
 		}
 		if (audio->sampleSize==8) {
-			double left = lerpedSample.left / 0x7FFFFFFF;
-			double right = lerpedSample.right / 0x7FFFFFFF;
+			double left = finalSample.left / 0x7FFFFFFF;
+			double right = finalSample.right / 0x7FFFFFFF;
 			double* out = (double*)output;
 			out[0] = left;
 			out[1] = right;
@@ -316,56 +355,54 @@ void _mix_sine_wave32(int32_t* buffer, int sampleCount) {
 	}
 }
 
+void _mix_sound(sysaudio_t* audio, uint8_t* buffer, int sampleCount, audio_sound_t* sound, _Bool musicFadeMode) {
+	int soundSamples = sound->buffer->sampleCount - (int)sound->cursor;
+	int samplesToMix = sampleCount;
+	if (soundSamples < samplesToMix) {
+		samplesToMix = soundSamples;
+	}
+
+	double sampleRateRatio = (double)sound->buffer->sampleRate / (double)audio->sampleRate;
+
+	sound->fade = 1.0;
+	if (musicFadeMode) {
+		double soundLength = (double)sound->buffer->sampleCount / (double)sound->buffer->sampleRate;
+		double secCursor = sound->cursor / (double)sound->buffer->sampleRate;
+		if (secCursor < 1.0) {
+			sound->fade = secCursor;
+		}
+		else if (secCursor > soundLength-1.0) {
+			sound->fade = soundLength - secCursor;
+		}
+	}
+
+	for (int i=0; i<samplesToMix; ++i) {
+		uint8_t* output = buffer + (i*audio->sampleSize*2);
+
+		_mix_sample(audio, output, sound);
+		sound->cursor += sampleRateRatio * 1.0f;
+	}
+
+	if (musicFadeMode && audio->musicFade) {
+		sound->volume -= 0.5f / ((float)audio->sampleRate / (float)sampleCount);
+	}
+
+	if ((int)sound->cursor >= (sound->buffer->sampleCount) || sound->volume <= 0.0f) {
+		sound->buffer = NULL;
+	}
+}
+
 void sysaudio_default_mixer(void* sysaudio, void* buffer, size_t sampleCount) {
 	sysaudio_t* audio = sysaudio;
 
 	if (audio->music.buffer) {
-		int musicSamples = audio->music.buffer->sampleCount - (int)audio->music.cursor;
-		int samplesToMix = sampleCount;
-		if (musicSamples < samplesToMix) {
-			samplesToMix = musicSamples;
-		}
-
-		double sampleRateRatio = (double)audio->music.buffer->sampleRate / (double)audio->sampleRate;
-
-		for (int i=0; i<samplesToMix; ++i) {
-			uint8_t* output = buffer + (i*audio->sampleSize*2);
-
-			_mix_sample(audio, output, &audio->music);
-			audio->music.cursor += sampleRateRatio * 1.0f;
-		}
-
-		if (audio->musicFade) {
-			audio->music.volume -= 0.5f / ((float)audio->sampleRate / (float)sampleCount);
-		}
-
-		if ((int)audio->music.cursor >= (audio->music.buffer->sampleCount) || audio->music.volume <= 0.0f) {
-			audio->music.buffer = NULL;
-		}
+		_mix_sound(audio, buffer, sampleCount, &audio->music, _True);
 	}
 
 	for (int isound=0; isound<64; ++isound) {
 		audio_sound_t* sound = audio->sounds + isound;
 		if (sound->buffer) {
-			int waveSamples = sound->buffer->sampleCount - (int)sound->cursor;
-			int samplesToMix = sampleCount;
-			if (waveSamples < samplesToMix) {
-				samplesToMix = waveSamples;
-			}
-
-			float sampleRateRatio = (float)sound->buffer->sampleRate / (float)audio->sampleRate;
-
-			for (int i=0; i<samplesToMix; ++i) {
-				uint8_t* output = (uint8_t*)buffer + (i*audio->sampleSize*2);
-
-				_mix_sample(audio, (uint8_t*)output, sound);
-
-				sound->cursor += sampleRateRatio * 1.0f;
-			}
-
-			if ((int)sound->cursor >= (sound->buffer->sampleCount)) {
-				sound->buffer = NULL;
-			}
+			_mix_sound(audio, buffer, sampleCount, sound, _False);
 		}
 	}
 }
