@@ -109,6 +109,10 @@ typedef u8 byte;
 #define FALSE ((int)0)
 #undef PAGE_SIZE
 #define PAGE_SIZE 4096
+#undef _True
+#undef _False
+#define _True ((_Bool)1)
+#define _False ((_Bool)0)
 
 #define KILOBYTES(n) (n*1024)
 #define MEGABYTES(n) (n*1024*1024)
@@ -137,6 +141,37 @@ typedef u8 byte;
 
 
 // Printing definitions
+enum {
+	ESCAPE_BLACK = 0,
+	ESCAPE_RED = 1,
+	ESCAPE_GREEN = 2,
+	ESCAPE_YELLOW = 3,
+	ESCAPE_BLUE = 4,
+	ESCAPE_MAGENTA = 5,
+	ESCAPE_CYAN = 6,
+	ESCAPE_WHITE = 7,
+};
+enum {
+	ESCAPE_RESET = (1<<0),
+	ESCAPE_BOLD = (1<<1),
+	ESCAPE_DIM = (1<<2),
+	ESCAPE_ITALIC = (1<<3),
+	ESCAPE_UNDERLINE = (1<<4),
+	ESCAPE_BLINK = (1<<5),
+	ESCAPE_INVERTED = (1<<7),
+	ESCAPE_HIDDEN = (1<<8),
+	ESCAPE_STRIKETHROUGH = (1<<9),
+	ESCAPE_END = (1<<10),
+};
+
+uint8_t escape_basic_color(uint8_t color, _Bool bright);
+uint8_t escape_256_color(uint8_t r, uint8_t g, uint8_t b);
+void escape_color(int color);
+void escape_color_bg(int color);
+void escape_mode(int attrs);
+
+#define CORE_ERR_COLOR escape_256_color(5, 1, 1)
+
 #define print_inline(...) _print_inline(__VA_ARGS__)
 #define print(fmt, ...) _print_with_info(__FILE__, __func__, __LINE__, fmt, ##__VA_ARGS__)
 #define print_error(fmt, ...) _print_with_info(__FILE__, __func__, __LINE__, fmt, ##__VA_ARGS__)
@@ -333,9 +368,6 @@ void 			str_upper(char* str);
 u32 murmur3(u8* key);
 
 
-// #include "platform.h"
-#include "terminal.h"
-
 #endif
 
 
@@ -358,6 +390,59 @@ u32 murmur3(u8* key);
 
 
 // PRINTING
+uint8_t escape_basic_color(uint8_t color, _Bool bright) {
+	if (bright) {
+		color += 8;
+	}
+	return color;
+}
+
+uint8_t escape_256_color(uint8_t r, uint8_t g, uint8_t b) {
+	return 16 + (r*36) + (g*6) + (b);
+}
+
+void escape_color(int color) {
+	char buffer[16] = {0};
+
+	if (color > -1) {
+		snprintf(buffer, 16, "\x1B[38;5;%im", color);
+	} else {
+		snprintf(buffer, 16, "\x1B[39m");
+	}
+
+	print_inline(buffer);
+}
+
+void escape_color_bg(int color) {
+	char buffer[16] = {0};
+
+	if (color > -1) {
+		snprintf(buffer, 16, "\x1B[48;5;%im", color);
+	} else {
+		snprintf(buffer, 16, "\x1B[49m");
+	}
+
+	print_inline(buffer);
+}
+
+void escape_mode(int attrs) {
+	char buffer[64] = {0};
+	snprintf(buffer, 64, "\x1B[");
+
+	FOR (i, 32) {
+		if (attrs & (1 << i)) {
+			if (buffer[str_len(buffer)-1] != '[') {
+				buffer[str_len(buffer)+1] = 0;
+				buffer[str_len(buffer)+0] = ';';
+			}
+			snprintf(buffer+str_len(buffer), 64-str_len(buffer), "%i", i);
+		}
+	}
+
+	snprintf(buffer+str_len(buffer), 64-str_len(buffer), "m");
+	print_inline(buffer);
+}
+
 // CORE_PRINT_FUNC void print_init_log_file(char* filename) {
 // 	int logFile = open(filename, O_WRONLY | O_CREAT | OAPPEND, 0644);
 // }
@@ -396,7 +481,11 @@ CORE_PRINT_FUNC void _print_error(char* fmt, ...) {
 	va_list va;
 	va_start(va, fmt);
 	vsnprintf(str, 1024, fmt, va);
-	print(TERM_RED_FG "%s" TERM_RESET, str);
+	// print(TERM_RED_FG "%s" TERM_RESET, str);
+	escape_color(CORE_ERR_COLOR);
+	escape_mode(ESCAPE_INVERTED | ESCAPE_BOLD);
+	print("%s", str);
+	escape_mode(ESCAPE_RESET);
 	va_end(va);
 }
 CORE_PRINT_FUNC int print_to_buffer(char* buffer, size_t len, char* fmt, ...) {
@@ -766,14 +855,17 @@ next:
 		allocator_block_t* b = (allocator_block_t*)arena->blocks.first;
 		while(b) {
 			if(arena->address+index == (void*)b) {
-				print_inline(TERM_RESET TERM_INVERTED);
+				// print_inline(TERM_RESET TERM_INVERTED);
+				escape_mode(ESCAPE_RESET | ESCAPE_INVERTED);
 				char size[32];
 				print_to_buffer(size, sizeof(size), "block %li", b->size);
 				print_inline(size);
 				for(int i=0; i<sizeof(allocator_block_t)-str_len(size); ++i) {
 					print_inline(" ");
 				}
-				print_inline(TERM_RESET TERM_BLUE_BG);
+				// print_inline(TERM_RESET TERM_BLUE_BG);
+				escape_mode(ESCAPE_RESET);
+				escape_color_bg(escape_basic_color(4, _True));
 				print_allocator_block_t(b);
 				index += b->size;
 				goto next;
@@ -784,14 +876,17 @@ next:
 		allocator_block_t* f = (allocator_block_t*)arena->free.first;
 		while(f) {
 			if(arena->address+index == (void*)f) {
-				print_inline(TERM_RESET TERM_INVERTED);
+				// print_inline(TERM_RESET TERM_INVERTED);
+				escape_mode(ESCAPE_RESET | ESCAPE_INVERTED);
 				char size[32];
 				print_to_buffer(size, sizeof(size), "free %li", f->size);
 				print_inline(size);
 				for(int i=0; i<sizeof(allocator_block_t)-str_len(size); ++i) {
 					print_inline(" ");
 				}
-				print_inline(TERM_RESET TERM_GREEN_BG);
+				// print_inline(TERM_RESET TERM_GREEN_BG);
+				escape_mode(ESCAPE_RESET);
+				escape_color_bg(escape_basic_color(2, _True));
 				print_allocator_block_t(f);
 				index += f->size;
 				goto next;
@@ -799,12 +894,16 @@ next:
 			f = (allocator_block_t*)((llnode_t*)f)->next;
 		}
 
-		print_inline(TERM_RED_BG "FATAL ERROR");
+		escape_color_bg(escape_basic_color(1, _True));
+		print_inline("FATAL ERROR");
 		exit(1);
 	}
 
 	assert(index == arena_size);
-	print_inline(TERM_RESET TERM_YELLOW_BG "END" TERM_RESET "\n");
+	escape_mode(ESCAPE_RESET);
+	escape_color_bg(escape_basic_color(3, _True));
+	print_inline("END\n");
+	escape_mode(ESCAPE_RESET);
 }
 
 

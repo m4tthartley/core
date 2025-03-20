@@ -48,6 +48,11 @@
 // 	EC_POSITIVE = 27,
 // } PRINT_COLOR;
 
+#ifndef __CORE_TERMINAL_HEADER__
+#define __CORE_TERMINAL_HEADER__
+
+#include <stdio.h>
+
 // Foreground
 #define TERM_BLACK_FG "\x1B[0;30m"
 #define TERM_RED_FG "\x1B[0;31m"
@@ -106,3 +111,13 @@
 #define TERM_RESET "\x1B[0m"
 #define TERM_INVERTED "\x1B[7m"
 #define TERM_CLEAR "\x1B[2J\x1B[H"
+
+
+#ifdef CORE_IMPL
+
+
+
+
+
+#endif
+#endif
