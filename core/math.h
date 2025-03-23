@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <math.h>
+#include <assert.h>
 
 #ifndef __CORE_MATH_HEADER__
 #define __CORE_MATH_HEADER__
@@ -998,6 +999,8 @@ CORE_MATH_FUNC mat4_t qmat4(quaternion_t q) {
 
 // NOISE
 CORE_MATH_FUNC int randr(int min, int max) {
+	int64_t range = (int64_t)max-(int64_t)min;
+	assert(range <= 0x7FFFFFFF);
 	int result = rand() % (max-min);
 	return min + result;
 }
