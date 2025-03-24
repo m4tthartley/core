@@ -7,10 +7,12 @@
 //  Copyright 2023 GiantJelly. All rights reserved.
 //
 
-#ifdef _UI_HEADER
-#undef _UI_HEADER
 
-#include "./math.c"
+#ifndef __UI_HEADER__
+#define __UI_HEADER__
+
+
+#include "math.h"
 
 typedef unsigned char byte;
 typedef unsigned __int32 u32;
@@ -159,9 +161,9 @@ void uiDrawTextLayout(ui_text_layout layout, vec2 pos, ...);
 void uiText(char* text, vec2 pos);
 void uiMessage(char* str, ...);
 
-#endif
-#ifdef _UI_IMPLEMENTATION
-#undef _UI_IMPLEMENTATION
+
+#ifdef CORE_IMPL
+
 
 #define WIN32_LEAN_AND_MEAN
 #include <WINDOWS.H>
@@ -991,4 +993,6 @@ void uiText(char* text, vec2 pos) {
 	uiDrawTextLayout(layout, pos);
 }
 
+
+#	endif
 #endif

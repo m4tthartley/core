@@ -3,21 +3,15 @@
 //  Copyright 2023 GiantJelly. All rights reserved.
 //
 
+
 #ifndef __CORE_WAVE_HEADER__
 #define __CORE_WAVE_HEADER__
 
-#ifndef __EDITOR__
-#	ifndef __CORE_HEADER__
-#		error "core.h must be included before wave.h"
-#	endif
-#else
-#	include "sys.h"
-#	include "core.h"
-#	include "sysaudio.h"
-#endif
-
 
 #include <stdint.h>
+
+#include "core.h"
+#include "sysaudio.h"
 
 
 #define WAVE_FORMAT_TAG_PCM 0x01
@@ -52,17 +46,12 @@ typedef struct __attribute((packed)) {
 audio_buffer_t* sys_decode_wave(allocator_t* allocator, file_data_t* fileData);
 
 
-#endif
-
-
-#ifdef CORE_IMPL
-#	ifndef __CORE_WAVE_HEADER_IMPL__
-#	define __CORE_WAVE_HEADER_IMPL__
+#	ifdef CORE_IMPL
 
 
 void _downmix_24bit_samples(int numChannels, int numSamples, audio_sample32_t* output, uint8_t* data) {
 	if (numChannels > 5) {
-		print_inline("6 or more channels \n");
+		print("6 or more channels \n");
 		FOR(i, numSamples) {
 			int32_t ch0 = *((int32_t*)(data+0)) & 0x00FFFFFF;
 			int32_t ch1 = *((int32_t*)(data+3)) & 0x00FFFFFF;
@@ -80,7 +69,7 @@ void _downmix_24bit_samples(int numChannels, int numSamples, audio_sample32_t* o
 			data += numChannels*3;
 		}
 	} else if (numChannels >= 2) {
-		print_inline("2 - 5 channels \n");
+		print("2 - 5 channels \n");
 		FOR(i, numSamples) {
 			int32_t ch0 = *((int32_t*)(data+0)) & 0x00FFFFFF;
 			int32_t ch1 = *((int32_t*)(data+3)) & 0x00FFFFFF;
@@ -91,7 +80,7 @@ void _downmix_24bit_samples(int numChannels, int numSamples, audio_sample32_t* o
 			data += numChannels*3;
 		}
 	} else if (numChannels == 1) {
-		print_inline("1 channel \n");
+		print("1 channel \n");
 		FOR(i, numSamples) {
 			int32_t ch0 = *((int32_t*)(data+0)) & 0x00FFFFFF;
 			double ch0f = ((ch0 & 0x800000) ? ch0 | 0xFF000000 : ch0) * 256.0;

@@ -6,9 +6,11 @@
 //  Copyright 2024 GiantJelly. All rights reserved.
 //
 
-#include "time.h"
 
 #include <mach/mach_time.h>
+
+#include "time.h"
+
 
 struct mach_timebase_info mach_timebase = {0};
 u64 _start_time = 0;

@@ -6,6 +6,9 @@
 //  Copyright 2024 GiantJelly. All rights reserved.
 //
 
+// TODO: Flesh out more next time I do some networking
+
+
 #ifndef __CORE_NET_HEADER__
 #define __CORE_NET_HEADER__
 
@@ -16,6 +19,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+
+#include "core.h"
 
 
 enum {
@@ -38,15 +43,7 @@ typedef struct {
 } netsocket;
 
 
-#endif
-
-
-#ifdef CORE_IMPL
-#	ifndef __CORE_NET_HEADER_IMPL__
-#	define __CORE_NET_HEADER_IMPL__
-
-
-#include "core.h"
+#	ifdef CORE_IMPL
 
 
 // netsocket net_socket_datagram_create(u16 port);
@@ -57,7 +54,7 @@ netport __net_prepare_port(int port) {
 	};
 	int length = snprintf(result.str, 6, "%hu", (unsigned short)port);
 	if (length > 5) {
-		print_error("Port is too large");
+		print_err("Port is too large");
 		return (netport){0};
 	}
 	return result;
@@ -99,7 +96,7 @@ netsocket net_server(u16 port, int flags) {
 
 	// int length = snprintf(sock.portstr, 6, "%hu", port);
 	// if (length > 5) {
-	// 	print_error("Port is too large");
+	// 	print_err("Port is too large");
 	// 	return (netsocket){0};
 	// }
 	sock.port = __net_prepare_port(port);
@@ -109,7 +106,7 @@ netsocket net_server(u16 port, int flags) {
 
 	// struct addrinfo* servinfo;
 	if (getaddrinfo(NULL, sock.port.str, &hints, &sock.servinfo)) {
-		print_error("getaddrinfo() failed");
+		print_err("getaddrinfo() failed");
 		return (netsocket){0};
 	}
 
@@ -119,13 +116,13 @@ netsocket net_server(u16 port, int flags) {
 	while (addr) {
 		sock.fd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
 		if (sock.fd == -1) {
-			print_error("socket() failed");
+			print_err("socket() failed");
 			continue;
 		}
 
 		int opt = 1;
 		if (setsockopt(sock.fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(int)) == -1) {
-			print_error("setsockopt() failed");
+			print_err("setsockopt() failed");
 		}
 
 		if (/*setting for setting timeout*/ FALSE) {
@@ -135,12 +132,12 @@ netsocket net_server(u16 port, int flags) {
 			struct timeval timeout = {5, 0};
 	#endif
 			if (setsockopt(sock.fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1) {
-				print_error("SO_RCVTIMEO %s", strerror(errno));
+				print_err("SO_RCVTIMEO %s", strerror(errno));
 			}
 		}
 
 		if (bind(sock.fd, addr->ai_addr, addr->ai_addrlen) == -1) {
-			print_error("bind() %s", strerror(errno));
+			print_err("bind() %s", strerror(errno));
 			continue;
 		}
 
@@ -150,7 +147,7 @@ netsocket net_server(u16 port, int flags) {
 	freeaddrinfo(sock.servinfo);
 
 	if (listen(sock.fd, 10) == -1) {
-		print_error("listen() failed");
+		print_err("listen() failed");
 	}
 
 	return sock;
@@ -159,7 +156,7 @@ netsocket net_server(u16 port, int flags) {
 // void net_socket_listen(netsocket sock) {
 // 	int opt = 1;
 // 	if (setsockopt(sock.fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(int)) == -1) {
-// 		print_error("setsockopt() failed");
+// 		print_err("setsockopt() failed");
 // 	}
 
 // #ifdef __WIN32__
@@ -168,17 +165,17 @@ netsocket net_server(u16 port, int flags) {
 // 	struct timeval timeout = {5, 0};
 // #endif
 // 	if (setsockopt(sock.fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1) {
-// 		print_error("SO_RCVTIMEO %s", strerror(errno));
+// 		print_err("SO_RCVTIMEO %s", strerror(errno));
 // 	}
 
 // 	if (bind(sock.fd, sock.servinfo->ai_addr, sock.servinfo->ai_addrlen) == -1) {
-// 		print_error("bind() %s", strerror(errno));
+// 		print_err("bind() %s", strerror(errno));
 // 	}
 
 // 	freeaddrinfo(sock.servinfo);
 
 // 	if (listen(sock.fd, 10) == -1) {
-// 		print_error("listen() failed");
+// 		print_err("listen() failed");
 // 	}
 // }
 
@@ -189,7 +186,7 @@ netsocket net_accept(netsocket sock) {
 	socklen_t addrlen = sizeof(conn_addr);
 	conn.fd = accept(sock.fd, (struct sockaddr*)&conn_addr, &addrlen);
 	if (conn.fd == -1) {
-		print_error("accept failed");
+		print_err("accept failed");
 	}
 
 	struct sockaddr_storage addr = {0};
@@ -207,7 +204,7 @@ netsocket net_accept(netsocket sock) {
 			// print("ipv6 connection from %s", conn.ipstr);
 		}
 	} else {
-		print_error("getpeername error:");
+		print_err("getpeername error:");
 	}
 
 	return conn;
@@ -254,7 +251,7 @@ netsocket net_connect(char* address, int port) {
 	sock.port = __net_prepare_port(port);
 
 	if (getaddrinfo(address, sock.port.str, &hints, &sock.servinfo)) {
-		print_error("getaddrinfo() failed");
+		print_err("getaddrinfo() failed");
 		return (netsocket){0};
 	}
 
@@ -265,12 +262,12 @@ netsocket net_connect(char* address, int port) {
 	for (addr = sock.servinfo; addr; addr = addr->ai_next) {
 		sock.fd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
 		if (sock.fd == -1) {
-			print_error("socket() failed");
+			print_err("socket() failed");
 			continue;
 		}
 
 		if (connect(sock.fd, addr->ai_addr, addr->ai_addrlen) == -1) {
-			print_error("connect() failed");
+			print_err("connect() failed");
 			continue;
 		}
 
@@ -279,7 +276,7 @@ netsocket net_connect(char* address, int port) {
 
 	if (!addr) {
 		sock.fd = -1;
-		print_error("Failed to connect to %s", address);
+		print_err("Failed to connect to %s", address);
 	}
 
 	return sock;
@@ -289,11 +286,11 @@ b32 net_send(netsocket conn, void* data, u32 size) {
 	if (net_socket_valid(conn)) {
 		int result = send(conn.fd, data, size, 0);
 		if (result == -1) {
-			print_error("send() failed");
+			print_err("send() failed");
 			return FALSE;
 		}
 	} else {
-		print_error("trying to send() on invalid socket");
+		print_err("trying to send() on invalid socket");
 		return FALSE;
 	}
 

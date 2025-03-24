@@ -11,8 +11,10 @@
 #include <math.h>
 #include <assert.h>
 
+
 #ifndef __CORE_MATH_HEADER__
 #define __CORE_MATH_HEADER__
+
 
 #undef min
 #undef max
@@ -293,12 +295,8 @@ CORE_MATH_FUNC float rand2d(vec2_t st);
 CORE_MATH_FUNC float noise (vec2_t st);
 CORE_MATH_FUNC float fbm (vec2_t st);
 
-#endif
 
-
-#ifdef CORE_IMPL
-#	ifndef __CORE_MATH_HEADER_IMPL__
-#	define __CORE_MATH_HEADER_IMPL__
+#	ifdef CORE_IMPL
 
 
 // CONSTRUCTORS
@@ -637,8 +635,20 @@ CORE_MATH_FUNC vec4_t max4(vec4_t a, vec4_t b) {
 
 // UTIL
 CORE_MATH_FUNC int ipow(int num, int e) {
-	while(e>1) num*=num;
-	return num;
+	int value = num;
+	while(e>1) {
+		value *= num;
+		--e;
+	}
+	return value;
+}
+CORE_MATH_FUNC uint64_t ipow64(uint64_t num, int e) {
+	uint64_t value = num;
+	while(e>1) {
+		value *= num;
+		--e;
+	}
+	return value;
 }
 
 CORE_MATH_FUNC int32_t smin(int32_t a, int32_t b) {
@@ -748,7 +758,7 @@ CORE_MATH_FUNC mat4_t mat4_inverse(mat4_t m) {
 		float diag = augmented[i][i];
 		if (fabs(diag) < 1e-10) {
 #ifdef __CORE_HEADER__
-			print_error("Matrix cannot be inversed");
+			print_err("Matrix cannot be inversed");
 #endif
 		}
 		for (int j=0; j<8; ++j) {

@@ -7,7 +7,6 @@
 #define __CORE_FONT_HEADER__
 
 
-// #include "core.h"
 #include <stdint.h>
 
 
@@ -35,12 +34,7 @@ uint8_t font_get_kerning_pair(embedded_font_t* font, char a, char b);
 font_kern_result_t font_get_kerning(embedded_font_t* font, char a, char b);
 
 
-#endif
-
-
-#ifdef CORE_IMPL
-#	ifndef __CORE_FONT_HEADER_IMPL__
-#	define __CORE_FONT_HEADER_IMPL__
+#	ifdef CORE_IMPL
 
 
 #include "../tools/bin/font_data.h"

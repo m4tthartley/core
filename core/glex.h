@@ -10,7 +10,8 @@
 #define __CORE_OPENGL_EXTENSIONS_HEADER__
 
 
-#include "platforms.h"
+#include "targetconditionals.h"
+
 
 #	if defined(__WIN32__) || defined(__LINUX__)
 
@@ -189,6 +190,10 @@ GL_PROC_LIST
 #define GL_FRAMEBUFFER_UNSUPPORTED        0x8CDD
 #define GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS 0x8CD9
 
+
+#		ifdef CORE_IMPL
+
+
 void _load_opengl_extensions() {
 
 #define GLEXT(name) gl##name = (name##Proc)wglGetProcAddress("gl" #name);
@@ -197,5 +202,6 @@ void _load_opengl_extensions() {
 }
 
 
+#		endif
 #	endif
 #endif

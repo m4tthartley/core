@@ -3,7 +3,12 @@
 //  Copyright 2025 GiantJelly. All rights reserved.
 //
 
-// PLATFORM CONDITIONALS
+// TARGET PLATFORM CONDITIONALS
+
+
+#ifndef __TARGETCONDITIONALS_HEADER__
+#define __TARGETCONDITIONALS_HEADER__
+
 
 #ifdef _WIN32
 #	undef __WIN32__
@@ -25,4 +30,7 @@
 #	if TARGET_OS_SIMULATOR
 #		define __SIM__
 #	endif
+#endif
+
+
 #endif

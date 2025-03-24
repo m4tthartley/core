@@ -3,6 +3,7 @@
 //  Copyright 2023 GiantJelly. All rights reserved.
 //
 
+
 #ifndef __CORE_AUDIO_HEADER__
 #define __CORE_AUDIO_HEADER__
 
@@ -157,12 +158,7 @@ void sys_play_sound(sysaudio_t* audio, audio_buffer_t* buffer, float volume);
 void sysaudio_default_mixer(void* sysaudio, void* output, size_t sample_count);
 
 
-#endif
-
-
-#ifdef CORE_IMPL
-#	ifndef __CORE_AUDIO_HEADER_IMPL__
-#	define __CORE_AUDIO_HEADER_IMPL__
+#	ifdef CORE_IMPL
 
 
 void sys_play_sound(sysaudio_t* audio, audio_buffer_t* buffer, float volume) {

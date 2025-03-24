@@ -12,6 +12,7 @@
 
 // typedef GLuint glh_t;
 
+
 #ifndef __CORE_GFX_HEADER__
 #define __CORE_GFX_HEADER__
 
@@ -115,13 +116,7 @@ void gfx_draw_text_centered(embedded_font_t* font, vec2_t pos, char* str);
 void gfx_draw_text(embedded_font_t* font, vec2_t _pos, char* str);
 void gfx_draw_text_internal(embedded_font_t* font, vec2_t pos, char* str);
 
-
-#endif
-
-
-#ifdef CORE_IMPL
-#	ifndef __CORE_GFX_HEADER_IMPL__
-#	define __CORE_GFX_HEADER_IMPL__
+#	ifdef CORE_IMPL
 
 
 gfx_texture_t* _gfx_active_texture = NULL;
@@ -160,7 +155,7 @@ bitmap_t* load_bitmap_file(allocator_t* allocator, char* filename) {
 
 	fontFile = fopen(filename, "r"); // todo: this stuff crashes when file not found
 	if(!fontFile) {
-		print_error("Unable to open file: %s", filename);
+		print_err("Unable to open file: %s", filename);
 		return NULL;
 	}
 	fseek(fontFile, 0, SEEK_END);
@@ -505,7 +500,7 @@ void gfx_line(vec2_t start, vec2_t end) {
 
 void gfx_text(sys_window_t* window, vec2_t pos, char* str, ...) {
 	if (!_gfx_active_texture) {
-		print_error("gfx_text: No active texture");
+		print_err("gfx_text: No active texture");
 		return;
 	}
 
@@ -627,7 +622,7 @@ void gfx_draw_text_right_aligned(embedded_font_t* font, vec2_t pos, char* str) {
 
 void gfx_draw_text_internal(embedded_font_t* font, vec2_t pos, char* str) {
 	if (!_gfx_active_texture) {
-		print_error("gfx_text: No active texture");
+		print_err("gfx_text: No active texture");
 		return;
 	}
 

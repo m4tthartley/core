@@ -3,6 +3,7 @@
 //  Copyright 2023 GiantJelly. All rights reserved.
 //
 
+
 #ifndef __CORE_SYSTEM_HEADER__
 #define __CORE_SYSTEM_HEADER__
 
@@ -11,7 +12,7 @@
 #include <stdint.h>
 #include <time.h>
 
-#include "platforms.h"
+#include "targetconditionals.h"
 
 #define CORE_SYSTEM_FUNC
 #define CORE_MEMORY_FUNC
@@ -27,20 +28,10 @@
 #define MAX_PATH_LENGTH 256
 
 
-// Structures
 enum {
 	MESSAGE_BOX_OK = (1<<0),
 	MESSAGE_BOX_YES_NO = (1<<1), // TODO
 };
-
-// typedef struct {
-// 	u64 sec;
-// 	u64 msec;
-// } core_time_t;
-
-// typedef u64 time_t; // Milliseconds
-// typedef u64 core_time_micro_t;
-// typedef u64 core_time_nano_t;
 
 typedef struct {
 	uint64_t created;
@@ -55,19 +46,6 @@ typedef struct {
 	uint8_t data[];
 } file_data_t;
 
-
-// Platform functions
-// void core_zero(byte* address, int size);
-// void core_copy(byte* dest, byte* src, int size);
-// void core_print(char* fmt, ...);
-// void core_error(b32 fatal, char* fmt, ...);
-// u32 s_len(char* str);
-// void s_free(char* str);
-// char* s_format(char* fmt, ...);
-// char* core_convert_wide_string(wchar_t* str);
-// void s_copy(char* dest, char* src);
-// void s_ncopy(char* dest, char* src, int n);
-// b32 s_compare(char* a, char* b);
 
 void sys_print(char* str);
 void sys_print_err(char* str);
@@ -212,12 +190,7 @@ _Bool sys_get_bundle_path(char* buffer, int bufferSize, char* filename);
 _Bool sys_get_resource_path(char* buffer, int bufferSize, char* resourceFile);
 
 
-#endif
-
-
-#ifdef CORE_IMPL
-#	ifndef __CORE_SYSTEM_HEADER_IMPL__
-#	define __CORE_SYSTEM_HEADER_IMPL__
+#	ifdef CORE_IMPL
 
 
 #ifdef __POSIX__

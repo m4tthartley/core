@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <math.h>
 
 
 int idiv10(int input);
@@ -19,13 +20,17 @@ int silog10(int32_t input);
 int ilog10_64(uint64_t input);
 int silog10_64(int64_t input);
 
+// ALIGNMENT
+int valign(int n, int stride);
+int round_up(int n, int stride);
+int round_down(int n, int stride);
+uint64_t align64(uint64_t size, uint64_t align);
+uint32_t align32(uint32_t size, uint32_t align);
+int align_pow2(int value);
+int align_pow2_down(int value);
 
-#endif
 
-
-#ifdef CORE_IMPL
-#	ifndef __CORE_IMATH_HEADER_IMPL__
-#	define __CORE_IMATH_HEADER_IMPL__
+#	ifdef CORE_IMPL
 
 
 // Max 32bit: 4,294,967,295
@@ -104,6 +109,47 @@ int silog10_64(int64_t input) {
 		result = 0 - result;
 	}
 	return result;
+}
+
+
+// ALIGNMENT
+// non power of 2 align
+int valign(int n, int stride) {
+	return (n/stride + 1)*stride;
+}
+int round_up(int n, int stride) {
+	return (n/stride + 1)*stride;
+}
+int round_down(int n, int stride) {
+	return (n/stride)*stride;
+}
+
+// Power of 2 align
+uint64_t align64(uint64_t size, uint64_t align) {
+	if(!(size & (align-1))) {
+		return size;
+	} else {
+		return (size & ~(align-1)) + align;
+	}
+}
+uint32_t align32(uint32_t size, uint32_t align) {
+	if(!(size & (align-1))) {
+		return size;
+	} else {
+		return (size & ~(align-1)) + align;
+	}
+}
+
+// Dynamic Power of 2 align
+int align_pow2(int value) {
+	int l = log2(value) + 1; // TODO: optimise, remove math.h
+	int target = 0x1 << l;
+	return target;
+}
+int align_pow2_down(int value) {
+	int l = log2(value);
+	int target = 0x1 << l;
+	return target;
 }
 
 

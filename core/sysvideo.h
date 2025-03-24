@@ -3,6 +3,7 @@
 //  Copyright 2023 GiantJelly. All rights reserved.
 //
 
+
 #ifndef __CORE_VIDEO_HEADER__
 #define __CORE_VIDEO_HEADER__
 
@@ -211,12 +212,7 @@ typedef enum {
 #endif
 
 
-#endif
-
-
-#ifdef CORE_IMPL
-#	ifndef __CORE_VIDEO_HEADER_IMPL__
-#	define __CORE_VIDEO_HEADER_IMPL__
+#	ifdef CORE_IMPL
 
 
 #ifdef __APPLE__

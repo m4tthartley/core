@@ -6,11 +6,13 @@
 //  Copyright 2023 GiantJelly. All rights reserved.
 //
 
+
 #ifndef __CORE_TIME_HEADER__
 #define __CORE_TIME_HEADER__
 
 
 #include "core.h"
+
 
 typedef struct {
 	u64 performance_freq;
@@ -36,7 +38,7 @@ f64 			time_get_seconds();
 u64 			time_get_raw();
 
 
-#ifdef CORE_IMPL
+#	ifdef CORE_IMPL
 
 
 #if defined(__WIN32__)
@@ -50,5 +52,5 @@ u64 			time_get_raw();
 #endif
 
 
-#endif
+#	endif
 #endif

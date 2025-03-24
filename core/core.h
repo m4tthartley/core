@@ -29,17 +29,13 @@
 // Strings refresh
 
 
-#ifndef __CORE_SYSTEM_HEADER__
-// #	error "system.h must be included before core.h"
-// #	include "system.h"
-#endif
-
-
 #ifndef __CORE_HEADER__
 #define __CORE_HEADER__
 
 
-#include "platforms.h"
+#include "targetconditionals.h"
+#include "sys.h"
+#include "print.h"
 
 
 #ifdef __POSIX__
@@ -140,58 +136,6 @@ typedef u8 byte;
 #define CORE_ALIGN_FUNC
 
 
-// Printing definitions
-enum {
-	ESCAPE_BLACK = 0,
-	ESCAPE_RED = 1,
-	ESCAPE_GREEN = 2,
-	ESCAPE_YELLOW = 3,
-	ESCAPE_BLUE = 4,
-	ESCAPE_MAGENTA = 5,
-	ESCAPE_CYAN = 6,
-	ESCAPE_WHITE = 7,
-};
-enum {
-	ESCAPE_RESET = (1<<0),
-	ESCAPE_BOLD = (1<<1),
-	ESCAPE_DIM = (1<<2),
-	ESCAPE_ITALIC = (1<<3),
-	ESCAPE_UNDERLINE = (1<<4),
-	ESCAPE_BLINK = (1<<5),
-	ESCAPE_INVERTED = (1<<7),
-	ESCAPE_HIDDEN = (1<<8),
-	ESCAPE_STRIKETHROUGH = (1<<9),
-	ESCAPE_END = (1<<10),
-};
-
-uint8_t escape_basic_color(uint8_t color, _Bool bright);
-uint8_t escape_256_color(uint8_t r, uint8_t g, uint8_t b);
-void escape_color(int color);
-void escape_color_bg(int color);
-void escape_mode(int attrs);
-
-#define CORE_ERR_COLOR escape_256_color(5, 1, 1)
-
-#define print_inline(...) _print_inline(__VA_ARGS__)
-#define print(fmt, ...) _print_with_info(__FILE__, __func__, __LINE__, fmt, ##__VA_ARGS__)
-#define print_error(fmt, ...) _print_with_info(__FILE__, __func__, __LINE__, fmt, ##__VA_ARGS__)
-CORE_PRINT_FUNC void _print_with_info(const char* filename, const char* function, int line, char* fmt, ...);
-CORE_PRINT_FUNC void _print_inline(char* fmt, ...);
-CORE_PRINT_FUNC void _print(char* fmt, ...);
-CORE_PRINT_FUNC void _print_error(char* fmt, ...);
-CORE_PRINT_FUNC int print_to_buffer(char* buffer, size_t len, char* fmt, ...);
-CORE_PRINT_FUNC int print_to_buffer_va(char* buffer, size_t len, char* fmt, va_list args);
-
-
-// Misc definitions
-int valign(int n, int stride);
-u64 align64(u64 size, u64 align);
-u32 align32(u32 size, u32 align);
-// f32 randf();
-// f32 randf_range(f32 a, f32 b);
-// int randi(int min, int max);
-
-
 // Linked list definitions
 typedef struct llnode_t llnode_t;
 struct llnode_t {
@@ -277,6 +221,7 @@ void* dynarr_get(dynarr_t* arr, int index);
 void dynarr_clear(dynarr_t* arr);
 
 
+// TODO: Remove this?
 // Pool definitions
 #define pool_add(array, item) \
 	FOR (i, array_size(array)) {\
@@ -368,178 +313,7 @@ void 			str_upper(char* str);
 u32 murmur3(u8* key);
 
 
-#endif
-
-
-#ifdef CORE_IMPL
-#	ifndef __CORE_HEADER_IMPL__
-#	define __CORE_HEADER_IMPL__
-
-
-#include <math.h>
-
-
-#ifndef __CORE_SYSTEM_HEADER__
-#	define sys_reserve_memory(...) (0)
-#	define sys_commit_memory(...) (0)
-#	define sys_alloc_memory(...) (0)
-#	define sys_free_memory(...) (0)
-#	define sys_zero_memory(...) (0)
-#	define sys_copy_memory(...) (0)
-#endif
-
-
-// PRINTING
-uint8_t escape_basic_color(uint8_t color, _Bool bright) {
-	if (bright) {
-		color += 8;
-	}
-	return color;
-}
-
-uint8_t escape_256_color(uint8_t r, uint8_t g, uint8_t b) {
-	return 16 + (r*36) + (g*6) + (b);
-}
-
-void escape_color(int color) {
-	char buffer[16] = {0};
-
-	if (color > -1) {
-		snprintf(buffer, 16, "\x1B[38;5;%im", color);
-	} else {
-		snprintf(buffer, 16, "\x1B[39m");
-	}
-
-	print_inline(buffer);
-}
-
-void escape_color_bg(int color) {
-	char buffer[16] = {0};
-
-	if (color > -1) {
-		snprintf(buffer, 16, "\x1B[48;5;%im", color);
-	} else {
-		snprintf(buffer, 16, "\x1B[49m");
-	}
-
-	print_inline(buffer);
-}
-
-void escape_mode(int attrs) {
-	char buffer[64] = {0};
-	snprintf(buffer, 64, "\x1B[");
-
-	FOR (i, 32) {
-		if (attrs & (1 << i)) {
-			if (buffer[str_len(buffer)-1] != '[') {
-				buffer[str_len(buffer)+1] = 0;
-				buffer[str_len(buffer)+0] = ';';
-			}
-			snprintf(buffer+str_len(buffer), 64-str_len(buffer), "%i", i);
-		}
-	}
-
-	snprintf(buffer+str_len(buffer), 64-str_len(buffer), "m");
-	print_inline(buffer);
-}
-
-// CORE_PRINT_FUNC void print_init_log_file(char* filename) {
-// 	int logFile = open(filename, O_WRONLY | O_CREAT | OAPPEND, 0644);
-// }
-CORE_PRINT_FUNC void _print_with_info(const char* filename, const char* function, int line, char* fmt, ...) {
-	char headerStr[256];
-	snprintf(headerStr, sizeof(headerStr), "[%s:%i] ", function, line);
-	
-	char str[1024];
-	va_list va;
-	va_start(va, fmt);
-	vsnprintf(str, 1024, fmt, va);
-	va_end(va);
-
-	// fputs(headerStr, stdout);
-	puts(str);
-}
-CORE_PRINT_FUNC void _print_inline(char* fmt, ...) {
-	char str[1024];
-	va_list va;
-	va_start(va, fmt);
-	vsnprintf(str, 1024, fmt, va);
-	fputs(str, stdout);
-	va_end(va);
-}
-CORE_PRINT_FUNC void _print(char* fmt, ...) {
-	char str[1024];
-	va_list va;
-	va_start(va, fmt);
-	vsnprintf(str, 1024, fmt, va);
-	puts(str);
-	va_end(va);
-}
-CORE_PRINT_FUNC void _print_error(char* fmt, ...) {
-	assert(fmt > (char*)TRUE); // Might be using old format with boolean as first parameter
-	char str[1024];
-	va_list va;
-	va_start(va, fmt);
-	vsnprintf(str, 1024, fmt, va);
-	// print(TERM_RED_FG "%s" TERM_RESET, str);
-	escape_color(CORE_ERR_COLOR);
-	escape_mode(ESCAPE_INVERTED | ESCAPE_BOLD);
-	print("%s", str);
-	escape_mode(ESCAPE_RESET);
-	va_end(va);
-}
-CORE_PRINT_FUNC int print_to_buffer(char* buffer, size_t len, char* fmt, ...) {
-	va_list va;
-	va_start(va, fmt);
-	int result = vsnprintf(buffer, len, fmt, va);
-	va_end(va);
-	return result;
-}
-CORE_PRINT_FUNC int print_to_buffer_va(char* buffer, size_t len, char* fmt, va_list args) {
-	int result = vsnprintf(buffer, len, fmt, args);
-	return result;
-}
-
-
-// ALIGNMENT
-// non power of 2 align
-CORE_ALIGN_FUNC int align_arb(int n, int stride) {
-	return (n/stride + 1)*stride;
-}
-CORE_ALIGN_FUNC int round_up(int n, int stride) {
-	return (n/stride + 1)*stride;
-}
-CORE_ALIGN_FUNC int round_down(int n, int stride) {
-	return (n/stride)*stride;
-}
-
-// Power of 2 align
-CORE_ALIGN_FUNC u64 align64(u64 size, u64 align) {
-	if(!(size & (align-1))) {
-		return size;
-	} else {
-		return (size & ~(align-1)) + align;
-	}
-}
-CORE_ALIGN_FUNC u32 align32(u32 size, u32 align) {
-	if(!(size & (align-1))) {
-		return size;
-	} else {
-		return (size & ~(align-1)) + align;
-	}
-}
-
-// Dynamic Power of 2 align
-CORE_ALIGN_FUNC int align_to_any_pow2(int value) {
-	int l = log2(value) + 1;
-	int target = 0x1 << l;
-	return target;
-}
-CORE_ALIGN_FUNC int align_to_any_pow2_down(int value) {
-	int l = log2(value);
-	int target = 0x1 << l;
-	return target;
-}
+#	ifdef CORE_IMPL
 
 
 // LINKED LISTS
@@ -607,6 +381,14 @@ void list_remove(llist_t* list, llnode_t* item) {
 allocator_t* _global_allocator = NULL;
 #define _is_arena_virtual(arena) (arena->commit > 0)
 
+uint64_t _allocator_align(uint64_t size, uint64_t align) {
+	if(!(size & (align-1))) {
+		return size;
+	} else {
+		return (size & ~(align-1)) + align;
+	}
+}
+
 // Constructors
 CORE_API allocator_t bump_allocator(u8* buffer, size_t size) {
 	allocator_t arena = {0};
@@ -625,7 +407,7 @@ CORE_API allocator_t virtual_bump_allocator(size_t size, size_t commit) {
 	allocator_t arena = {0};
 	arena.type = ALLOCATOR_BUMP;
 	arena.size = size;
-	arena.commit = align64(commit, PAGE_SIZE);
+	arena.commit = _allocator_align(commit, PAGE_SIZE);
 	arena.address = sys_reserve_memory(arena.size);
 	sys_commit_memory(arena.address, arena.commit);
 	arena.stackptr = 0;
@@ -659,7 +441,7 @@ CORE_API allocator_t virtual_heap_allocator(size_t size, size_t commit) {
 	allocator_t arena = {0};
 	arena.type = ALLOCATOR_HEAP;
 	arena.size = size;
-	arena.commit = align64(commit, PAGE_SIZE);
+	arena.commit = _allocator_align(commit, PAGE_SIZE);
 	arena.address = sys_reserve_memory(arena.size);
 	sys_commit_memory(arena.address, arena.commit);
 
@@ -683,7 +465,7 @@ CORE_API void* push_memory(allocator_t* arena, size_t size) {
 	if(_is_arena_virtual(arena)) {
 		// return m_push_into_reserve(arena, size);
 		if(arena->stackptr+size > arena->commit) {
-			size_t extra_commit = align64(arena->stackptr+size - arena->commit, PAGE_SIZE);
+			size_t extra_commit = _allocator_align(arena->stackptr+size - arena->commit, PAGE_SIZE);
 			sys_commit_memory((u8*)arena->address+arena->commit, extra_commit);
 			arena->commit += extra_commit;
 		}
@@ -752,7 +534,7 @@ void* _alloc_into_free(allocator_t* arena, allocator_block_t* free, size_t size)
 void _virtual_allocator_commit(allocator_t* arena, size_t size) {
 	assert(arena->type == ALLOCATOR_HEAP);
 	assert(arena->commit < arena->size);
-	u64 commit = align64(size, PAGE_SIZE);
+	u64 commit = _allocator_align(size, PAGE_SIZE);
 	allocator_block_t* new_memory = sys_commit_memory((u8*)arena->address+arena->commit, commit);
 	arena->commit += commit;
 	new_memory->size = commit;
@@ -789,7 +571,7 @@ CORE_API void* alloc_memory(allocator_t* arena, size_t size) {
 #ifdef CRASHING_ASSERTS
 	assert(!"Failed to find a free block large enough");
 #else
-	print_error("Failed to find a free block large enough");
+	print_err("Failed to find a free block large enough");
 #endif
 	return NULL;
 }
@@ -811,7 +593,7 @@ CORE_API void free_memory(allocator_t* arena, void* block) {
 
 		defrag_free_block(arena, (allocator_block_t*)block);
 	} else {
-		print_error("Attempt to free block outside of allocator space");
+		print_err("Attempt to free block outside of allocator space");
 	}
 }
 
@@ -831,17 +613,18 @@ CORE_API void clear_global_allocator() {
 	clear_allocator(_global_allocator);
 }
 
+#ifdef __ALLOCATOR_BLOCK_DEBUG__
 void print_allocator_block_t(allocator_block_t* block) {
 	for(int i=0; i< block->size-sizeof(allocator_block_t); ++i) {
 		char c = *((u8*)(block+1) + i);
 		if(c) {
 			if(c == '\n') {
-				print_inline("\\n");
+				print("\\n");
 			} else {
-				print_inline("%c", c);
+				print("%c", c);
 			}
 		} else {
-			print_inline("_");
+			print("_");
 		}
 	}
 }
@@ -855,15 +638,15 @@ next:
 		allocator_block_t* b = (allocator_block_t*)arena->blocks.first;
 		while(b) {
 			if(arena->address+index == (void*)b) {
-				// print_inline(TERM_RESET TERM_INVERTED);
+				// print(TERM_RESET TERM_INVERTED);
 				escape_mode(ESCAPE_RESET | ESCAPE_INVERTED);
 				char size[32];
-				print_to_buffer(size, sizeof(size), "block %li", b->size);
-				print_inline(size);
+				sprint(size, sizeof(size), "block %li", b->size);
+				print(size);
 				for(int i=0; i<sizeof(allocator_block_t)-str_len(size); ++i) {
-					print_inline(" ");
+					print(" ");
 				}
-				// print_inline(TERM_RESET TERM_BLUE_BG);
+				// print(TERM_RESET TERM_BLUE_BG);
 				escape_mode(ESCAPE_RESET);
 				escape_color_bg(escape_basic_color(4, _True));
 				print_allocator_block_t(b);
@@ -876,15 +659,15 @@ next:
 		allocator_block_t* f = (allocator_block_t*)arena->free.first;
 		while(f) {
 			if(arena->address+index == (void*)f) {
-				// print_inline(TERM_RESET TERM_INVERTED);
+				// print(TERM_RESET TERM_INVERTED);
 				escape_mode(ESCAPE_RESET | ESCAPE_INVERTED);
 				char size[32];
-				print_to_buffer(size, sizeof(size), "free %li", f->size);
-				print_inline(size);
+				sprint(size, sizeof(size), "free %li", f->size);
+				print(size);
 				for(int i=0; i<sizeof(allocator_block_t)-str_len(size); ++i) {
-					print_inline(" ");
+					print(" ");
 				}
-				// print_inline(TERM_RESET TERM_GREEN_BG);
+				// print(TERM_RESET TERM_GREEN_BG);
 				escape_mode(ESCAPE_RESET);
 				escape_color_bg(escape_basic_color(2, _True));
 				print_allocator_block_t(f);
@@ -895,16 +678,17 @@ next:
 		}
 
 		escape_color_bg(escape_basic_color(1, _True));
-		print_inline("FATAL ERROR");
+		print("FATAL ERROR");
 		exit(1);
 	}
 
 	assert(index == arena_size);
 	escape_mode(ESCAPE_RESET);
 	escape_color_bg(escape_basic_color(3, _True));
-	print_inline("END\n");
+	print("END\n");
 	escape_mode(ESCAPE_RESET);
 }
+#endif
 
 
 // DYNAMIC ARRAY
@@ -960,7 +744,7 @@ void str_set_allocator(allocator_t* allocator) {
 
 int str_get_aligned_size(int size) {
 	// NOTE: don't think adding sizeof memblock at this point is needed
-	return align64(size+1 /*+ sizeof(core_allocator_block_t)*/, 64);
+	return _allocator_align(size+1 /*+ sizeof(core_allocator_block_t)*/, 64);
 }
 
 core_string_t _allocate_string(size_t len) {
@@ -996,12 +780,12 @@ core_string_t str_create(char* str) {
 core_string_t str_format(char* fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
-	int len = print_to_buffer_va(0, 0, fmt, args) + 1;
+	int len = vsprint(0, 0, fmt, args) + 1;
 	va_end(args);
 	core_string_t result = _allocate_string(len);
 	va_list args2;
 	va_start(args2, fmt);
-	print_to_buffer_va(result, len, fmt, args2);
+	vsprint(result, len, fmt, args2);
 	va_end(args2);
 	return result;
 }
@@ -1117,7 +901,7 @@ void char_append(char* dest, char* src, int buf_size) {
 void str_append(core_string_t* str, core_string_t append) {
 	u64 len = str_len(*str);
 	u64 len2 = str_len(append);
-	u64 alen = align64(len+1, 64);
+	u64 alen = _allocator_align(len+1, 64);
 	if(len + 1 + len2 > alen) {
 		core_string_t newStr = _allocate_string(len + len2);
 		sys_copy_memory(newStr, *str, len);
@@ -1217,7 +1001,7 @@ void char_replace(char* str, char* find, char* replace, int buf_size) {
 	// *o = 0;
 	// free_memory(*str);
 	// *str = newStr;
-	print_error("Function not implemented");
+	print_err("Function not implemented");
 	assert(FALSE);
 }
 void str_replace(core_string_t* str, core_string_t find, core_string_t replace) {
@@ -1246,7 +1030,7 @@ void str_replace(core_string_t* str, core_string_t find, core_string_t replace) 
 }
 
 void char_replace_first(char* str, char* find, char* replace, int buf_size) {
-	print_error("Function not implemented");
+	print_err("Function not implemented");
 	assert(FALSE);
 }
 void str_replace_first(core_string_t* str, core_string_t find, core_string_t replace) {
@@ -1279,7 +1063,7 @@ void str_replace_first(core_string_t* str, core_string_t find, core_string_t rep
 
 // TODO maybe do 1 allocation and store all parts in it
 int char_split(char** buffer, size_t size, char* str, char* by) {
-	print_error("Function not implemented");
+	print_err("Function not implemented");
 	assert(FALSE);
 	return 0;
 }
@@ -1324,7 +1108,7 @@ int str_split(core_string_t* buffer, size_t size, core_string_t str, core_string
 }
 
 void char_substr(char*buffer, size_t buf_size, char* str, int start, int len) {
-	print_error("Function not implemented");
+	print_err("Function not implemented");
 	assert(FALSE);
 }
 core_string_t str_substr(core_string_t str, int start, int len) {
@@ -1335,7 +1119,7 @@ core_string_t str_substr(core_string_t str, int start, int len) {
 }
 
 void char_trim(char* str) {
-	print_error("Function not implemented");
+	print_err("Function not implemented");
 	assert(FALSE);
 }
 void str_trim(core_string_t* str) {
