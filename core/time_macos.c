@@ -56,6 +56,7 @@ void time_update(gametime_t* time) {
 	}
 }
 
+
 // Milliseconds
 f64 time_get_ms() {
     time_load_mach_timebase();
@@ -81,4 +82,28 @@ f64 time_get_seconds() {
 u64 time_get_raw() {
     u64 ticks = mach_absolute_time();
 	return ticks;
+}
+
+
+// Timer
+timeblock_t time_start_block() {
+	__asm__ __volatile__ ("isb");
+	uint64_t time = mach_absolute_time();
+	return (timeblock_t){
+		.startTime = time,
+	};
+}
+
+void time_end_block(timeblock_t* block) {
+	if (!mach_timebase.denom) {
+		mach_timebase_info(&mach_timebase);
+	}
+
+	__asm__ __volatile__ ("isb");
+	uint64_t time = mach_absolute_time();
+	block->endTime = time;
+	block->cycles = block->endTime - block->startTime;
+
+	u64 freq_ms = mach_timebase.denom * 1000000 / mach_timebase.numer;
+	block->milliseconds = (f64)block->cycles / (f64)freq_ms;
 }

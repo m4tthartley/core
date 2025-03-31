@@ -25,6 +25,13 @@ typedef struct {
 	int fps;
 } gametime_t;
 
+typedef struct {
+	uint64_t startTime;
+	uint64_t endTime;
+	uint64_t cycles;
+	f64 milliseconds;
+} timeblock_t;
+
 // timer_t create_timer();
 // f64 get_time(timer_t* timer);
 // f64 get_time_seconds(timer_t* timer);
@@ -36,6 +43,9 @@ void 			time_update(gametime_t* time);
 f64 			time_get_ms();
 f64 			time_get_seconds();
 u64 			time_get_raw();
+
+timeblock_t 	time_start_block();
+void 			time_end_block(timeblock_t* block);
 
 
 #	ifdef CORE_IMPL

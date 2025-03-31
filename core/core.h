@@ -602,11 +602,16 @@ CORE_API void gfree_memory(void* block) {
 }
 
 CORE_API void clear_allocator(allocator_t* arena) {
-	assert(arena->type == ALLOCATOR_HEAP);
-	arena->blocks = (llist_t){0};
-	arena->free = (llist_t){0};
-	((allocator_block_t*)arena->address)->size = arena->commit ? arena->commit : arena->size;
-	list_add(&arena->free, (llnode_t*)arena->address);
+	// assert(arena->type == ALLOCATOR_HEAP);
+	if (arena->type == ALLOCATOR_HEAP) {
+		arena->blocks = (llist_t){0};
+		arena->free = (llist_t){0};
+		((allocator_block_t*)arena->address)->size = arena->commit ? arena->commit : arena->size;
+		list_add(&arena->free, (llnode_t*)arena->address);
+	}
+	if (arena->type == ALLOCATOR_BUMP) {
+		arena->stackptr = 0;
+	}
 }
 
 CORE_API void clear_global_allocator() {
