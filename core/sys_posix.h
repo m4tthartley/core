@@ -28,8 +28,19 @@
 // 	error_with_source_location(strerror(errno), __FILE__, __LINE__)
 
 
+file_t logFileDescriptor = -1;
+
+
+void sys_init_log(char* filename) {
+	logFileDescriptor = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+}
+
+
 void sys_print(char* str) {
 	write(STDOUT_FILENO, str, strlen(str));
+	if (logFileDescriptor != -1) {
+		write(logFileDescriptor, str, strlen(str));
+	}
 }
 
 void sys_print_err(char* str) {
@@ -39,6 +50,11 @@ void sys_print_err(char* str) {
 	write(STDERR_FILENO, esc_red, strlen(esc_red));
 	write(STDERR_FILENO, str, strlen(str));
 	write(STDERR_FILENO, esc_reset, strlen(esc_reset));
+	if (logFileDescriptor != -1) {
+		write(logFileDescriptor, esc_red, strlen(esc_red));
+		write(logFileDescriptor, str, strlen(str));
+		write(logFileDescriptor, esc_reset, strlen(esc_reset));
+	}
 }
 
 
@@ -76,8 +92,11 @@ CORE_MEMORY_FUNC void sys_copy_memory(void* dest, void* src, size_t size) {
 	uint8_t* out = dest;
 	uint8_t* in = src;
 	uint8_t* end = out+size;
-	while(out<end) {
-		*out++ = *in++;
+	// while(out<end) {
+	// 	*out++ = *in++;
+	// }
+	for (size_t i=0; i<size; ++i) {
+		out[i] = in[i];
 	}
 }
 

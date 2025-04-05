@@ -89,6 +89,8 @@ typedef uint8_t  u8;
 
 typedef float f32;
 typedef double f64;
+typedef float float32_t;
+typedef double float64_t;
 
 typedef u32 b32;
 typedef u8 byte;

@@ -77,3 +77,12 @@ _Bool sys_get_resource_path(char* buffer, int bufferSize, char* resourceFile) {
 
 	return _True;
 }
+
+_Bool sys_open_resource_file(char* filename) {
+	char buffer[MAX_PATH_LENGTH];
+	if (sys_get_resource_path(buffer, MAX_PATH_LENGTH, filename)) {
+		return sys_open(buffer);
+	} else {
+		return 0;
+	}
+}
