@@ -281,6 +281,7 @@ CORE_FILE_FUNC file_t sys_create(char* path) {
 	if(!_sys_valid_handle(handle)) {
 		// _print_file_error();
 		sys_print_err(strerror(errno));
+		sys_print_err("\n");
 		return 0;
 	}
 	return handle;
@@ -290,10 +291,12 @@ CORE_FILE_FUNC size_t sys_read(file_t file, size_t offset, void* buffer, size_t 
 	ssize_t result = pread(file, buffer, size, offset);
 	if (result == -1) {
 		sys_print_err(strerror(errno));
+		sys_print_err("\n");
 		return 0;
 	}
 	if (result != size) {
 		sys_print_err(strerror(errno));
+		sys_print_err("\n");
 	}
 	return result;
 }
@@ -302,10 +305,12 @@ CORE_FILE_FUNC size_t sys_write(file_t file, size_t offset, void* buffer, size_t
 	ssize_t result = pwrite(file, buffer, size, offset);
 	if (result == -1) {
 		sys_print_err(strerror(errno));
+		sys_print_err("\n");
 		return 0;
 	}
 	if (result != size) {
 		sys_print_err(strerror(errno));
+		sys_print_err("\n");
 	}
 	return result;
 }
@@ -314,6 +319,7 @@ CORE_FILE_FUNC _Bool sys_truncate(file_t file, size_t size) {
     int result = ftruncate(file, size);
     if (result != 0) {
         sys_print_err(strerror(errno));
+		sys_print_err("\n");
 		return _False;
     }
     return _True;
@@ -325,6 +331,7 @@ CORE_FILE_FUNC stat_t sys_stat(file_t file) {
 	int stat_result = fstat(file, &stats);
 	if (stat_result == -1) {
 		sys_print_err(strerror(errno));
+		sys_print_err("\n");
 		return result;
 	}
 	result.created = 0;
@@ -362,6 +369,7 @@ CORE_FILE_FUNC file_t sys_open_dir(char* path) {
 		// 	_print_file_error();
 		// }
 		sys_print_err(strerror(errno));
+		sys_print_err("\n");
 		return 0;
 	}
 	return handle;
@@ -379,6 +387,7 @@ CORE_FILE_FUNC file_t sys_create_dir(char* path) {
 	if(!_sys_valid_handle(handle)) {
 		// _print_file_error();
 		sys_print_err(strerror(errno));
+		sys_print_err("\n");
 	}
 	return handle;
 }

@@ -55,6 +55,26 @@ _Bool sys_get_bundle_path(char* buffer, int bufferSize, char* filename) {
 // 	strcat(buffer, filename);
 // }
 
+_Bool sys_get_resource_dir(char* buffer, int bufferSize) {
+	CFBundleRef bundle = CFBundleGetMainBundle();
+	if (!bundle) {
+		return _False;
+	}
+	CFURLRef resourceUrl = CFBundleCopyResourcesDirectoryURL(bundle);
+	if (!resourceUrl) {
+		return _False;
+	}
+	
+	Boolean result = CFURLGetFileSystemRepresentation(resourceUrl, true, (UInt8*)buffer, bufferSize);
+	if (!result) {
+		perror("Error getting bundle path");
+		return _False;
+	}
+	CFRelease(resourceUrl);
+
+	return _True;
+}
+
 _Bool sys_get_resource_path(char* buffer, int bufferSize, char* resourceFile) {
 	CFBundleRef bundle = CFBundleGetMainBundle();
 	if (!bundle) {

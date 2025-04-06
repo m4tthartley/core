@@ -187,6 +187,7 @@ int wait_for_directory_changes(directory_watcher_t* watcher, file_change_t* outp
 
 // Bundles
 _Bool sys_get_bundle_path(char* buffer, int bufferSize, char* filename);
+_Bool sys_get_resource_dir(char* buffer, int bufferSize);
 _Bool sys_get_resource_path(char* buffer, int bufferSize, char* resourceFile);
 
 
