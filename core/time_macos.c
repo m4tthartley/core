@@ -97,7 +97,7 @@ float64_t time_raw_to_seconds(uint64_t time) {
 }
 
 
-// Timer
+// Performance Timer
 timeblock_t time_start_block() {
 	__asm__ __volatile__ ("isb");
 	uint64_t time = mach_absolute_time();

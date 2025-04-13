@@ -42,6 +42,7 @@
 #	include <stdarg.h>
 #	include <stdlib.h>
 #	include <stdint.h>
+#	include <stdbool.h>
 #endif
 #ifdef __MACOS__
 #	include <time.h>

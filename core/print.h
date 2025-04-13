@@ -432,6 +432,10 @@ void escape_mode(int attrs) {
 // 	va_end(va);
 // }
 void print(char* fmt, ...) {
+	if (!fmt) {
+		return;
+	}
+
 	char buffer[1024];
 	va_list va;
 	va_start(va, fmt);
@@ -443,6 +447,10 @@ void print(char* fmt, ...) {
 }
 
 void print_err(char* fmt, ...) {
+	if (!fmt) {
+		return;
+	}
+	
 	char buffer[1024];
 	va_list va;
 	va_start(va, fmt);
