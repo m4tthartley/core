@@ -92,10 +92,11 @@ typedef float f32;
 typedef double f64;
 typedef float float32_t;
 typedef double float64_t;
+typedef float real32_t;
+typedef double real64_t;
 
 typedef u32 b32;
 typedef u8 byte;
-// typedef u64 size_t;
 
 
 // General constants and macros

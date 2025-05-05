@@ -214,6 +214,9 @@ CORE_MATH_FUNC vec4_t normalize4(vec4_t v);
 CORE_MATH_FUNC vec2_t floor2(vec2_t a);
 CORE_MATH_FUNC vec3_t floor3(vec3_t a);
 CORE_MATH_FUNC vec4_t floor4(vec4_t a);
+CORE_MATH_FUNC vec2_t round2(vec2_t a);
+CORE_MATH_FUNC vec3_t round3(vec3_t a);
+CORE_MATH_FUNC vec4_t round4(vec4_t a);
 CORE_MATH_FUNC float fract(float a);
 CORE_MATH_FUNC vec2_t fract2(vec2_t a);
 CORE_MATH_FUNC vec3_t fract3(vec3_t a);
@@ -262,6 +265,7 @@ CORE_MATH_FUNC float smoothstep(float x, float y, float a);
 CORE_MATH_FUNC float todeg(float rad);
 CORE_MATH_FUNC float torad(float deg);
 CORE_MATH_FUNC mat4_t mat4_identity();
+CORE_MATH_FUNC mat4_t mat4_ortho_matrix(float left, float right, float bottom, float top, float near, float far);
 CORE_MATH_FUNC mat4_t perspective_matrix(float fov, float aspect, float near, float far);
 CORE_MATH_FUNC mat4_t mat4_camera(vec3_t position, vec3_t direction, vec3_t up);
 CORE_MATH_FUNC mat4_t mat4_inverse(mat4_t m);
@@ -279,6 +283,7 @@ CORE_MATH_FUNC void mat4_apply_scale(mat4_t *m, vec3_t s);
 CORE_MATH_FUNC vec4_t vec4_mul_mat4(vec4_t in, mat4_t mat);
 CORE_MATH_FUNC vec3_t vec3_mul_mat4(vec3_t in, mat4_t mat);
 CORE_MATH_FUNC vec2_t vec2_mul_mat4(vec2_t in, mat4_t mat);
+CORE_MATH_FUNC vec4_t mat4_mul_vec4(mat4_t mat, vec4_t in);
 CORE_MATH_FUNC quaternion_t qidentity();
 CORE_MATH_FUNC quaternion_t qmul(quaternion_t q1, quaternion_t q2);
 CORE_MATH_FUNC quaternion_t qdiv(quaternion_t q, float f);
@@ -479,6 +484,16 @@ CORE_MATH_FUNC vec3_t floor3(vec3_t a) {
 }
 CORE_MATH_FUNC vec4_t floor4(vec4_t a) {
 	return vec4(floorf(a.x), floorf(a.y), floorf(a.z), floorf(a.w));
+}
+
+CORE_MATH_FUNC vec2_t round2(vec2_t a) {
+	return floor2(add2(a, vec2f(0.5f)));
+}
+CORE_MATH_FUNC vec3_t round3(vec3_t a) {
+	return floor3(add3(a, vec3f(0.5f)));
+}
+CORE_MATH_FUNC vec4_t round4(vec4_t a) {
+	return floor4(add4(a, vec4f(0.5f)));
 }
 
 CORE_MATH_FUNC float fract(float a) {
@@ -708,6 +723,25 @@ CORE_MATH_FUNC mat4_t mat4_identity() {
 	return result;
 }
 
+CORE_MATH_FUNC mat4_t mat4_ortho_matrix(float left, float right, float bottom, float top, float near, float far) {
+	float rl = right-left;
+	float tb = top-bottom;
+	float fn = far-near;
+	float xMul = 2 / rl;
+	float yMul = 2 / tb;
+	float zMul = -2 / fn;
+	float xAdd = -(right+left) / rl;
+	float yAdd = -(top+bottom) / tb;
+	float zAdd = -(far+near) / fn;
+	mat4_t mat = {
+		xMul, 0, 0, 0,
+		0, yMul, 0, 0,
+		0, 0, zMul, 0,
+		xAdd, yAdd, zAdd, 1,
+	};
+	return mat;
+}
+
 CORE_MATH_FUNC mat4_t perspective_matrix(float fov, float aspect, float near, float far) {
 	float f = 1.0f / tanf((fov/180.0f*PI) / 2.0f);
 	mat4_t mat = {
@@ -917,6 +951,16 @@ CORE_MATH_FUNC vec2_t vec2_mul_mat4(vec2_t in, mat4_t mat) {
 		}
 	}
 	return result.xy;
+}
+
+CORE_MATH_FUNC vec4_t mat4_mul_vec4(mat4_t mat, vec4_t in) {
+	vec4_t result = {0};
+	for (int row = 0; row < 4; ++row) {
+		for (int i = 0; i < 4; ++i) {
+			result.f[row] += mat.f[row * 4 + i] * in.f[i];
+		}
+	}
+	return result;
 }
 
 // QUATERNIONS

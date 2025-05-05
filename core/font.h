@@ -33,6 +33,9 @@ typedef struct {
 uint8_t font_get_kerning_pair(embedded_font_t* font, char a, char b);
 font_kern_result_t font_get_kerning(embedded_font_t* font, char a, char b);
 
+extern font_kern_t FONT_DEFAULT_KERNING_PAIRS[];
+extern embedded_font_t FONT_DEFAULT;
+
 
 #	ifdef CORE_IMPL
 

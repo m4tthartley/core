@@ -86,6 +86,7 @@ CORE_VIDEO_FUNC _Bool sys_init_window(sys_window_t* win, char* title, int width,
 	return _True;
 
 init_window_err:
+	*win = (sys_window_t){0};
 	return _False;
 }
 
@@ -132,19 +133,19 @@ CORE_VIDEO_FUNC void sys_poll_events(sys_window_t* win) {
 				uint8_t modifierKeys = 0;
 				if (modifierFlags & /*NSCommandKeyMask*/ NSEventModifierFlagCommand) {
 					// _sys_video_print("Command modifier\n");
-					modifierKeys |= SYS_MODIFIER_KEY_COMMAND;
+					modifierKeys |= MODIFIER_KEY_COMMAND;
 				}
 				if (modifierFlags & /*NSAlternateKeyMask*/ NSEventModifierFlagOption) {
 					// _sys_video_print("Option modifier\n");
-					modifierKeys |= SYS_MODIFIER_KEY_OPTION;
+					modifierKeys |= MODIFIER_KEY_OPTION;
 				}
 				if (modifierFlags & /*NSControlKeyMask*/ NSEventModifierFlagControl) {
 					// _sys_video_print("Control modifier\n");
-					modifierKeys |= SYS_MODIFIER_KEY_CONTROL;
+					modifierKeys |= MODIFIER_KEY_CONTROL;
 				}
 				if (modifierFlags & /*NSShiftKeyMask*/ NSEventModifierFlagShift) {
 					// _sys_video_print("Shift modifier\n");
-					modifierKeys |= SYS_MODIFIER_KEY_SHIFT;
+					modifierKeys |= MODIFIER_KEY_SHIFT;
 				}
 
 				_Bool keyDown = ([event type] == NSEventTypeKeyDown);
@@ -267,6 +268,7 @@ CORE_VIDEO_FUNC void sys_init_metal(sys_window_t* win) {
 
 	id<MTLDevice> device = [MTLCreateSystemDefaultDevice() retain];
 	CAMetalLayer* layer = [CAMetalLayer layer];
+	window.contentView.layer = layer;
 
 	layer.device = device;
 	layer.pixelFormat = MTLPixelFormatBGRA8Unorm;

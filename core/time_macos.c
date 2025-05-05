@@ -80,17 +80,23 @@ f64 time_get_seconds() {
 }
 
 u64 time_get_raw() {
+	time_load_mach_timebase();
+
     u64 ticks = mach_absolute_time();
 	return ticks;
 }
 
 float64_t time_raw_to_milliseconds(uint64_t time) {
+	time_load_mach_timebase();
+
 	u64 freq = mach_timebase.denom * 1000000 / mach_timebase.numer;
 	float64_t result = (float64_t)time / (float64_t)freq;
 	return result;
 }
 
 float64_t time_raw_to_seconds(uint64_t time) {
+	time_load_mach_timebase();
+
 	u64 freq = mach_timebase.denom * 1000000000 / mach_timebase.numer;
 	float64_t result = (float64_t)time / (float64_t)freq;
 	return result;
@@ -99,6 +105,8 @@ float64_t time_raw_to_seconds(uint64_t time) {
 
 // Performance Timer
 timeblock_t time_start_block() {
+	time_load_mach_timebase();
+
 	__asm__ __volatile__ ("isb");
 	uint64_t time = mach_absolute_time();
 	return (timeblock_t){
@@ -107,10 +115,6 @@ timeblock_t time_start_block() {
 }
 
 void time_end_block(timeblock_t* block) {
-	if (!mach_timebase.denom) {
-		mach_timebase_info(&mach_timebase);
-	}
-
 	__asm__ __volatile__ ("isb");
 	uint64_t time = mach_absolute_time();
 	block->endTime = time;

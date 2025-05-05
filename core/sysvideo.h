@@ -49,10 +49,36 @@ enum {
 };
 
 enum {
-	SYS_MODIFIER_KEY_COMMAND = (1<<0),
-	SYS_MODIFIER_KEY_OPTION = (1<<1),
-	SYS_MODIFIER_KEY_CONTROL = (1<<2),
-	SYS_MODIFIER_KEY_SHIFT = (1<<3),
+#ifdef __APPLE__
+	MODIFIER_KEY_CAPSLOCK = (/*NSEventModifierFlagCapsLock*/(1 << 16) >> 16),
+	MODIFIER_KEY_SHIFT = (/*NSEventModifierFlagShift*/(1 << 17) >> 16),
+	MODIFIER_KEY_CONTROL = (/*NSEventModifierFlagControl*/(1 << 18) >> 16),
+	MODIFIER_KEY_OPTION = (/*NSEventModifierFlagOption*/(1 << 19) >> 16),
+	MODIFIER_KEY_COMMAND = (/*NSEventModifierFlagCommand*/(1 << 20) >> 16),
+	MODIFIER_KEY_NUMPAD = (/*NSEventModifierFlagNumericPad*/(1 << 21) >> 16),
+	MODIFIER_KEY_HELP = (/*NSEventModifierFlagHelp*/(1 << 22) >> 16),
+	MODIFIER_KEY_FUNCTION = (/*NSEventModifierFlagFunction*/(1 << 23) >> 16),
+#else
+	MODIFIER_KEY_CAPSLOCK = (1<<0),
+	MODIFIER_KEY_SHIFT = (1<<1),
+	MODIFIER_KEY_CONTROL = (1<<2),
+	MODIFIER_KEY_OPTION = (1<<3),
+	MODIFIER_KEY_COMMAND = (1<<4),
+	MODIFIER_KEY_NUMPAD = (1<<5),
+	MODIFIER_KEY_HELP = (1<<6),
+	MODIFIER_KEY_FUNCTION = (1<<7),
+#endif
+
+	/*
+	NSEventModifierFlagCapsLock
+	NSEventModifierFlagShift
+	NSEventModifierFlagControl
+	NSEventModifierFlagOption
+	NSEventModifierFlagCommand
+	NSEventModifierFlagNumericPad
+	NSEventModifierFlagHelp
+	NSEventModifierFlagFunction
+	*/
 };
 
 typedef struct {
@@ -82,7 +108,11 @@ typedef struct {
 		};
 		sys_button_t buttons[2];
 	};
-	int wheel_dt;
+	float wheel_dt;
+	struct {
+		float x;
+		float y;
+	} drag;
 } sys_mouse_t;
 
 typedef struct {
@@ -103,11 +133,19 @@ typedef struct {
 
 	sys_mouse_t mouse;
 	sys_button_t keyboard[256];
-	struct {
-		sys_button_t command;
-		sys_button_t option;
-		sys_button_t control;
-		sys_button_t shift;
+	union {
+		struct {
+			sys_button_t capslock;
+			sys_button_t shift;
+			sys_button_t control;
+			sys_button_t option;
+			sys_button_t command;
+			sys_button_t numpad;
+			sys_button_t help;
+			sys_button_t function;
+		};
+
+		sys_button_t keys[8];
 	} modifier_keys;
 
 #	ifdef __APPLE__
