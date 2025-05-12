@@ -289,8 +289,9 @@ CORE_MATH_FUNC quaternion_t qmul(quaternion_t q1, quaternion_t q2);
 CORE_MATH_FUNC quaternion_t qdiv(quaternion_t q, float f);
 CORE_MATH_FUNC float qdot(quaternion_t a, quaternion_t b);
 CORE_MATH_FUNC quaternion_t qinverse(quaternion_t q);
-CORE_MATH_FUNC void qrotate(quaternion_t *q, vec3_t axis, float angle);
-CORE_MATH_FUNC void qrotatevec3_create(vec3_t* v, quaternion_t q);
+CORE_MATH_FUNC quaternion_t qrotate(vec3_t axis, float angle);
+CORE_MATH_FUNC void qrotate_apply(quaternion_t *q, vec3_t axis, float angle);
+CORE_MATH_FUNC void vec3_qrotate(vec3_t* v, quaternion_t q);
 CORE_MATH_FUNC quaternion_t qnlerp(quaternion_t a, quaternion_t b, float t);
 CORE_MATH_FUNC mat4_t qmat4(quaternion_t q);
 CORE_MATH_FUNC int randr(int min, int max);
@@ -995,7 +996,16 @@ CORE_MATH_FUNC quaternion_t qinverse(quaternion_t q) {
 	result.w = q.w;
 	return qdiv(result, qdot(q,q));
 }
-CORE_MATH_FUNC void qrotate(quaternion_t *q, vec3_t axis, float angle) {
+CORE_MATH_FUNC quaternion_t qrotate(vec3_t axis, float angle) {
+	quaternion_t local;
+	local.w = cosf(angle/2.0f);
+	local.x = axis.x * sinf(angle/2.0f);
+	local.y = axis.y * sinf(angle/2.0f);
+	local.z = axis.z * sinf(angle/2.0f);
+	
+	return local;
+}
+CORE_MATH_FUNC void qrotate_apply(quaternion_t *q, vec3_t axis, float angle) {
 	quaternion_t local;
 	local.w = cosf(angle/2.0f);
 	local.x = axis.x * sinf(angle/2.0f);
@@ -1005,7 +1015,7 @@ CORE_MATH_FUNC void qrotate(quaternion_t *q, vec3_t axis, float angle) {
 	*q = qmul(local, *q);
 	*q = normalize4(*q); // TODO: check if it needs this first
 }
-CORE_MATH_FUNC void qrotatevec3_create(vec3_t* v, quaternion_t q) {
+CORE_MATH_FUNC void vec3_qrotate(vec3_t* v, quaternion_t q) {
 	quaternion_t qp = {v->x, v->y, v->z, 0};
 	quaternion_t temp = qmul(q, qp);
 	q = qmul(temp, vec4(-q.x, -q.y, -q.z, q.w));
