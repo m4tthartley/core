@@ -127,6 +127,8 @@ typedef struct {
 
 	int width;
 	int height;
+	int fbWidth;
+	int fbHeight;
 	_Bool quit;
 	_Bool flags;
 	_Bool active;
@@ -148,18 +150,22 @@ typedef struct {
 		sys_button_t keys[8];
 	} modifier_keys;
 
-#	ifdef __APPLE__
+#ifdef __APPLE__
 	void* sysApp;
 	void* sysWindow;
+
 	void* mtlDevice;
 	void* mtlLayer;
 	void* mtlCommandQueue;
-#	endif
-#	ifdef __LINUX__
-#	endif
-#	ifdef __WIN32__
+
+	void* glContext;
+
+#endif
+#ifdef __LINUX__
+#endif
+#ifdef __WIN32__
 	HWND sysWindow;
-#	endif
+#endif
 } sys_window_t;
 
 
@@ -173,6 +179,8 @@ CORE_VIDEO_FUNC void sys_poll_events(sys_window_t* win);
 CORE_VIDEO_FUNC _Bool sys_message_box(char* title, char* msg, char* yesOption, char* noOption);
 
 CORE_VIDEO_FUNC void sys_init_metal(sys_window_t* win);
+CORE_VIDEO_FUNC void sys_init_opengl(sys_window_t* win);
+CORE_VIDEO_FUNC void sys_present_opengl(sys_window_t* win);
 
 static inline void _update_button(sys_button_t *button, _Bool new_state) {
 	button->pressed = new_state && !button->down;

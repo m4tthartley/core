@@ -3,10 +3,13 @@
 //  Copyright 2023 GiantJelly. All rights reserved.
 //
 
-// #include <AppKit/AppKit.h>
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#define GL_SILENCE_DEPRECATION 1
+
 #include <Cocoa/Cocoa.h>
 #include <Metal/Metal.h>
 #include <QuartzCore/CAMetalLayer.h>
+#include <OpenGL/gl.h>
 #include <unistd.h>
 
 #include "sysvideo.h"
@@ -77,6 +80,11 @@ CORE_VIDEO_FUNC _Bool sys_init_window(sys_window_t* win, char* title, int width,
 	}
 	[window makeKeyAndOrderFront: nil];
 	[app activateIgnoringOtherApps: YES];
+
+	NSView* view = [window contentView];
+	NSRect viewBacking = [view convertRectToBacking:[view bounds]];
+	result.fbWidth = viewBacking.size.width;
+	result.fbHeight = viewBacking.size.height;
 
 	result.sysApp = app;
 	result.sysWindow = window;
@@ -239,6 +247,7 @@ CORE_VIDEO_FUNC _Bool sys_message_box(char* title, char* msg, char* yesOption, c
 	return _False;
 }
 
+// METAL INITIALIZATION
 @interface SysVideoMetalView : NSView
 @end
 @implementation SysVideoMetalView
@@ -281,4 +290,75 @@ CORE_VIDEO_FUNC void sys_init_metal(sys_window_t* win) {
 	win->mtlDevice = device;
 	win->mtlLayer = layer;
 	win->mtlCommandQueue = commandQueue;
+}
+
+// OPENGL INITIALIZATION
+// CORE_VIDEO_FUNC void sys_init_opengl(sys_window_t* win) {
+// 	NSOpenGLPixelFormatAttribute attrs[] = {
+// 		// NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersion3_2Core,
+// 		NSOpenGLPFAColorSize, 24,
+// 		NSOpenGLPFAAlphaSize, 8,
+// 		NSOpenGLPFADepthSize, 24,
+// 		NSOpenGLPFAStencilSize, 8,
+// 		NSOpenGLPFADoubleBuffer,
+// 		NSOpenGLPFAAccelerated,
+// 		0
+// 	};
+// 	NSOpenGLPixelFormat* pixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes: attrs];
+
+// 	NSRect frame = NSMakeRect(0, 0, win->width, win->height);
+// 	NSOpenGLView* view = [[NSOpenGLView alloc] initWithFrame:frame pixelFormat:pixelFormat];
+// 	assert(view);
+
+// 	[[view openGLContext] makeCurrentContext];
+
+// 	GLint swapInterval = 1;
+// 	[[view openGLContext] setValues:&swapInterval forParameter:NSOpenGLCPSwapInterval];
+// }
+
+CORE_VIDEO_FUNC void sys_init_opengl(sys_window_t* win) {
+	NSWindow* window = win->sysWindow;
+
+	NSOpenGLPixelFormatAttribute attrs[] = {
+		NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersionLegacy, //NSOpenGLProfileVersion4_1Core,
+		NSOpenGLPFAColorSize, 24,
+		NSOpenGLPFAAlphaSize, 8,
+		NSOpenGLPFADepthSize, 24,
+		NSOpenGLPFAStencilSize, 8,
+		NSOpenGLPFADoubleBuffer,
+		NSOpenGLPFAAccelerated,
+		0
+	};
+	NSOpenGLPixelFormat* pixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes: attrs];
+	if (!pixelFormat) {
+		goto err;
+	}
+	NSOpenGLContext* context = [[NSOpenGLContext alloc] initWithFormat:pixelFormat shareContext:nil];
+	if (!context) {
+		goto err;
+	}
+
+	[context setView:[window contentView]];
+	[context makeCurrentContext];
+	// assert(glGetError() == GL_NO_ERROR);
+
+	GLint swapInterval = 1;
+	[context setValues:&swapInterval forParameter:NSOpenGLCPSwapInterval];
+	// assert(glGetError() == GL_NO_ERROR);
+
+	glViewport(0, 0, win->fbWidth, win->fbHeight);
+
+	win->glContext = context;
+	return;
+
+	char* str = "Failed to initialize OpenGL \n";
+err:
+	// sys_print_err("Failed to initialize OpenGL \n");
+	write(STDERR_FILENO, str, strlen(str));
+	exit(1);
+}
+
+CORE_VIDEO_FUNC void sys_present_opengl(sys_window_t* win) {
+	NSOpenGLContext* context = win->glContext;
+	[context flushBuffer];
 }
