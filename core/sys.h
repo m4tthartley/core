@@ -141,7 +141,7 @@ CORE_FILE_FUNC void		sys_close(file_t file);
 CORE_FILE_FUNC file_t	sys_open_dir(char* path);
 CORE_FILE_FUNC file_t	sys_create_dir(char* path);
 CORE_FILE_FUNC int		sys_list_dir(char* path, _Bool recursive, stat_t* output, int length);
-CORE_FILE_FUNC char*	sys_current_dir(char* output, size_t size);
+CORE_FILE_FUNC void		sys_current_dir(char* output, size_t size);
 CORE_FILE_FUNC void		sys_change_dir(char* path);
 
 
@@ -160,7 +160,7 @@ CORE_DYLIB_FUNC void *sys_load_lib_sym(dylib_t lib, char *proc);
 // Directory watcher definitions
 #ifdef __WIN32__
 typedef struct {
-	u64 modified;
+	uint64_t modified;
 	char filename[MAX_PATH_LENGTH];
 } file_change_t;
 
@@ -181,7 +181,7 @@ typedef struct directory_watcher_t {
 	int result_count;
 } directory_watcher_t;
 
-b32 watch_directory_changes(directory_watcher_t* watcher, char** dir_paths, int dir_count);
+_Bool watch_directory_changes(directory_watcher_t* watcher, char** dir_paths, int dir_count);
 int wait_for_directory_changes(directory_watcher_t* watcher, file_change_t* output, int output_size);
 #endif
 
@@ -205,7 +205,7 @@ _Bool sys_get_resource_path(char* buffer, int bufferSize, char* resourceFile);
 // #	include "system_linux.h"
 // #endif
 #ifdef __WIN32__
-#	include "system_win32.h"
+#	include "sys_win32.h"
 #endif
 
 

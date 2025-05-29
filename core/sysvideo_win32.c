@@ -7,8 +7,9 @@
 //
 
 #include "core.h"
-#include "video.h"
-#include "opengl_extensions.h"
+#include "sysvideo.h"
+
+#include "glex.h"
 
 
 // #include "audio.h"
@@ -24,8 +25,17 @@ LRESULT CALLBACK _core_wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
 // 	button->down = new_state;
 // }
 
-b32 start_window(window_t* window, char* title, int width, int height, int flags) {
-	*window = (window_t){0};
+void _print_win32_error(char* msg) {
+	char* err = _win32_error(NULL);
+	sys_print_err(msg);
+	sys_print_err(": ");
+	sys_print_err(err);
+	sys_print_err("\n");
+	LocalFree(err);
+}
+
+_Bool sys_init_window(sys_window_t* window, char* title, int width, int height, int flags) {
+	*window = (sys_window_t){0};
 	// HINSTANCE hinstance = __ImageBase;
 	WNDCLASS windowClass = {0};
 	windowClass.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
@@ -33,7 +43,7 @@ b32 start_window(window_t* window, char* title, int width, int height, int flags
 	// TODO: Test, apparently getting the hInstance this way can cause issues if used in a dll
 	HMODULE hinstance = GetModuleHandle(NULL);
 	if (!hinstance) {
-		print_error("GetModuleHandle: %s", _win32_error(NULL));
+		_print_win32_error("GetModuleHandle");
 		return FALSE;
 	}
 	// windowClass.hInstance = hInstance;
@@ -56,7 +66,7 @@ b32 start_window(window_t* window, char* title, int width, int height, int flags
 	// }
 
 	if(!RegisterClassA(&windowClass)) {
-		print_error("RegisterClassA: %s", _win32_error(NULL));
+		_print_win32_error("RegisterClassA");
 		return FALSE;
 	}
 
@@ -88,7 +98,7 @@ b32 start_window(window_t* window, char* title, int width, int height, int flags
 		0);
 
 	if(!hwnd) {
-		print_error("CreateWindowExA: %s", _win32_error(NULL));
+		_print_win32_error("CreateWindowExA");
 		return FALSE;
 	}
 
@@ -109,7 +119,7 @@ b32 start_window(window_t* window, char* title, int width, int height, int flags
 	mouse_raw_input.dwFlags = 0;
 	mouse_raw_input.hwndTarget = window->hwnd;
 	if(!RegisterRawInputDevices(&mouse_raw_input, 1, sizeof(mouse_raw_input))) {
-		print_error("RegisterRawInputDevices: %s", _win32_error(NULL));
+		_print_win32_error("RegisterRawInputDevices");
 	}
 
 	window->quit = FALSE;
@@ -120,7 +130,7 @@ b32 start_window(window_t* window, char* title, int width, int height, int flags
 }
 
 LRESULT CALLBACK _core_wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
-	window_t* window = (window_t*)GetWindowLongPtrA(hwnd, GWLP_USERDATA);
+	sys_window_t* window = (sys_window_t*)GetWindowLongPtrA(hwnd, GWLP_USERDATA);
 
 	LRESULT result = 0;
 	switch (message) {
@@ -148,7 +158,7 @@ LRESULT CALLBACK _core_wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
 
 				if (flags & RI_MOUSE_WHEEL) {
 					SHORT w = raw.data.mouse.usButtonData;
-					window->mouse.wheel_dt += (w/ WHEEL_DELTA);
+					window->mouse.wheel_dt += ((float)w / WHEEL_DELTA);
 				}
 			}
 
@@ -159,7 +169,6 @@ LRESULT CALLBACK _core_wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
 			if (window) {
 				RECT rect;
 				GetClientRect(hwnd, &rect);
-				printf("%i %i \n", rect.right - rect.left, rect.bottom - rect.top);
 				window->width = rect.right - rect.left;
 				window->height = rect.bottom - rect.top;
 			}
@@ -178,124 +187,8 @@ LRESULT CALLBACK _core_wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
 	return result;
 }
 
-#define WGL_DRAW_TO_WINDOW_ARB            0x2001
-#define WGL_SUPPORT_OPENGL_ARB            0x2010
-#define WGL_DOUBLE_BUFFER_ARB             0x2011
-#define WGL_PIXEL_TYPE_ARB                0x2013
-#define WGL_COLOR_BITS_ARB                0x2014
-#define WGL_DEPTH_BITS_ARB                0x2022
-#define WGL_STENCIL_BITS_ARB              0x2023
-#define WGL_TYPE_RGBA_ARB                 0x202B
-#define WGL_SAMPLE_BUFFERS_ARB            0x2041
-#define WGL_SAMPLES_ARB                   0x2042
-
-#define WGL_CONTEXT_DEBUG_BIT_ARB         0x00000001
-#define WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB 0x00000002
-#define WGL_CONTEXT_MAJOR_VERSION_ARB     0x2091
-#define WGL_CONTEXT_MINOR_VERSION_ARB     0x2092
-#define WGL_CONTEXT_FLAGS_ARB             0x2094
-#define WGL_CONTEXT_PROFILE_MASK_ARB      0x9126
-#define WGL_CONTEXT_CORE_PROFILE_BIT_ARB  0x00000001
-#define WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB 0x00000002
-
-typedef HGLRC WINAPI wglCreateContextAttribsARB_proc(HDC hDC, HGLRC hShareContext, const int *attribList);
-wglCreateContextAttribsARB_proc *wglCreateContextAttribsARB;
-typedef BOOL WINAPI wglChoosePixelFormatARB_proc(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
-wglChoosePixelFormatARB_proc *wglChoosePixelFormatARB;
-
-b32 start_opengl(window_t* window) {
-	HDC hdc = window->hdc;
-	PIXELFORMATDESCRIPTOR pixelFormat = {0};
-	pixelFormat.nSize = sizeof(PIXELFORMATDESCRIPTOR);
-	pixelFormat.nVersion = 1;
-	pixelFormat.iPixelType = PFD_TYPE_RGBA;
-	pixelFormat.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
-	pixelFormat.cColorBits = 32;
-	pixelFormat.cAlphaBits = 8;
-	pixelFormat.iLayerType = PFD_MAIN_PLANE;
-
-	int suggestedIndex = ChoosePixelFormat(hdc, &pixelFormat);
-	if (!suggestedIndex) {
-		print_error("ChoosePixelFormat: %s", _win32_error(NULL));
-		return FALSE;
-	}
-	PIXELFORMATDESCRIPTOR suggested;
-	DescribePixelFormat(hdc, suggestedIndex, sizeof(PIXELFORMATDESCRIPTOR), &suggested);
-	if (!SetPixelFormat(hdc, suggestedIndex, &suggested)) {
-		print_error("SetPixelFormat: %s", _win32_error(NULL));
-		return FALSE;
-	}
-
-	HGLRC glContext = wglCreateContext(hdc);
-	if (!glContext) {
-		print_error("wglCreateContext: %s", _win32_error(NULL));
-		return FALSE;
-	}
-	if (!wglMakeCurrent(hdc, glContext)) {
-		print_error("wglMakeCurrent: %s", _win32_error(NULL));
-		return FALSE;
-	}
-
-	// Upgrade to extended context
-	wglCreateContextAttribsARB = (wglCreateContextAttribsARB_proc*)wglGetProcAddress("wglCreateContextAttribsARB");
-	wglChoosePixelFormatARB = (wglChoosePixelFormatARB_proc*)wglGetProcAddress("wglChoosePixelFormatARB");
-	wglDeleteContext(glContext);
-
-	int format_attribs[] = {
-		WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
-		WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
-		WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
-		WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
-		WGL_COLOR_BITS_ARB, 32,
-		WGL_DEPTH_BITS_ARB, 24,
-		WGL_STENCIL_BITS_ARB, 8,
-
-		/*WGL_SAMPLE_BUFFERS_ARB, GL_TRUE,
-		WGL_SAMPLES_ARB, 8,*/
-		0,
-	};
-	int format;
-	int num_formats;
-	BOOL choose_format_result = wglChoosePixelFormatARB(hdc, format_attribs, NULL, 1, &format, &num_formats);
-	if (!choose_format_result) {
-		print_error("wglChoosePixelFormatARB: %s", _win32_error(NULL));
-		return FALSE;
-	}
-
-	int attribs[] = {
-		WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
-		WGL_CONTEXT_MINOR_VERSION_ARB, 2,
-		WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB,
-		WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
-		0
-	};
-	HGLRC context = wglCreateContextAttribsARB(hdc, 0, attribs);
-	if (!context) {
-		print_error("wglCreateContextAttribsARB: %s", _win32_error(NULL));
-		return FALSE;
-	}
-
-	BOOL make_current_result = wglMakeCurrent(hdc, context);
-	if (!make_current_result) {
-		print_error("wglMakeCurrent: %s", _win32_error(NULL));
-		return FALSE;
-	}
-
-	const char* gl_extensions = glGetString(GL_EXTENSIONS);
-
-	window->wglSwapIntervalEXT = (wglSwapIntervalEXT_proc)wglGetProcAddress("wglSwapIntervalEXT");
-	window->wglGetSwapIntervalEXT = (wglGetSwapIntervalEXT_proc)wglGetProcAddress("wglGetSwapIntervalEXT");
-
-	if (window->wglSwapIntervalEXT) {
-		window->wglSwapIntervalEXT(1);
-	}
-
-	_load_opengl_extensions();
-
-	return TRUE;
-}
-
-void update_window(window_t* window) {
+// TODO: Check this functionality is equivalent to newer OSX layer
+void sys_poll_events(sys_window_t* window) {
 	SetWindowLongPtrA(window->hwnd, GWLP_WNDPROC, (LONG_PTR)_core_wndproc);
 
 	BYTE keyboard[256] = {0};
@@ -329,7 +222,134 @@ void update_window(window_t* window) {
 	}
 }
 
-void opengl_swap_buffers(window_t* window) {
+#define WGL_DRAW_TO_WINDOW_ARB            0x2001
+#define WGL_SUPPORT_OPENGL_ARB            0x2010
+#define WGL_DOUBLE_BUFFER_ARB             0x2011
+#define WGL_PIXEL_TYPE_ARB                0x2013
+#define WGL_COLOR_BITS_ARB                0x2014
+#define WGL_DEPTH_BITS_ARB                0x2022
+#define WGL_STENCIL_BITS_ARB              0x2023
+#define WGL_TYPE_RGBA_ARB                 0x202B
+#define WGL_SAMPLE_BUFFERS_ARB            0x2041
+#define WGL_SAMPLES_ARB                   0x2042
+
+#define WGL_CONTEXT_DEBUG_BIT_ARB         0x00000001
+#define WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB 0x00000002
+#define WGL_CONTEXT_MAJOR_VERSION_ARB     0x2091
+#define WGL_CONTEXT_MINOR_VERSION_ARB     0x2092
+#define WGL_CONTEXT_FLAGS_ARB             0x2094
+#define WGL_CONTEXT_PROFILE_MASK_ARB      0x9126
+#define WGL_CONTEXT_CORE_PROFILE_BIT_ARB  0x00000001
+#define WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB 0x00000002
+
+typedef HGLRC WINAPI wglCreateContextAttribsARB_proc(HDC hDC, HGLRC hShareContext, const int *attribList);
+wglCreateContextAttribsARB_proc *wglCreateContextAttribsARB;
+typedef BOOL WINAPI wglChoosePixelFormatARB_proc(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
+wglChoosePixelFormatARB_proc *wglChoosePixelFormatARB;
+
+void sys_init_opengl(sys_window_t* window) {
+	HDC hdc = window->hdc;
+	PIXELFORMATDESCRIPTOR pixelFormat = {0};
+	pixelFormat.nSize = sizeof(PIXELFORMATDESCRIPTOR);
+	pixelFormat.nVersion = 1;
+	pixelFormat.iPixelType = PFD_TYPE_RGBA;
+	pixelFormat.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
+	pixelFormat.cColorBits = 32;
+	pixelFormat.cAlphaBits = 8;
+	pixelFormat.iLayerType = PFD_MAIN_PLANE;
+
+	int suggestedIndex = ChoosePixelFormat(hdc, &pixelFormat);
+	if (!suggestedIndex) {
+		_print_win32_error("ChoosePixelFormat");
+		goto err;
+	}
+	PIXELFORMATDESCRIPTOR suggested;
+	DescribePixelFormat(hdc, suggestedIndex, sizeof(PIXELFORMATDESCRIPTOR), &suggested);
+	if (!SetPixelFormat(hdc, suggestedIndex, &suggested)) {
+		_print_win32_error("SetPixelFormat");
+		goto err;
+	}
+
+	HGLRC glContext = wglCreateContext(hdc);
+	if (!glContext) {
+		_print_win32_error("wglCreateContext");
+		goto err;
+	}
+	if (!wglMakeCurrent(hdc, glContext)) {
+		_print_win32_error("wglMakeCurrent");
+		goto err;
+	}
+
+	// Upgrade to extended context
+	wglCreateContextAttribsARB = (wglCreateContextAttribsARB_proc*)wglGetProcAddress("wglCreateContextAttribsARB");
+	wglChoosePixelFormatARB = (wglChoosePixelFormatARB_proc*)wglGetProcAddress("wglChoosePixelFormatARB");
+	wglDeleteContext(glContext);
+
+	int format_attribs[] = {
+		WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
+		WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
+		WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
+		WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
+		WGL_COLOR_BITS_ARB, 32,
+		WGL_DEPTH_BITS_ARB, 24,
+		WGL_STENCIL_BITS_ARB, 8,
+
+		/*WGL_SAMPLE_BUFFERS_ARB, GL_TRUE,
+		WGL_SAMPLES_ARB, 8,*/
+		0,
+	};
+	int format;
+	UINT num_formats;
+	BOOL choose_format_result = wglChoosePixelFormatARB(hdc, format_attribs, NULL, 1, &format, &num_formats);
+	if (!choose_format_result) {
+		_print_win32_error("wglChoosePixelFormatARB");
+		goto err;
+	}
+
+	int attribs[] = {
+		WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+		WGL_CONTEXT_MINOR_VERSION_ARB, 2,
+		WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB,
+		WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
+		0
+	};
+	HGLRC context = wglCreateContextAttribsARB(hdc, 0, attribs);
+	if (!context) {
+		_print_win32_error("wglCreateContextAttribsARB");
+		goto err;
+	}
+
+	BOOL make_current_result = wglMakeCurrent(hdc, context);
+	if (!make_current_result) {
+		_print_win32_error("wglMakeCurrent");
+		goto err;
+	}
+
+	const GLubyte* gl_extensions = glGetString(GL_EXTENSIONS);
+
+	window->wglSwapIntervalEXT = (wglSwapIntervalEXT_proc)wglGetProcAddress("wglSwapIntervalEXT");
+	window->wglGetSwapIntervalEXT = (wglGetSwapIntervalEXT_proc)wglGetProcAddress("wglGetSwapIntervalEXT");
+
+	if (window->wglSwapIntervalEXT) {
+		window->wglSwapIntervalEXT(1);
+	}
+
+	_load_opengl_extensions();
+
+	GLint viewport[4];
+	glGetIntegerv(GL_VIEWPORT, viewport);
+	window->fbWidth = viewport[2];
+	window->fbHeight = viewport[3];
+	glViewport(0, 0, window->fbWidth, window->fbHeight);
+
+	return;
+
+err:
+	sys_print_err("Failed to initialize OpenGL, exiting... \n");
+	exit(1);
+}
+
+void sys_present_opengl(sys_window_t* window) {
 	SwapBuffers(window->hdc);
 }
 

@@ -153,7 +153,7 @@ int sprint_i64(char* buf, int len, int64_t num) {
 		_sprint_write('-');
 		++ci;
 	}
-	num = labs(num);
+	num = llabs(num);
 	// if (buf) {
 	// 	ci += sprint_u64(buf? buf+ci : buf, buf ? len-ci : len, num);
 	// } else {

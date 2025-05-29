@@ -33,6 +33,12 @@
 #define __CORE_HEADER__
 
 
+#ifndef CORE_CRT_ASSERT
+#   undef assert
+#	define assert(exp) if(!(exp)) { printf("Assertion failed (" #exp ") in function \"%s\" \n", __FUNCTION__); fflush(stdout); (*(volatile int*)0 = 0); }
+#endif
+
+
 #include "targetconditionals.h"
 #include "sys.h"
 #include "print.h"
@@ -125,10 +131,8 @@ typedef u8 byte;
 #define FOR(index, count) for(int index=0; index<count; ++index)
 #define FORSTATIC(index, arr) for(int index=0; index<(sizeof(arr)/sizeof(arr[0])); ++index)
 #define FORDYNARR(index, arr) for(int index=0; index<arr.count; ++index)
-#ifndef CORE_CRT_ASSERT
-#   undef assert
-#	define assert(exp) if(!(exp)) { printf("Assertion failed (" #exp ") in function \"%s\" \n", __FUNCTION__); fflush(stdout); (*(volatile int*)0 = 0); }
-#endif
+#undef min
+#undef max
 #define min(a, b) (a<b ? a : b)
 #define max(a, b) (a>b ? a : b)
 #define TOSTRING(a) __STRING(a)

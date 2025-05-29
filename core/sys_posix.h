@@ -416,6 +416,7 @@ CORE_FILE_FUNC int sys_list_dir(char* path, _Bool recursive, stat_t* output, int
 			stat_t* file = output + output_index++;
 			// assert(s_len(ent->d_name) < sizeof(file->filename));
 			strncpy(file->filename, ent->d_name, sizeof(file->filename));
+			// TODO: Is this right to be commented out?
 			// file->created = find_data.ftCreationTime.dwLowDateTime;
 			// file->created |= (u64)find_data.ftCreationTime.dwHighDateTime<<32;
 			// file->modified = find_data.ftLastWriteTime.dwLowDateTime;
@@ -427,7 +428,7 @@ CORE_FILE_FUNC int sys_list_dir(char* path, _Bool recursive, stat_t* output, int
 	return output_index;
 }
 
-CORE_FILE_FUNC char* sys_current_dir(char* output, size_t size) {
+CORE_FILE_FUNC void sys_current_dir(char* output, size_t size) {
 	return getcwd(output, size);
 }
 

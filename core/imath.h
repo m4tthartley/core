@@ -103,7 +103,7 @@ int ilog10_64(uint64_t input) {
 }
 
 int silog10_64(int64_t input) {
-	uint64_t value = labs(input);
+	uint64_t value = llabs(input);
 	int result = ilog10_64(value);
 	if (input & 0x80000000) {
 		result = 0 - result;

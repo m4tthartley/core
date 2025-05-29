@@ -12,6 +12,11 @@
 
 #include "targetconditionals.h"
 
+#ifdef __WIN32__
+#	define WIN32_LEAN_AND_MEAN
+#	include <windows.h>
+#endif
+
 
 #	if defined(__WIN32__) || defined(__LINUX__)
 
@@ -191,7 +196,7 @@ GL_PROC_LIST
 #define GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS 0x8CD9
 
 
-#		ifdef CORE_IMPL
+// #		ifdef CORE_IMPL
 
 
 void _load_opengl_extensions() {
@@ -202,6 +207,6 @@ void _load_opengl_extensions() {
 }
 
 
-#		endif
+// #		endif
 #	endif
 #endif

@@ -9,6 +9,12 @@
 
 
 #include <stdint.h>
+#include "targetconditionals.h"
+
+#ifdef __WIN32__
+#	define WIN32_LEAN_AND_MEAN
+#	include <windows.h>
+#endif
 
 
 #define CORE_VIDEO_FUNC
@@ -190,7 +196,6 @@ static inline void _update_button(sys_button_t *button, _Bool new_state) {
 
 
 #ifdef __SDL__
-
 typedef enum {
 	KEY_A=4, KEY_B=5, KEY_C=6, KEY_D=7, KEY_E=8, KEY_F=9, KEY_G=10, KEY_H=11, KEY_I=12, KEY_J=13,
 	KEY_K=14, KEY_L=15, KEY_M=16, KEY_N=17, KEY_O=18, KEY_P=19, KEY_Q=20, KEY_R=21, KEY_S=22,
@@ -208,9 +213,9 @@ typedef enum {
 	KEY_SHIFT=0xE1, KEY_RSHIFT=0xE5, KEY_CONTROL=0xE0, KEY_RCONTROL=0xE4,
 	KEY_MENU=0xE2, KEY_RMENU=0xE6, KEY_COMMAND=0xE3, KEY_RCOMMAND=0xE7,
 } sys_key_code_t;
+#endif
 
-#elif defined(__APPLE__)
-
+#ifdef __APPLE__
 #	include <Carbon/Carbon.h>
 typedef enum {
 	KEY_A=kVK_ANSI_A, KEY_B=kVK_ANSI_B, KEY_C=kVK_ANSI_C, KEY_D=kVK_ANSI_D, KEY_E=kVK_ANSI_E, KEY_F=kVK_ANSI_F,
@@ -231,13 +236,13 @@ typedef enum {
 	KEY_SHIFT=kVK_Shift, KEY_RSHIFT=kVK_RightShift, KEY_CONTROL=kVK_Control, KEY_RCONTROL=kVK_RightControl,
 	KEY_MENU=kVK_Option, KEY_RMENU=kVK_RightOption, KEY_COMMAND=kVK_Command, KEY_RCOMMAND=kVK_RightCommand,
 } sys_key_code_t;
+#endif
 
-#elif defined(__LINUX__)
-
+#ifdef __LINUX__
 #error "LINUX KEY CODES ARE NOT IMPLEMENTED"
+#endif
 
-#elif defined(__WIN32__)
-
+#ifdef __WIN32__
 typedef enum {
 	KEY_A='A', KEY_B='B', KEY_C='C', KEY_D='D', KEY_E='E', KEY_F='F',
 	KEY_G='G', KEY_H='H', KEY_I='I', KEY_J='J', KEY_K='K', KEY_L='L',
@@ -257,7 +262,6 @@ typedef enum {
 	KEY_SHIFT=0x10, KEY_LSHIFT=0xA0, KEY_RSHIFT=0xA1, KEY_CONTROL=0x11, KEY_LCONTROL=0xA2, KEY_RCONTROL=0xA3,
 	KEY_MENU=0x12, KEY_LMENU=0xA4, KEY_RMENU=0xA5, KEY_COMMAND=0x5B, KEY_RCOMMAND=0x5C,
 } sys_key_code_t;
-
 #endif
 
 
@@ -268,10 +272,10 @@ typedef enum {
 #	include "sysvideo_osx.m"
 #endif
 #ifdef __LINUX__
-#	include "sys_video_linux.h"
+#	include "sysvideo_linux.c"
 #endif
 #ifdef __WIN32__
-#	include "sys_video_win32.h"
+#	include "sysvideo_win32.c"
 #endif
 
 
