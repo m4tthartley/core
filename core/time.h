@@ -15,7 +15,7 @@
 
 
 typedef struct {
-	u64 performance_freq;
+	// u64 performance_freq;
 
 	f32 dt;
 	u64 start_time;

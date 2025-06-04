@@ -15,7 +15,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <unistd.h>
+
+#include "targetconditionals.h"
+
+#ifdef __WIN32__
+#	include <audioclient.h>
+#	include <mmeapi.h>
+#endif
+#ifdef __POSIX__
+#	include <unistd.h>
+#endif
 
 
 #undef _True
@@ -124,7 +133,6 @@ typedef struct {
 	// WAVEOUT
 	HWAVEOUT hwaveout;
 	// WASAPI
-	CORE_AUDIO_MIXER_PROC mixer_proc;
 	IAudioClient* audio_client;
 	IAudioRenderClient* audio_render_client;
 #endif
