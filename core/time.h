@@ -38,8 +38,8 @@ typedef struct {
 // u64 get_time_raw(timer_t* timer);
 // void update_timer(timer_t* timer);
 
-frametimer_t    time_init();
-void 			time_update(frametimer_t* time);
+frametimer_t    frametimer_init();
+void 			frametimer_update(frametimer_t* time);
 f64 			time_get_ms();
 f64 			time_get_seconds();
 u64 			time_get_raw();

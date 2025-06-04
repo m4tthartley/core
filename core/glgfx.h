@@ -34,13 +34,12 @@
 #	if TARGET_OS_IPHONE
 #		include <OpenGLES/ES3/gl.h>
 #	else
-#		define GL_SILENCE_DEPRECATION
+// #		define GL_SILENCE_DEPRECATION
 #		include <OpenGL/gl.h>
 #	endif
 #endif
 
-#pragma pack(push, 1)
-typedef struct {
+typedef struct __attribute((packed)) {
 	char header[2];
 	u32 size;
 	u16 reserved1;
@@ -60,7 +59,6 @@ typedef struct {
 	u32 paletteSize;
 	u32 importantColors;
 } bmp_header_t;
-#pragma pack(pop)
 
 typedef struct {
 	u32* data;
@@ -104,6 +102,7 @@ void gfx_ortho_projection_centered(int fb_width, int fb_height, f32 width, f32 h
 void gfx_color(v4 color);
 void gfx_point(vec2_t pos);
 void gfx_quad(vec2_t pos, vec2_t size);
+void gfx_line_quad(vec2_t pos, vec2_t size);
 // void gfx_sprite(window_t* window, vec2_t pos, int px, int py, int pxs, int pys, float scale);
 // void gfx_sprite_tile(window_t* window, gfx_sprite_t* sprite, vec2_t pos, int tile);
 void gfx_draw_sprite_rect(v2 pos, v2 sprite_offset, v2 sprite_size);
@@ -381,6 +380,22 @@ void gfx_quad(vec2_t pos, vec2_t size) {
 	glVertex2f(pos.x+s.x, pos.y-s.y);
 	glVertex2f(pos.x+s.x, pos.y+s.y);
 	glVertex2f(pos.x-s.x, pos.y+s.y);
+	glEnd();
+}
+
+void gfx_line_quad(vec2_t pos, vec2_t size) {
+	// glDisable(GL_TEXTURE_2D);
+
+	vec2_t s = {
+		size.x/2.0f,
+		size.y/2.0f,
+	};
+	glBegin(GL_LINE_STRIP);
+	glVertex2f(pos.x-s.x, pos.y-s.y);
+	glVertex2f(pos.x+s.x, pos.y-s.y);
+	glVertex2f(pos.x+s.x, pos.y+s.y);
+	glVertex2f(pos.x-s.x, pos.y+s.y);
+	glVertex2f(pos.x-s.x, pos.y-s.y);
 	glEnd();
 }
 
@@ -767,7 +782,7 @@ void gfx_bind_framebuffer(gfx_framebuffer_t* framebuffer) {
 
 void gfx_bind_window_framebuffer(sys_window_t* window) {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glViewport(0, 0, window->width, window->height);
+	glViewport(0, 0, window->fbWidth, window->fbHeight);
 }
 
 

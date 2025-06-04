@@ -429,7 +429,7 @@ CORE_FILE_FUNC int sys_list_dir(char* path, _Bool recursive, stat_t* output, int
 }
 
 CORE_FILE_FUNC void sys_current_dir(char* output, size_t size) {
-	return getcwd(output, size);
+	char* result = getcwd(output, size);
 }
 
 CORE_FILE_FUNC void sys_change_dir(char* path) {

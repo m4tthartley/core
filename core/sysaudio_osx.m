@@ -59,6 +59,8 @@ _Bool sys_init_audio(sysaudio_t* audio, sysaudio_spec_t spec) {
 		.componentType = kAudioUnitType_Output,
 		.componentSubType = kAudioUnitSubType_DefaultOutput,
 		.componentManufacturer = kAudioUnitManufacturer_Apple,
+		.componentFlags = 0,
+		.componentFlagsMask = 0,
 	};
 
 	AudioComponent outputComponent = AudioComponentFindNext(NULL, &desc);
@@ -67,7 +69,7 @@ _Bool sys_init_audio(sysaudio_t* audio, sysaudio_spec_t spec) {
 		goto init_audio_err;
 	}
 
-	AudioUnit outputUnit;
+	AudioUnit outputUnit = NULL;
 	OSStatus status = AudioComponentInstanceNew(outputComponent, &outputUnit);
 	if (status != noErr) {
 		_sys_audio_print("Audio init failed: AudioComponentInstanceNew \n");
