@@ -40,7 +40,7 @@ extern embedded_font_t FONT_DEFAULT;
 #	ifdef CORE_IMPL
 
 
-#include "../tools/bin/font_data.h"
+#include "font_data_default.h"
 
 
 uint8_t font_get_kerning_pair(embedded_font_t* font, char a, char b) {
