@@ -22,6 +22,7 @@
 // #include "opengl_extensions.h"
 #include "font.h"
 #include "sysvideo.h"
+#include "glex.h"
 
 #ifdef __WIN32__
 #   include <gl/gl.h>
@@ -78,6 +79,24 @@ typedef struct {
 	f32 height;
 } gfx_texture_t;
 
+typedef enum {
+	GFX_FORMAT_RED = GL_RED,
+	GFX_FORMAT_RG = GL_RG,
+	GFX_FORMAT_RGB = GL_RGB,
+	GFX_FORMAT_RGBA = GL_RGBA,
+} gfx_format_t;
+typedef enum {
+	GFX_SAMPLING_LINEAR = GL_LINEAR,
+	GFX_SAMPLING_NEAREST = GL_NEAREST,
+} gfx_sampling_t;
+typedef struct {
+	GLuint handle;
+	GLuint textures[8];
+	int texture_count;
+	int width;
+	int height;
+} gfx_framebuffer_t;
+
 // typedef struct {
 // 	gfx_texture_t texture;
 // 	vec2_t uv;
@@ -95,6 +114,7 @@ bitmap_t* load_font_file(allocator_t* allocator, char*filename);
 
 gfx_texture_t gfx_create_null_texture(int width, int height);
 gfx_texture_t gfx_create_texture(bitmap_t* bitmap);
+gfx_texture_t gfx_generate_font_texture(allocator_t* allocator, embedded_font_t* font);
 void gfx_texture(gfx_texture_t* texture);
 void gfx_clear(vec4_t color);
 void gfx_ortho_projection(int fb_width, int fb_height, f32 left, f32 right, f32 bottom, f32 top);
@@ -114,6 +134,10 @@ void gfx_text(sys_window_t* window, vec2_t pos, char* str, ...);
 void gfx_draw_text_centered(embedded_font_t* font, vec2_t pos, char* str);
 void gfx_draw_text(embedded_font_t* font, vec2_t _pos, char* str);
 void gfx_draw_text_internal(embedded_font_t* font, vec2_t pos, char* str);
+
+gfx_framebuffer_t gfx_create_framebuffer(int width, int height, gfx_format_t format, gfx_sampling_t sampling);
+void gfx_bind_framebuffer(gfx_framebuffer_t* framebuffer);
+void gfx_bind_window_framebuffer(sys_window_t* window);
 
 #	ifdef CORE_IMPL
 
@@ -664,24 +688,6 @@ void gfx_draw_text_internal(embedded_font_t* font, vec2_t pos, char* str) {
 
 
 // RENDER TARGETS
-typedef enum {
-	GFX_FORMAT_RED = GL_RED,
-	GFX_FORMAT_RG = GL_RG,
-	GFX_FORMAT_RGB = GL_RGB,
-	GFX_FORMAT_RGBA = GL_RGBA,
-} gfx_format_t;
-typedef enum {
-	GFX_SAMPLING_LINEAR = GL_LINEAR,
-	GFX_SAMPLING_NEAREST = GL_NEAREST,
-} gfx_sampling_t;
-typedef struct {
-	GLuint handle;
-	GLuint textures[8];
-	int texture_count;
-	int width;
-	int height;
-} gfx_framebuffer_t;
-
 GLenum _gfx_draw_buffers[] = {
 	GL_COLOR_ATTACHMENT0,
 	GL_COLOR_ATTACHMENT1,

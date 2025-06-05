@@ -9,6 +9,7 @@
 #include "core.h"
 #include "sysvideo.h"
 
+// #define CORE_IMPL
 #include "glex.h"
 
 
