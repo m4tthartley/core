@@ -148,8 +148,7 @@ typedef struct {
 	void* outputUnit;
 #endif
 	
-	// _Atomic SYSAUDIO_MIXER_PROC mixer;
-	SYSAUDIO_MIXER_PROC mixer;
+	_Atomic SYSAUDIO_MIXER_PROC mixer;
 	void* dataForMixer;
 
 	audio_buffer_format_t format;

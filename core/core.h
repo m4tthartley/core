@@ -131,10 +131,12 @@ typedef u8 byte;
 #define FOR(index, count) for(int index=0; index<count; ++index)
 #define FORSTATIC(index, arr) for(int index=0; index<(sizeof(arr)/sizeof(arr[0])); ++index)
 #define FORDYNARR(index, arr) for(int index=0; index<arr.count; ++index)
-// #undef min
-// #undef max
-// #define min(a, b) (a<b ? a : b)
-// #define max(a, b) (a>b ? a : b)
+#ifndef __WIN32__
+#undef min
+#undef max
+#define min(a, b) (a<b ? a : b)
+#define max(a, b) (a>b ? a : b)
+#endif
 #define TOSTRING(a) __STRING(a)
 
 
