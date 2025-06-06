@@ -120,6 +120,9 @@ void gfx_clear(vec4_t color);
 void gfx_ortho_projection(int fb_width, int fb_height, f32 left, f32 right, f32 bottom, f32 top);
 void gfx_ortho_projection_centered(int fb_width, int fb_height, f32 width, f32 height);
 void gfx_color(v4 color);
+void gfx_sprite_scale(float scale);
+void gfx_sprite_tile_size(float size);
+
 void gfx_point(vec2_t pos);
 void gfx_quad(vec2_t pos, vec2_t size);
 void gfx_line_quad(vec2_t pos, vec2_t size);
@@ -131,6 +134,7 @@ void gfx_circle(vec2_t pos, f32 size, int segments);
 void gfx_line_circle(vec2_t pos, f32 size, int segments);
 void gfx_line(vec2_t start, vec2_t end);
 void gfx_text(sys_window_t* window, vec2_t pos, char* str, ...);
+v2 gfx_layout_text(embedded_font_t* font, char* str);
 void gfx_draw_text_centered(embedded_font_t* font, vec2_t pos, char* str);
 void gfx_draw_text(embedded_font_t* font, vec2_t _pos, char* str);
 void gfx_draw_text_internal(embedded_font_t* font, vec2_t pos, char* str);
@@ -138,6 +142,17 @@ void gfx_draw_text_internal(embedded_font_t* font, vec2_t pos, char* str);
 gfx_framebuffer_t gfx_create_framebuffer(int width, int height, gfx_format_t format, gfx_sampling_t sampling);
 void gfx_bind_framebuffer(gfx_framebuffer_t* framebuffer);
 void gfx_bind_window_framebuffer(sys_window_t* window);
+
+
+extern gfx_texture_t* _gfx_active_texture;
+extern v2 _gfx_ortho_space;
+extern v2 _gfx_ortho_res_scale;
+extern float _gfx_sprite_scale;
+extern float _gfx_sprite_tile_size;
+extern float _gfx_font_wrap_width;
+extern v2 _gfx_font_glyph_size;
+extern v2 _gfx_pixel_size;
+
 
 #	ifdef CORE_IMPL
 

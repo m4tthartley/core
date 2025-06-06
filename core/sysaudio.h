@@ -15,12 +15,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdatomic.h>
 
+#include "sys.h"
 #include "targetconditionals.h"
 
 #ifdef __WIN32__
-#	include <audioclient.h>
-#	include <mmeapi.h>
+// #	include <audioclient.h>
+// #	include <mmeapi.h>
+#	include <xaudio2.h>
 #endif
 #ifdef __POSIX__
 #	include <unistd.h>
@@ -33,9 +36,9 @@
 #define _False ((_Bool)0)
 
 
-#define CORE_AUDIO_SAMPLES_PER_SECOND 48000
-#define CORE_AUDIO_SAMPLE_BYTES 2
-#define CORE_AUDIO_CHANNELS 2
+// #define CORE_AUDIO_SAMPLES_PER_SECOND 48000
+// #define CORE_AUDIO_SAMPLE_BYTES 2
+// #define CORE_AUDIO_CHANNELS 2
 
 typedef struct {
 	union {
@@ -129,18 +132,24 @@ typedef struct {
 
 typedef struct {
 #ifdef __WIN32__
-	_Bool thread_lock;
+	critical_section_t  thread_lock;
 	// WAVEOUT
-	HWAVEOUT hwaveout;
+	// HWAVEOUT hwaveout;
 	// WASAPI
-	IAudioClient* audio_client;
-	IAudioRenderClient* audio_render_client;
+	// IAudioClient* audio_client;
+	// IAudioRenderClient* audio_render_client;
+	// XAUDIO2
+	IXAudio2* xaudio2;
+	IXAudio2MasteringVoice* masterVoice;
+	IXAudio2SourceVoice* sourceVoice;
+	IXAudio2VoiceCallback* xaudioMixerCallback;
 #endif
 #ifdef __APPLE__
 	void* outputUnit;
 #endif
 	
-	_Atomic SYSAUDIO_MIXER_PROC mixer;
+	// _Atomic SYSAUDIO_MIXER_PROC mixer;
+	SYSAUDIO_MIXER_PROC mixer;
 	void* dataForMixer;
 
 	audio_buffer_format_t format;
@@ -180,7 +189,8 @@ void sys_play_sound(sysaudio_t* audio, audio_buffer_t* buffer, float volume) {
 			return;
 		}
 	}
-	_sys_audio_print("Out of sound slots");
+
+	sys_print_err("Out of sound slots \n");
 }
 
 void sys_play_music(sysaudio_t* audio, audio_buffer_t* buffer, float volume) {
@@ -412,15 +422,16 @@ void sysaudio_default_mixer(void* sysaudio, void* buffer, size_t sampleCount) {
 }
 
 
-#ifdef __APPLE__
-#	include "sysaudio_osx.m"
-#endif
-#ifdef __LINUX__
-#	include "sysaudio_linux.h"
-#endif
-#ifdef __WIN32__
-#	include "sysaudio_win32.h"
-#endif
+// #ifdef __APPLE__
+// #	include "sysaudio_osx.m"
+// #endif
+// #ifdef __LINUX__
+// #	include "sysaudio_linux.h"
+// #endif
+// #ifdef __WIN32__
+// #	include "sysaudio_win32.h"
+// #endif
+#include "sysaudio.c"
 
 
 #	endif

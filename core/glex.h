@@ -38,6 +38,9 @@
 #endif
 
 
+void _load_opengl_extensions();
+
+
 #ifndef APIENTRY
 #	define APIENTRY
 #endif

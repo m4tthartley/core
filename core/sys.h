@@ -48,6 +48,7 @@ typedef struct {
 } file_data_t;
 
 
+void sys_init_log(char* filename);
 void sys_print(char* str);
 void sys_print_err(char* str);
 

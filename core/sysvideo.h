@@ -268,15 +268,15 @@ typedef enum {
 #	ifdef CORE_IMPL
 
 
-#ifdef __APPLE__
-#	include "sysvideo_osx.m"
-#endif
-#ifdef __LINUX__
-#	include "sysvideo_linux.c"
-#endif
-#ifdef __WIN32__
-#	include "sysvideo_win32.c"
-#endif
+// #ifdef __APPLE__
+// #	include "sysvideo_osx.m"
+// #endif
+// #ifdef __LINUX__
+// #	include "sysvideo_linux.c"
+// #endif
+// #ifdef __WIN32__
+// #	include "sysvideo_win32.c"
+// #endif
 
 
 #	endif

@@ -18,91 +18,93 @@ DWORD _wasapi_audio_thread(void* arg);
 
 u32 terminate_threads = 0;
 
-b32 core_init_audio(core_audio_t* audio, CORE_AUDIO_MIXER_PROC mixer_proc, u32 flags) {
-	core_init_critical_section(&audio->sounds_lock);
+// b32 core_init_audio(core_audio_t* audio, CORE_AUDIO_MIXER_PROC mixer_proc, u32 flags) {
+// 	core_init_critical_section(&audio->sounds_lock);
 
-	if (mixer_proc) {
-		audio->mixer_proc = mixer_proc;
-	} else {
-		audio->mixer_proc = CORE_AUDIO_DEFAULT_MIXER_PROC;
-	}
+// 	if (mixer_proc) {
+// 		audio->mixer_proc = mixer_proc;
+// 	} else {
+// 		audio->mixer_proc = CORE_AUDIO_DEFAULT_MIXER_PROC;
+// 	}
 
-	b32 wasapi_result = wasapi_init_audio(audio);
+// 	b32 wasapi_result = wasapi_init_audio(audio);
 
-	if (wasapi_result) {
-		CreateThread(0, 0, _wasapi_audio_thread, audio, 0, 0);
-		return TRUE;
-	}
-}
+// 	if (wasapi_result) {
+// 		CreateThread(0, 0, _wasapi_audio_thread, audio, 0, 0);
+// 		return TRUE;
+// 	}
+// }
 
-void core_play_sound(core_audio_t* audio, audio_buffer_t* buffer, float volume) {
-	if (buffer) {
-		core_enter_critical_section(&audio->sounds_lock);
-		if (audio->sounds_count < 64) {
-			audio_sound_t sound = {
-				.cursor = 0.0f,
-				.buffer = buffer,
-				.volume = volume,
-			};
-			audio->sounds[audio->sounds_count++] = sound;
-		}
-		core_exit_critical_section(&audio->sounds_lock);
-	}
-}
+// void core_play_sound(core_audio_t* audio, audio_buffer_t* buffer, float volume) {
+// 	if (buffer) {
+// 		core_enter_critical_section(&audio->sounds_lock);
+// 		if (audio->sounds_count < 64) {
+// 			audio_sound_t sound = {
+// 				.cursor = 0.0f,
+// 				.buffer = buffer,
+// 				.volume = volume,
+// 			};
+// 			audio->sounds[audio->sounds_count++] = sound;
+// 		}
+// 		core_exit_critical_section(&audio->sounds_lock);
+// 	}
+// }
 
-void sysaudio_default_mixer(audio_sample_t* output, size_t sample_count, void* userp) {
-	core_audio_t* audio = userp;
-	memset(output, 0, sample_count * sizeof(audio_sample_t));
+// void sysaudio_default_mixer(audio_sample_t* output, size_t sample_count, void* userp) {
+// 	core_audio_t* audio = userp;
+// 	memset(output, 0, sample_count * sizeof(audio_sample_t));
 
-	int count = core_sync_read32(&audio->sounds_count);
-	FOR(i, count) {
-		audio_sound_t* sound = audio->sounds + i;
-		float speed_diff = (f32)sound->buffer->samples_per_second /
-			(f32)CORE_AUDIO_SAMPLES_PER_SECOND;
-		size_t sound_samples_remaining = (f32)(sound->buffer->sample_count-sound->cursor) * speed_diff;
+// 	int count = core_sync_read32(&audio->sounds_count);
+// 	FOR(i, count) {
+// 		audio_sound_t* sound = audio->sounds + i;
+// 		float speed_diff = (f32)sound->buffer->samples_per_second /
+// 			(f32)CORE_AUDIO_SAMPLES_PER_SECOND;
+// 		size_t sound_samples_remaining = (f32)(sound->buffer->sample_count-sound->cursor) * speed_diff;
 		
-		size_t samples_to_mix = min(sample_count, sound_samples_remaining);
-		if (samples_to_mix == 0) {
-			int x = 0;
-		}
+// 		size_t samples_to_mix = min(sample_count, sound_samples_remaining);
+// 		if (samples_to_mix == 0) {
+// 			int x = 0;
+// 		}
 
-		if (sound->buffer->channels == 1) {
-			FOR(isample, samples_to_mix) {
-				u32 buffer_index = sound->cursor;
-				audio_sample_t* sample = &sound->buffer->data[buffer_index];
-				i16 amp = sample->left;
-				output[isample].left += amp;
-				output[isample].right += amp;
-				// output[isample].left += sound->buffer->data[buffer_index].left;
-				// output[isample].right += sound->buffer->data[buffer_index].right;
-				sound->cursor += speed_diff * 0.5f;
-			}
-		} else {
-			FOR(isample, samples_to_mix) {
-				u32 buffer_index = sound->cursor;
-				output[isample].left += (f32)sound->buffer->data[buffer_index].left * sound->volume;
-				output[isample].right += (f32)sound->buffer->data[buffer_index].right * sound->volume;
-				sound->cursor += speed_diff;
-			}
-		}
+// 		if (sound->buffer->channels == 1) {
+// 			FOR(isample, samples_to_mix) {
+// 				u32 buffer_index = sound->cursor;
+// 				audio_sample_t* sample = &sound->buffer->data[buffer_index];
+// 				i16 amp = sample->left;
+// 				output[isample].left += amp;
+// 				output[isample].right += amp;
+// 				// output[isample].left += sound->buffer->data[buffer_index].left;
+// 				// output[isample].right += sound->buffer->data[buffer_index].right;
+// 				sound->cursor += speed_diff * 0.5f;
+// 			}
+// 		} else {
+// 			FOR(isample, samples_to_mix) {
+// 				u32 buffer_index = sound->cursor;
+// 				output[isample].left += (f32)sound->buffer->data[buffer_index].left * sound->volume;
+// 				output[isample].right += (f32)sound->buffer->data[buffer_index].right * sound->volume;
+// 				sound->cursor += speed_diff;
+// 			}
+// 		}
 
-		core_enter_critical_section(&audio->sounds_lock);
-		if (sound_samples_remaining < 1) {
-			int copy_count = audio->sounds_count - i - 1;
-			memcpy(audio->sounds + i, audio->sounds + i + 1, copy_count * sizeof(audio_sound_t));
-			--audio->sounds_count;
-			--count;
-			--i;
-		}
-		core_exit_critical_section(&audio->sounds_lock);
-	}
+// 		core_enter_critical_section(&audio->sounds_lock);
+// 		if (sound_samples_remaining < 1) {
+// 			int copy_count = audio->sounds_count - i - 1;
+// 			memcpy(audio->sounds + i, audio->sounds + i + 1, copy_count * sizeof(audio_sound_t));
+// 			--audio->sounds_count;
+// 			--count;
+// 			--i;
+// 		}
+// 		core_exit_critical_section(&audio->sounds_lock);
+// 	}
 
-	FOR(i, audio->sounds_count) {
+// 	FOR(i, audio->sounds_count) {
 
-	}
-}
+// 	}
+// }
 
-b32 wasapi_init_audio(core_audio_t* audio) {
+b32 wasapi_init_audio(sysaudio_t* audio) {
+	init_critical_section(&audio->thread_lock);
+
 	IAudioClient* audio_client;
 	IAudioRenderClient* audio_render_client;
 
@@ -118,8 +120,10 @@ b32 wasapi_init_audio(core_audio_t* audio) {
 			&device_enumerator);
 
 	if (FAILED(hresult)) {
-		char* err = core_win32_error(hresult);
-		core_error("WASAPI CoCreateInstance: %s", err);
+		char* err = _win32_error(hresult);
+		sys_print_err("WASAPI CoCreateInstance: ");
+		sys_print_err(err);
+		sys_print_err("\n");
 		LocalFree(err);
 		goto done;
 	}
@@ -132,8 +136,10 @@ b32 wasapi_init_audio(core_audio_t* audio) {
 			&audio_device);
 
 	if (FAILED(hresult)) {
-		char* err = core_win32_error(hresult);
-		core_error("WASAPI IMMDeviceEnumerator_GetDefaultAudioEndpoint: %s", err);
+		char* err = _win32_error(hresult);
+		sys_print_err("WASAPI IMMDeviceEnumerator_GetDefaultAudioEndpoint: ");
+		sys_print_err(err);
+		sys_print_err("\n");
 		LocalFree(err);
 		goto done;
 	}
@@ -146,8 +152,10 @@ b32 wasapi_init_audio(core_audio_t* audio) {
 			(void**)&audio_client);
 
 	if (FAILED(hresult)) {
-		char* err = core_win32_error(hresult);
-		core_error("WASAPI IMMDevice_Activate: %s", err);
+		char* err = _win32_error(hresult);
+		sys_print_err("WASAPI IMMDevice_Activate: ");
+		sys_print_err(err);
+		sys_print_err("\n");
 		LocalFree(err);
 		goto done;
 	}
