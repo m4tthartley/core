@@ -253,72 +253,56 @@ void dynarr_clear(dynarr_t* arr);
 
 
 // String definitions
-// #ifndef CORE_STRING_PROC_PREFIX
-// #	define CORE_STRING_PROC_PREFIX core_
-// #endif
-// #define CORE_STR_PROC(name) CORE_STRING_PROC_PREFIX##name
+typedef void* (*CORE_ALLOC_PROC) (void* user_state, size_t size);
 
-// #define CORE_STRING_TYPE_NAME CORE_STR_PROC(str_t)
-// typedef char* core_string_t;
-// typedef core_string_t CORE_STRING_TYPE_NAME;
+void strsetallocproc(CORE_ALLOC_PROC proc, void* user_state);
+uint32_t strsize(char* str);
+char* strstore(char* str);
 
-// typedef char* core_string_t;
+char* strformat(char* fmt, ...);
+void strbformat(char* buffer, int len, char* fmt, ...);
 
-// void core_strcpy(core_string_t dest, core_string_t src);
+char* strwidetoascii(wchar_t* str);
+void strbwidetoascii(char* dest, wchar_t* str, int n);
 
-typedef char* core_string_t;
-typedef char* str_t;
+char* strcopy(char* src);
+void strbcopy(char* dest, char* src, int buf_size);
 
-void str_set_allocator(allocator_t* allocator);
+_Bool strcompare(char* a, char* b);
+_Bool strncompare(char* a, char* b, u64 n);
 
-int 			str_len(char* str);
+char* strfind(char* str, char* find);
+int strfindn(char* str, char* find);
 
-core_string_t 	str_create(char* str);
-core_string_t 	str_format(char* fmt, ...);
-void 			str_free(core_string_t str);
+char* strappend(char* str, char* append);
+void strbappend(char* dest, char* src, int buf_size);
 
-void 			char_wide_to_char(core_string_t dest, wchar_t* str, int n);
-core_string_t 	str_wide_to_char(wchar_t* str);
+char* strprepend(char* str, char* prepend);
+void strbprepend(char* dest, char* src, int buf_size);
 
-void 			char_copy(char* dest, char* src, int buf_size);
-void 			str_copy(core_string_t* dest, core_string_t src);
+char* strinsert(char* str, int index, char* insert);
+void strbinsert(char* dest, int index, char* src, int buf_size);
 
-b32				str_compare(core_string_t a, core_string_t b);
-b32				str_ncompare(core_string_t a, core_string_t b, u64 n);
+char* strreplace(char* str, char* find, char* replace);
+void strbreplace(char* str, char* find, char* replace, int buf_size);
 
-char*			str_find(core_string_t str, core_string_t find);
-int				str_find_num(core_string_t str, core_string_t find);
+char* strreplacefirst(char* str, char* find, char* replace);
+void strbreplacefirst(char* str, char* find, char* replace, int buf_size);
 
-void			char_append(char* dest, char* src, int buf_size);
-void			str_append(core_string_t* str, core_string_t append);
+// int 			char_split(char** buffer, size_t size, char* str, char* by);
+// int 			str_split(core_string_t* buffer, size_t size, core_string_t str, core_string_t by);
 
-void			char_prepend(char* dest, char* src, int buf_size);
-void			str_prepend(core_string_t* str, core_string_t prepend);
+char* strsubstr(char* str, int start, int len);
+void strbsubstr(char*buffer, size_t buf_size, char* str, int start, int len);
 
-void			char_insert(char* str, int index, char* insert, int buf_size);
-void			str_insert(core_string_t* str, int index, core_string_t insert);
+char* strtrim(char* str);
+void strbtrim(char* str);
 
-// void core_strncpy(core_string_t dest, core_string_t src, int n);
+void strstrip(char* str, int start, int n);
 
-void 			char_replace(char* str, char* find, char* replace, int buf_size);
-void 			str_replace(core_string_t* str, core_string_t find, core_string_t replace);
+void strlower(char* str);
 
-void 			char_replace_first(char* str, char* find, char* replace, int buf_size);
-void 			str_replace_first(core_string_t* str, core_string_t find, core_string_t replace);
-
-int 			char_split(char** buffer, size_t size, char* str, char* by);
-int 			str_split(core_string_t* buffer, size_t size, core_string_t str, core_string_t by);
-
-void			char_substr(char*buffer, size_t buf_size, char* str, int start, int len);
-core_string_t	str_substr(core_string_t str, int start, int len);
-
-void 			char_trim(char* str);
-void 			str_trim(core_string_t* str);
-
-void 			str_strip(char* str, int start, int n);
-
-void 			str_lower(char* str);
-void 			str_upper(char* str);
+void strupper(char* str);
 
 
 // Murmur hash definitions
@@ -764,6 +748,8 @@ void dynarr_clear(dynarr_t* arr) {
 	stralloc -> allocate memory in tmp buffer
 	strstore -> store string using user alloc callback
 
+	strsize -> strlen
+
 	strformat -> format string into tmp buffer
 	strbformat -> format string into user buffer
 
@@ -771,14 +757,29 @@ void dynarr_clear(dynarr_t* arr) {
 	strbcopy -> copy into user buffer
 */
 
+#define STRING_HEADER_ID (0xABBABABA)
+
 typedef struct {
-	uint32_t id; // 0xDEADCAFE
+	uint32_t id;
 	uint32_t size;
 } strheader_t;
 
+static CORE_ALLOC_PROC _str_alloc_proc = NULL;
+static void* _str_alloc_user_state = NULL;
+
+void strsetallocproc(CORE_ALLOC_PROC proc, void* user_state) {
+	_str_alloc_proc = proc;
+	_str_alloc_user_state = user_state;
+}
+
+void* default_str_alloc_proc(void* userState, size_t size) {
+	sys_print_err("No alloc proc set, defaulting to malloc... \n");
+	return malloc(size);
+}
+
 uint32_t strsize(char* str) {
 	strheader_t* header = ((strheader_t*)str) -1;
-	if (header->id == 0xDEADCAFE) {
+	if (header->id == STRING_HEADER_ID) {
 		return header->size;
 	}
 
@@ -787,64 +788,106 @@ uint32_t strsize(char* str) {
 	return size;
 }
 
-allocator_t* _global_str_allocator = NULL;
+// allocator_t* _global_str_allocator = NULL;
+// void str_set_allocator(allocator_t* allocator) {
+//     _global_str_allocator = allocator;
+// }
 
-void str_set_allocator(allocator_t* allocator) {
-    _global_str_allocator = allocator;
-}
+// int str_get_aligned_size(int size) {
+// 	// NOTE: don't think adding sizeof memblock at this point is needed
+// 	return _allocator_align(size+1 /*+ sizeof(core_allocator_block_t)*/, 64);
+// }
 
-int str_get_aligned_size(int size) {
-	// NOTE: don't think adding sizeof memblock at this point is needed
-	return _allocator_align(size+1 /*+ sizeof(core_allocator_block_t)*/, 64);
-}
+// core_string_t _allocate_string(size_t len) {
+// 	core_string_t result = NULL;
+// 	if (_global_str_allocator->type == ALLOCATOR_HEAP) {
+// 		result = alloc_memory(_global_str_allocator, str_get_aligned_size(len));
+// 	}
+// 	if (_global_str_allocator->type == ALLOCATOR_BUMP) {
+// 		result = push_memory(_global_str_allocator, str_get_aligned_size(len));
+// 	}
+// 	return result;
+// }
 
-core_string_t _allocate_string(size_t len) {
-	core_string_t result = NULL;
-	if (_global_str_allocator->type == ALLOCATOR_HEAP) {
-		result = alloc_memory(_global_str_allocator, str_get_aligned_size(len));
+char* _stralloc(size_t size) {
+	static char tmpBuffer[4096];
+	static uint32_t tmpPtr = 0;
+
+	if (size+1 > 4096-tmpPtr) {
+		tmpPtr = 0;
 	}
-	if (_global_str_allocator->type == ALLOCATOR_BUMP) {
-		result = push_memory(_global_str_allocator, str_get_aligned_size(len));
-	}
+
+	char* result = tmpBuffer + tmpPtr;
+	tmpPtr += size + 1;
 	return result;
 }
 
-void str_check_inside_allocator(core_string_t str) {
-	assert((u8*)str >= (u8*)_global_allocator->address &&
-			(u8*)str < ((u8*)_global_allocator->address+_global_allocator->size));
-}
+char* strstore(char* str) {
+	uint32_t size = strsize(str);
 
-int str_len(char* str) {
-	int len = 0;
-	while(*str++) ++len;
-	return len;
-}
-
-core_string_t str_create(char* str) {
-	u64 len = str_len(str);
-	core_string_t result = _allocate_string(len);
-	if (result) {
-		sys_copy_memory(result, str, len+1);
+	char* result;
+	if (_str_alloc_proc) {
+		result = _str_alloc_proc(_str_alloc_user_state, size + 1);
+	} else {
+		result = default_str_alloc_proc(NULL, size + 1);
 	}
+	sys_copy_memory(result, str, size + 1);
 	return result;
 }
-core_string_t str_format(char* fmt, ...) {
+
+// void str_check_inside_allocator(core_string_t str) {
+// 	assert((u8*)str >= (u8*)_global_allocator->address &&
+// 			(u8*)str < ((u8*)_global_allocator->address+_global_allocator->size));
+// }
+
+// int str_len(char* str) {
+// 	int len = 0;
+// 	while(*str++) ++len;
+// 	return len;
+// }
+
+// core_string_t str_create(char* str) {
+// 	u64 len = str_len(str);
+// 	core_string_t result = _allocate_string(len);
+// 	if (result) {
+// 		sys_copy_memory(result, str, len+1);
+// 	}
+// 	return result;
+// }
+char* strformat(char* fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
 	int len = vsprint(0, 0, fmt, args) + 1;
 	va_end(args);
-	core_string_t result = _allocate_string(len);
+	char* result = _stralloc(len);
 	va_list args2;
 	va_start(args2, fmt);
 	vsprint(result, len, fmt, args2);
 	va_end(args2);
 	return result;
 }
-void str_free(core_string_t str) {
-	free_memory(_global_str_allocator, str);
+void strbformat(char* buffer, int len, char* fmt, ...) {
+	va_list args;
+	va_start(args, fmt);
+	vsprint(buffer, len, fmt, args);
+	va_end(args);
 }
+// void str_free(core_string_t str) {
+// 	free_memory(_global_str_allocator, str);
+// }
 
-void char_wide_to_char(char* dest, wchar_t* str, int n) {
+char* strwidetoascii(wchar_t* str) {
+	int wlen = 0;
+	while (str[wlen]) wlen++;
+
+	char* result = _stralloc(wlen);
+	for(int i=0; i<wlen+1; ++i) {
+		result[i] = str[i];
+	}
+
+	return result;
+}
+void strbwidetoascii(char* dest, wchar_t* str, int n) {
 	int wlen = 0;
 	while (wlen < (n-1) && str[wlen]) wlen++;
 
@@ -852,17 +895,6 @@ void char_wide_to_char(char* dest, wchar_t* str, int n) {
 	for(int i=0; i<wlen+1; ++i) {
 		dest[i] = str[i];
 	}
-}
-core_string_t str_wide_to_char(wchar_t* str) {
-	int wlen = 0;
-	while (str[wlen]) wlen++;
-
-	core_string_t result = _allocate_string(wlen);
-	for(int i=0; i<wlen+1; ++i) {
-		result[i] = str[i];
-	}
-
-	return result;
 }
 
 // TODO should these write a null terminator?
@@ -872,64 +904,70 @@ core_string_t str_wide_to_char(wchar_t* str) {
 // 	}
 // 	*dest = *src;
 // }
-void char_copy(char* dest, char* src, int buf_size) {
+// NOTE: Might want this type of copy again sometime
+// void str_copy(core_string_t* dest, core_string_t src) {
+// 	str_check_inside_allocator(*dest);
+	
+// 	u64 destlen = str_len(*dest);
+// 	u64 srclen = str_len(src);
+// 	u64 alen = str_get_aligned_size(destlen);
+// 	if(srclen + 1 > alen) {
+// 		core_string_t newStr = _allocate_string(srclen);
+// 		sys_copy_memory(newStr, src, srclen+1);
+// 		str_free(*dest);
+// 		*dest = newStr;
+// 	} else {
+// 		sys_copy_memory(*dest, src, srclen+1);
+// 	}
+// }
+char* strcopy(char* src) {
+	u64 size = strsize(src);
+	char* newStr = _stralloc(size);
+	sys_copy_memory(newStr, src, size+1);
+
+	return newStr;
+}
+void strbcopy(char* dest, char* src, int buf_size) {
 	while (*src && buf_size > 1) {
 		*dest++ = *src++;
 		--buf_size;
 	}
-	*dest = NULL;
-}
-void str_copy(core_string_t* dest, core_string_t src) {
-	str_check_inside_allocator(*dest);
-
-	u64 destlen = str_len(*dest);
-	u64 srclen = str_len(src);
-	u64 alen = str_get_aligned_size(destlen);
-	if(srclen + 1 > alen) {
-		core_string_t newStr = _allocate_string(srclen);
-		sys_copy_memory(newStr, src, srclen+1);
-		str_free(*dest);
-		*dest = newStr;
-	} else {
-		sys_copy_memory(*dest, src, srclen+1);
-	}
+	*dest = 0;
 }
 
-b32 str_compare(core_string_t a, core_string_t b) {
-	if(str_len(a) != str_len(b)) return FALSE;
+_Bool strcompare(char* a, char* b) {
+	if(strsize(a) != strsize(b)) return _False;
 	while(*a==*b) {
-		if(*a==0) return TRUE;
+		if(*a==0) return _True;
 		++a;
 		++b;
 	}
-	if(*a==0 || *b==0) return TRUE;
-	return FALSE;
+	if(*a==0 || *b==0) return _True;
+	return _False;
 }
-b32 str_ncompare(core_string_t a, core_string_t b, u64 n) {
+_Bool strncompare(char* a, char* b, u64 n) {
 	for(int i=0; i<n; ++i) {
-		if(a[i] != b[i]) return FALSE;
+		if(a[i] != b[i]) return _False;
 	}
-	return TRUE;
+	return _True;
 }
 
-char* str_find(core_string_t str, core_string_t find) {
-	int len = str_len(str);
-	int findLen = str_len(find);
+char* strfind(char* str, char* find) {
+	int len = strsize(str);
+	int findLen = strsize(find);
 	for(int i=0; i<len-findLen+1; ++i) {
-		if(str_ncompare(str+i, find, findLen)) {
-			// if(out) *out = str+i;
-			// return TRUE;
+		if(strncompare(str+i, find, findLen)) {
 			return str+i;
 		}
 	}
 	return NULL;
 }
-int str_find_num(core_string_t str, core_string_t find) {
+int strfindn(char* str, char* find) {
 	int result = 0;
-	int len = str_len(str);
-	int findLen = str_len(find);
+	int len = strsize(str);
+	int findLen = strsize(find);
 	for(int i=0; i<len-findLen+1; ++i) {
-		if(str_ncompare(str+i, find, findLen)) {
+		if(strncompare(str+i, find, findLen)) {
 			++result;
 		}
 	}
@@ -938,7 +976,27 @@ int str_find_num(core_string_t str, core_string_t find) {
 
 // TODO in string functions that create new allocations,
 // 		first check str is actually allocated in the current pool
-void char_append(char* dest, char* src, int buf_size) {
+// void str_append(core_string_t* str, core_string_t append) {
+// 	u64 len = str_len(*str);
+// 	u64 len2 = str_len(append);
+// 	u64 alen = _allocator_align(len+1, 64);
+// 	if(len + 1 + len2 > alen) {
+// 		core_string_t newStr = _allocate_string(len + len2);
+// 		sys_copy_memory(newStr, *str, len);
+// 		gfree_memory(*str);
+// 		*str = newStr;
+// 	}
+// 	sys_copy_memory(*str + len, append, len2+1);
+// }
+char* strappend(char* str, char* append) {
+	u64 len = strsize(str);
+	u64 len2 = strsize(append);
+	char* newStr = _stralloc(len + len2);
+	sys_copy_memory(newStr, str, len);
+	sys_copy_memory(newStr+len, append, len2+1);
+	return newStr;
+}
+void strbappend(char* dest, char* src, int buf_size) {
 	while (*dest && buf_size > 1) {
 		--buf_size;
 		++dest;
@@ -949,62 +1007,85 @@ void char_append(char* dest, char* src, int buf_size) {
 	}
 	*dest = NULL;
 }
-void str_append(core_string_t* str, core_string_t append) {
-	u64 len = str_len(*str);
-	u64 len2 = str_len(append);
-	u64 alen = _allocator_align(len+1, 64);
-	if(len + 1 + len2 > alen) {
-		core_string_t newStr = _allocate_string(len + len2);
-		sys_copy_memory(newStr, *str, len);
-		gfree_memory(*str);
-		*str = newStr;
-	}
-	sys_copy_memory(*str + len, append, len2+1);
-}
 
-void char_prepend(char* dest, char* src, int buf_size) {
-	int destlen = str_len(dest);
-	int srclen = str_len(src);
-	int end = min(destlen+srclen, buf_size-1);
+// void str_prepend(core_string_t* str, core_string_t prepend) {
+// 	// TODO Check str is within allocator, or always reallocate
+// 	// dunno what that means
+// 	u64 len = str_len(*str);
+// 	u64 len2 = str_len(prepend);
+// 	allocator_block_t* block = (allocator_block_t*)*str - 1;
+// 	u64 newLen = len + len2 + 1;
+// 	if(newLen > block->size) {
+// 		core_string_t newStr = _allocate_string(newLen);
+// 		sys_copy_memory(newStr+len2, *str, len+1);
+// 		gfree_memory(*str);
+// 		*str = newStr;
+// 	} else {
+// 		sys_copy_memory(*str+len2, *str, len+1);
+// 	}
+// 	sys_copy_memory(*str, prepend, len2);
+// }
+char* strprepend(char* str, char* prepend) {
+	u64 len = strsize(str);
+	u64 len2 = strsize(prepend);
+	u64 newLen = len + len2;
+
+	char* newStr = _stralloc(newLen);
+	sys_copy_memory(newStr+len2, str, len+1);
+	sys_copy_memory(newStr, prepend, len2);
+	return newStr;
+}
+void strbprepend(char* dest, char* src, int buf_size) {
+	int destlen = strsize(dest);
+	int srclen = strsize(src);
+	int end = destlen+srclen;
+	if (buf_size-1 < end) {
+		end = buf_size-1;
+	}
 	dest[end--] = NULL;
 
 	while (destlen) {
 		dest[end--] = dest[destlen-- -1];
 	}
 	sys_copy_memory(dest, src, srclen);
-
-	// while (*src && buf_size > 1) {
-	// 	--buf_size;
-	// 	++dest;
-	// }
-	// while (*src && buf_size > 1) {
-	// 	--buf_size;
-	// 	*dest++ = *src++;
-	// }
-	// *dest = NULL;
 }
-void str_prepend(core_string_t* str, core_string_t prepend) {
-	// TODO Check str is within allocator, or always reallocate
-	// dunno what that means
-	u64 len = str_len(*str);
-	u64 len2 = str_len(prepend);
-	allocator_block_t* block = (allocator_block_t*)*str - 1;
-	u64 newLen = len + len2 + 1;
-	if(newLen > block->size) {
-		core_string_t newStr = _allocate_string(newLen);
-		sys_copy_memory(newStr+len2, *str, len+1);
-		gfree_memory(*str);
-		*str = newStr;
-	} else {
-		sys_copy_memory(*str+len2, *str, len+1);
+
+// void str_insert(core_string_t* str, int index, core_string_t insert) {
+// 	u64 len = str_len(*str);
+// 	u64 len2 = str_len(insert);
+// 	u64 result_len = len + len2;
+// 	assert(index < len);
+
+// 	core_string_t result = _allocate_string(result_len);
+// 	sys_copy_memory(result, *str, index);
+// 	sys_copy_memory(result+index, insert, len2);
+// 	sys_copy_memory(result+index+len2, *str+index, len-index);
+// 	result[result_len] = NULL;
+
+// 	gfree_memory(*str);
+// 	*str = result;
+// }
+char* strinsert(char* str, int index, char* insert) {
+	u64 len = strsize(str);
+	u64 len2 = strsize(insert);
+	u64 result_len = len + len2;
+	assert(index < len);
+
+	char* result = _stralloc(result_len);
+	sys_copy_memory(result, str, index);
+	sys_copy_memory(result+index, insert, len2);
+	sys_copy_memory(result+index+len2, str+index, len-index);
+	result[result_len] = NULL;
+
+	return result;
+}
+void strbinsert(char* dest, int index, char* src, int buf_size) {
+	int destlen = strsize(dest);
+	int srclen = strsize(src);
+	int end = destlen+srclen;
+	if (buf_size-1 < end) {
+		end = buf_size-1;
 	}
-	sys_copy_memory(*str, prepend, len2);
-}
-
-void char_insert(char* dest, int index, char* src, int buf_size) {
-	int destlen = str_len(dest);
-	int srclen = str_len(src);
-	int end = min(destlen+srclen, buf_size-1);
 	dest[end--] = NULL;
 
 	while (destlen >= index) {
@@ -1012,23 +1093,55 @@ void char_insert(char* dest, int index, char* src, int buf_size) {
 	}
 	sys_copy_memory(dest+index, src, srclen);
 }
-void str_insert(core_string_t* str, int index, core_string_t insert) {
-	u64 len = str_len(*str);
-	u64 len2 = str_len(insert);
-	u64 result_len = len + len2;
-	assert(index < len);
 
-	core_string_t result = _allocate_string(result_len);
-	sys_copy_memory(result, *str, index);
-	sys_copy_memory(result+index, insert, len2);
-	sys_copy_memory(result+index+len2, *str+index, len-index);
-	result[result_len] = NULL;
+// void str_replace(core_string_t* str, core_string_t find, core_string_t replace) {
+// 	allocator_block_t* block = (allocator_block_t*)*str - 1;
+// 	int num = str_find_num(*str, find);
+// 	int flen = str_len(find);
+// 	int rlen = str_len(replace);
+// 	u64 newSize = str_len(*str) + num*(rlen-str_len(find)) + 1;
+// 	core_string_t newStr = _allocate_string(newSize);
+// 	core_string_t s = *str;
+// 	core_string_t o = newStr;
+// 	while(*s) {
+// 		if(str_ncompare(s, find, flen)) {
+// 			sys_copy_memory(o, replace, rlen);
+// 			o += rlen;
+// 			s += flen;
+// 		} else {
+// 			*o = *s;
+// 			++o;
+// 			++s;
+// 		}
+// 	}
+// 	*o = 0;
+// 	gfree_memory(*str);
+// 	*str = newStr;
+// }
+char* strreplace(char* str, char* find, char* replace) {
+	int num = strfindn(str, find);
+	int flen = strsize(find);
+	int rlen = strsize(replace);
+	u64 newSize = strsize(str) + num*(rlen-flen) + 1;
+	char* newStr = _stralloc(newSize);
+	char* s = str;
+	char* o = newStr;
+	while(*s) {
+		if(strncompare(s, find, flen)) {
+			sys_copy_memory(o, replace, rlen);
+			o += rlen;
+			s += flen;
+		} else {
+			*o = *s;
+			++o;
+			++s;
+		}
+	}
+	*o = 0;
 
-	gfree_memory(*str);
-	*str = result;
+	return newStr;
 }
-
-void char_replace(char* str, char* find, char* replace, int buf_size) {
+void strbreplace(char* str, char* find, char* replace, int buf_size) {
 	// core_allocator_block_t* block = (core_allocator_block_t*)*str - 1;
 	// int num = core_strfindn(*str, find);
 	// int flen = str_len(find);
@@ -1053,50 +1166,23 @@ void char_replace(char* str, char* find, char* replace, int buf_size) {
 	// free_memory(*str);
 	// *str = newStr;
 	print_err("Function not implemented");
-	assert(FALSE);
-}
-void str_replace(core_string_t* str, core_string_t find, core_string_t replace) {
-	allocator_block_t* block = (allocator_block_t*)*str - 1;
-	int num = str_find_num(*str, find);
-	int flen = str_len(find);
-	int rlen = str_len(replace);
-	u64 newSize = str_len(*str) + num*(rlen-str_len(find)) + 1;
-	core_string_t newStr = _allocate_string(newSize);
-	core_string_t s = *str;
-	core_string_t o = newStr;
-	while(*s) {
-		if(str_ncompare(s, find, flen)) {
-			sys_copy_memory(o, replace, rlen);
-			o += rlen;
-			s += flen;
-		} else {
-			*o = *s;
-			++o;
-			++s;
-		}
-	}
-	*o = 0;
-	gfree_memory(*str);
-	*str = newStr;
+	assert(_False);
 }
 
-void char_replace_first(char* str, char* find, char* replace, int buf_size) {
-	print_err("Function not implemented");
-	assert(FALSE);
-}
-void str_replace_first(core_string_t* str, core_string_t find, core_string_t replace) {
-	allocator_block_t* block = (allocator_block_t*)*str - 1;
-	int len = str_len(*str);
-	int flen = str_len(find);
-	int rlen = str_len(replace);
+char* strreplacefirst(char* str, char* find, char* replace) {
+	int len = strsize(str);
+	int flen = strsize(find);
+	int rlen = strsize(replace);
 	u64 newSize = len + (rlen-flen) + 1;
-	core_string_t newStr = _allocate_string(newSize);
-	core_string_t s = *str;
-	core_string_t o = newStr;
+	char* newStr = _stralloc(newSize);
+	char* s = str;
+	char* o = newStr;
 	int i = 0;
+	
+	// TODO: This is terrible, try again
 	while(*s) {
-		if(str_ncompare(s, find, flen)) {
-			sys_copy_memory(newStr, *str, i);
+		if(strncompare(s, find, flen)) {
+			sys_copy_memory(newStr, str, i);
 			sys_copy_memory(o, replace, rlen);
 			s += flen;
 			o += rlen;
@@ -1108,87 +1194,93 @@ void str_replace_first(core_string_t* str, core_string_t find, core_string_t rep
 		++o;
 		++i;
 	}
-	gfree_memory(*str);
-	*str = newStr;
+	
+	return newStr;
+}
+void strbreplacefirst(char* str, char* find, char* replace, int buf_size) {
+	print_err("Function not implemented");
+	assert(_False);
 }
 
 // TODO maybe do 1 allocation and store all parts in it
-int char_split(char** buffer, size_t size, char* str, char* by) {
-	print_err("Function not implemented");
-	assert(FALSE);
-	return 0;
-}
-int str_split(core_string_t* buffer, size_t size, core_string_t str, core_string_t by) {
-	int len = str_len(str);
-	int by_len = str_len(by);
-	core_string_t str1 = str;
-	core_string_t str2 = str;
-	int num_results = 0;
+// TODO: Implement again
+// int char_split(char** buffer, size_t size, char* str, char* by) {
+// 	print_err("Function not implemented");
+// 	assert(FALSE);
+// 	return 0;
+// }
+// int str_split(core_string_t* buffer, size_t size, core_string_t str, core_string_t by) {
+// 	int len = str_len(str);
+// 	int by_len = str_len(by);
+// 	core_string_t str1 = str;
+// 	core_string_t str2 = str;
+// 	int num_results = 0;
 
-	while (*str2) {
-		if (str_ncompare(str2, by, by_len)) {
-			int chunk_size = str2-str1;
-			if (size && chunk_size > 0) {
-				core_string_t result = _allocate_string(chunk_size);
-				sys_copy_memory(result, str1, chunk_size);
-				result[chunk_size] = NULL;
-				*buffer = result;
-				++buffer;
-				--size;
-				++num_results;
-			}
-			str2 += by_len;
-			str1 = str2;
-		} else {
-			++str2;
-		}
-	}
+// 	// TODO: Also terrible, try again, use findn etc
+// 	while (*str2) {
+// 		if (str_ncompare(str2, by, by_len)) {
+// 			int chunk_size = str2-str1;
+// 			if (size && chunk_size > 0) {
+// 				core_string_t result = _allocate_string(chunk_size);
+// 				sys_copy_memory(result, str1, chunk_size);
+// 				result[chunk_size] = NULL;
+// 				*buffer = result;
+// 				++buffer;
+// 				--size;
+// 				++num_results;
+// 			}
+// 			str2 += by_len;
+// 			str1 = str2;
+// 		} else {
+// 			++str2;
+// 		}
+// 	}
 
-	int chunk_size = str2-str1;
-	if (size && chunk_size > 0) {
-		core_string_t result = _allocate_string(chunk_size);
-		sys_copy_memory(result, str1, chunk_size);
-		result[chunk_size] = NULL;
-		*buffer = result;
-		++buffer;
-		--size;
-		++num_results;
-	}
+// 	int chunk_size = str2-str1;
+// 	if (size && chunk_size > 0) {
+// 		core_string_t result = _allocate_string(chunk_size);
+// 		sys_copy_memory(result, str1, chunk_size);
+// 		result[chunk_size] = NULL;
+// 		*buffer = result;
+// 		++buffer;
+// 		--size;
+// 		++num_results;
+// 	}
 
-	return num_results;
-}
+// 	return num_results;
+// }
 
-void char_substr(char*buffer, size_t buf_size, char* str, int start, int len) {
-	print_err("Function not implemented");
-	assert(FALSE);
-}
-core_string_t str_substr(core_string_t str, int start, int len) {
-	core_string_t result = _allocate_string(len);
+char* strsubstr(char* str, int start, int len) {
+	char* result = _stralloc(len);
 	sys_copy_memory(result, str+start, len);
 	result[len] = NULL;
 	return result;
 }
-
-void char_trim(char* str) {
+void strbsubstr(char*buffer, size_t buf_size, char* str, int start, int len) {
 	print_err("Function not implemented");
-	assert(FALSE);
+	assert(_False);
 }
-void str_trim(core_string_t* str) {
-	int len = str_len(*str);
-	core_string_t result = _allocate_string(len);
-	core_string_t start = *str;
-	core_string_t end = *str + len-1;
+
+char* strtrim(char* str) {
+	int len = strsize(str);
+	char* result = _stralloc(len);
+	char* start = str;
+	char* end = str + len-1;
 	while (*start == ' ' || *start == '\t' || *start == '\r' || *start == '\n') ++start;
 	while (*end == ' ' || *end == '\t' || *end == '\r' || *end == '\n') --end;
 	len = end-start + 1;
 	sys_copy_memory(result, start, len);
 	result[len] = NULL;
-	gfree_memory(*str);
-	*str = result;
+	
+	return result;
+}
+void strbtrim(char* str) {
+	print_err("Function not implemented");
+	assert(FALSE);
 }
 
-void str_strip(char* str, int start, int n) {
-	int len = str_len(str);
+void strstrip(char* str, int start, int n) {
+	int len = strsize(str);
 	int i;
 	for (i=0; i<len-n; ++i) {
 		if (start+n+i > len) break;
@@ -1197,7 +1289,7 @@ void str_strip(char* str, int start, int n) {
 	str[start+i] = NULL;
 }
 
-void str_lower(char* str) {
+void strlower(char* str) {
 	char* s = str;
 	while(*s) {
 		if(*s >= 'A' && *s <= 'Z') {
@@ -1207,7 +1299,7 @@ void str_lower(char* str) {
 	}
 }
 
-void str_upper(char* str) {
+void strupper(char* str) {
 	char* s = str;
 	while(*s) {
 		if(*s >= 'a' && *s <= 'z') {
@@ -1230,7 +1322,7 @@ u32 murmur3_scramble(u32 k) {
 
 // https://en.wikipedia.org/wiki/MurmurHash
 u32 murmur3(u8* key) {
-	u32 len = str_len((char*)key);
+	u32 len = strsize((char*)key);
 
 	u32 c1 = 0xcc9e2d51;
 	u32 c2 = 0x1b873593;
