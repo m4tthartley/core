@@ -3,36 +3,15 @@
 //  Copyright 2023 GiantJelly. All rights reserved.
 //
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <xaudio2.h>
-#include <iostream>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include "core.h"
+#include "sys.h"
 #include "sysaudio.h"
 
-
-// _Bool sys_init_audio(sysaudio_t* audio, sysaudio_spec_t spec) {
-// 	*audio = (sysaudio_t){0};
-// 	assert(spec.format <= SYSAUDIO_FORMAT_FLOAT64);
-
-// 	audio->format = spec.format;
-// 	audio->sampleRate = spec.sampleRate;
-// 	if (audio->format < SYSAUDIO_FORMAT_FLOAT32) {
-// 		audio->sampleSize = audio->format;
-// 	} else {
-// 		if (audio->format == SYSAUDIO_FORMAT_FLOAT32) {
-// 			audio->sampleSize = 4;
-// 		} else {
-// 			audio->sampleSize = 8;
-// 		}
-// 	}
-
-// 	return _True;
-
-// init_audio_err:
-// 	return _False;
-// }
+#include <xaudio2.h>
 
 
 void _win_print_hr_err(HRESULT hr)
@@ -42,12 +21,6 @@ void _win_print_hr_err(HRESULT hr)
     sys_print_err(str);
     // std::string str = std::hex << hr << "\n";
 }
-
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 
 _Bool xaudio_init_audio(sysaudio_t* audio, sysaudio_spec_t spec)
 {

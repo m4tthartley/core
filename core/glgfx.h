@@ -6,13 +6,6 @@
 //  Copyright 2023 GiantJelly. All rights reserved.
 //
 
-// #include <windows.h>
-// #include <gl/gl.h>
-// #include <file.h>
-
-// typedef GLuint glh_t;
-
-
 #ifndef __CORE_GFX_HEADER__
 #define __CORE_GFX_HEADER__
 
@@ -21,6 +14,7 @@
 #include "math.h"
 // #include "opengl_extensions.h"
 #include "font.h"
+#include "sys.h"
 #include "sysvideo.h"
 #include "glex.h"
 
@@ -209,7 +203,9 @@ bitmap_t* load_bitmap_file(allocator_t* allocator, char* filename) {
 	rowSize = ((header->colorDepth*header->bitmapWidth+31) / 32) * 4;
 
 	// Possibly check whether to alloc or push
-	bitmap_t* result = alloc_memory(allocator, sizeof(bitmap_t) + sizeof(u32)*header->bitmapWidth*header->bitmapHeight);
+	size_t resultSize = sizeof(bitmap_t) + sizeof(u32)*header->bitmapWidth*header->bitmapHeight;
+	bitmap_t* result = alloc_memory(allocator, resultSize);
+	sys_zero_memory(result, resultSize);
 	result->size = header->size;
 	result->width = header->bitmapWidth;
 	result->height = header->bitmapHeight;

@@ -6,8 +6,6 @@
 //  Copyright 2023 GiantJelly. All rights reserved.
 //
 
-#define WIN32_LEAN_AND_MEAN
-#include <WINDOWS.H>
 #include <GL/GL.H>
 
 #pragma warning (disable: 4133) // incompatible types

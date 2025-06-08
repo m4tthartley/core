@@ -165,8 +165,6 @@ void uiMessage(char* str, ...);
 #ifdef CORE_IMPL
 
 
-#define WIN32_LEAN_AND_MEAN
-#include <WINDOWS.H>
 #include <gl/GL.H>
 #include <STDIO.H>
 

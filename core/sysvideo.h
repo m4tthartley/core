@@ -10,11 +10,12 @@
 
 #include <stdint.h>
 #include "targetconditionals.h"
+#include "sys.h"
 
-#ifdef __WIN32__
-#	define WIN32_LEAN_AND_MEAN
-#	include <windows.h>
-#endif
+// #ifdef __WIN32__
+// #	define WIN32_LEAN_AND_MEAN
+// #	include <windows.h>
+// #endif
 
 
 #define CORE_VIDEO_FUNC

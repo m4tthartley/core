@@ -42,6 +42,7 @@
 #include "targetconditionals.h"
 #include "sys.h"
 #include "print.h"
+#include "math.h"
 
 
 #ifdef __POSIX__
@@ -131,13 +132,14 @@ typedef u8 byte;
 #define FOR(index, count) for(int index=0; index<count; ++index)
 #define FORSTATIC(index, arr) for(int index=0; index<(sizeof(arr)/sizeof(arr[0])); ++index)
 #define FORDYNARR(index, arr) for(int index=0; index<arr.count; ++index)
-#ifndef __WIN32__
-#undef min
-#undef max
-#define min(a, b) (a<b ? a : b)
-#define max(a, b) (a>b ? a : b)
-#endif
 #define TOSTRING(a) __STRING(a)
+
+#ifdef min
+#	undef min
+#endif
+#ifdef max
+#	undef max
+#endif
 
 
 #define CORE_ALWAYS_INLINE __attribute__((always_inline))
