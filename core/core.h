@@ -753,6 +753,40 @@ void dynarr_clear(dynarr_t* arr) {
 
 
 // STRINGS
+/*
+	String header will contain an 32bit ID e.g. 0xBEEF, and a 32bit length
+	Functions can check the header ID to see what type of string it is
+	stralloc will have a tmp version and a persist version
+	tmp strings will be stored in a static rolling buffer
+	persist strings will call a user allocate function, or fallback to malloc
+	There will still be separate functions to operate on buffers with length restrictions
+
+	stralloc -> allocate memory in tmp buffer
+	strstore -> store string using user alloc callback
+
+	strformat -> format string into tmp buffer
+	strbformat -> format string into user buffer
+
+	strcopy -> copy into tmp buffer
+	strbcopy -> copy into user buffer
+*/
+
+typedef struct {
+	uint32_t id; // 0xDEADCAFE
+	uint32_t size;
+} strheader_t;
+
+uint32_t strsize(char* str) {
+	strheader_t* header = ((strheader_t*)str) -1;
+	if (header->id == 0xDEADCAFE) {
+		return header->size;
+	}
+
+	int size = 0;
+	while(*str++) ++size;
+	return size;
+}
+
 allocator_t* _global_str_allocator = NULL;
 
 void str_set_allocator(allocator_t* allocator) {
