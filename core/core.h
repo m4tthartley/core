@@ -857,12 +857,12 @@ char* strstore(char* str) {
 char* strformat(char* fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
-	int len = vsprint(0, 0, fmt, args) + 1;
+	int len = vsprint(0, 0, fmt, args);
 	va_end(args);
 	char* result = _stralloc(len);
 	va_list args2;
 	va_start(args2, fmt);
-	vsprint(result, len, fmt, args2);
+	vsprint(result, len+1, fmt, args2);
 	va_end(args2);
 	return result;
 }

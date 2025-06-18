@@ -263,7 +263,7 @@ int sprint_str(char* buf, int len, char* str) {
 	// if (buf) {
 	// 	buf[ci] = 0;
 	// }
-	_sprint_write(0);
+	// _sprint_write(0);
 
 	return ci;
 }
@@ -338,7 +338,7 @@ int vsprint(char* buf, int len, char* fmt, va_list args) {
 	// if (buf) {
 	// 	buf[ci] = 0;
 	// }
-	_sprint_write(0);
+	if (buf && ci<len) buf[ci] = 0; 
 	return ci;
 }
 
