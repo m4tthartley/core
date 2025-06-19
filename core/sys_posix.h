@@ -468,13 +468,23 @@ CORE_DYLIB_FUNC dylib_t sys_load_lib(char *file) {
 
 	if (!lib.handle) {
 		char* error = dlerror();
-		// print_error("Error loading library: %s", error);
 		sys_print_err("Error loading library: ");
 		sys_print_err(error);
 		sys_print_err("\n");
 	}
 
 	return lib;
+}
+
+CORE_DYLIB_FUNC void sys_close_lib(dylib_t lib) {
+	dlclose(lib.handle);
+
+	char* error = dlerror();
+	if (error) {
+		sys_print_err("Error closing library: ");
+		sys_print_err(error);
+		sys_print_err("\n");
+	}
 }
 
 CORE_DYLIB_FUNC void *sys_load_lib_sym(dylib_t lib, char *proc) {
