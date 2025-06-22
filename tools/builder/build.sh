@@ -22,7 +22,7 @@ mkdir -p ../bin
 # 	echo "Build failed"
 # fi
 
-options="-std=c99 -g -I$HOME/code/core"
+options="-std=c99 -g -I$HOME/code/core -Wno-deprecated-declarations"
 clang macos.c -o ../bin/builder $options -framework CoreServices
 
 

@@ -290,7 +290,7 @@ char* strreplacefirst(char* str, char* find, char* replace);
 void strbreplacefirst(char* str, char* find, char* replace, int buf_size);
 
 // int 			char_split(char** buffer, size_t size, char* str, char* by);
-// int 			str_split(core_string_t* buffer, size_t size, core_string_t str, core_string_t by);
+int strsplit(char** buffer, size_t size, char* str, char* by);
 
 char* strsubstr(char* str, int start, int len);
 void strbsubstr(char*buffer, size_t buf_size, char* str, int start, int len);
@@ -1209,46 +1209,46 @@ void strbreplacefirst(char* str, char* find, char* replace, int buf_size) {
 // 	assert(FALSE);
 // 	return 0;
 // }
-// int str_split(core_string_t* buffer, size_t size, core_string_t str, core_string_t by) {
-// 	int len = str_len(str);
-// 	int by_len = str_len(by);
-// 	core_string_t str1 = str;
-// 	core_string_t str2 = str;
-// 	int num_results = 0;
+int strsplit(char** buffer, size_t size, char* str, char* by) {
+	int len = strsize(str);
+	int by_len = strsize(by);
+	char* str1 = str;
+	char* str2 = str;
+	int num_results = 0;
 
-// 	// TODO: Also terrible, try again, use findn etc
-// 	while (*str2) {
-// 		if (str_ncompare(str2, by, by_len)) {
-// 			int chunk_size = str2-str1;
-// 			if (size && chunk_size > 0) {
-// 				core_string_t result = _allocate_string(chunk_size);
-// 				sys_copy_memory(result, str1, chunk_size);
-// 				result[chunk_size] = NULL;
-// 				*buffer = result;
-// 				++buffer;
-// 				--size;
-// 				++num_results;
-// 			}
-// 			str2 += by_len;
-// 			str1 = str2;
-// 		} else {
-// 			++str2;
-// 		}
-// 	}
+	// TODO: Also terrible, try again, use findn etc
+	while (*str2) {
+		if (strncompare(str2, by, by_len)) {
+			int chunk_size = str2-str1;
+			if (size && chunk_size > 0) {
+				char* result = _stralloc(chunk_size);
+				sys_copy_memory(result, str1, chunk_size);
+				result[chunk_size] = NULL;
+				*buffer = result;
+				++buffer;
+				--size;
+				++num_results;
+			}
+			str2 += by_len;
+			str1 = str2;
+		} else {
+			++str2;
+		}
+	}
 
-// 	int chunk_size = str2-str1;
-// 	if (size && chunk_size > 0) {
-// 		core_string_t result = _allocate_string(chunk_size);
-// 		sys_copy_memory(result, str1, chunk_size);
-// 		result[chunk_size] = NULL;
-// 		*buffer = result;
-// 		++buffer;
-// 		--size;
-// 		++num_results;
-// 	}
+	int chunk_size = str2-str1;
+	if (size && chunk_size > 0) {
+		char* result = _stralloc(chunk_size);
+		sys_copy_memory(result, str1, chunk_size);
+		result[chunk_size] = NULL;
+		*buffer = result;
+		++buffer;
+		--size;
+		++num_results;
+	}
 
-// 	return num_results;
-// }
+	return num_results;
+}
 
 char* strsubstr(char* str, int start, int len) {
 	char* result = _stralloc(len);

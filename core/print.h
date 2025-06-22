@@ -366,18 +366,7 @@ int sprint(char* buf, int len, char* fmt, ...) {
 
 
 // ESCAPE CODES
-uint8_t escape_basic_color(uint8_t color, _Bool bright) {
-	if (bright) {
-		color += 8;
-	}
-	return color;
-}
-
-uint8_t escape_256_color(uint8_t r, uint8_t g, uint8_t b) {
-	return 16 + (r*36) + (g*6) + (b);
-}
-
-void escape_color(int color) {
+void escape_print_color(int color) {
 	char buffer[16] = {0};
 
 	if (color > -1) {
@@ -388,8 +377,7 @@ void escape_color(int color) {
 
 	sys_print(buffer);
 }
-
-void escape_color_bg(int color) {
+void escape_print_color_bg(int color) {
 	char buffer[16] = {0};
 
 	if (color > -1) {
@@ -399,6 +387,45 @@ void escape_color_bg(int color) {
 	}
 
 	sys_print(buffer);
+}
+
+uint8_t escape_basic_color_encode(uint8_t color, _Bool bright) {
+	if (bright) {
+		color += 8;
+	}
+	return color;
+}
+uint8_t escape_basic_color(uint8_t color, _Bool bright) {
+	uint8_t result = escape_basic_color_encode(color, bright);
+	escape_print_color(result);
+	return result;
+}
+uint8_t escape_basic_color_bg(uint8_t color, _Bool bright) {
+	uint8_t result = escape_basic_color_encode(color, bright);
+	escape_print_color_bg(result);
+	return result;
+}
+
+uint8_t escape_256_color_encode(uint8_t r, uint8_t g, uint8_t b) {
+	return 16 + (r*36) + (g*6) + (b);
+}
+uint8_t escape_256_color(uint8_t r, uint8_t g, uint8_t b) {
+	uint8_t result = escape_256_color_encode(r, g, b);
+	escape_print_color(result);
+	return result;
+}
+uint8_t escape_256_color_bg(uint8_t r, uint8_t g, uint8_t b) {
+	uint8_t result = escape_256_color_encode(r, g, b);
+	escape_print_color_bg(result);
+	return result;
+}
+
+void escape_color(int color) {
+	escape_print_color(color);
+}
+
+void escape_color_bg(int color) {
+	escape_print_color_bg(color);
 }
 
 void escape_mode(int attrs) {
