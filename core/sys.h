@@ -47,6 +47,11 @@ typedef struct {
 	uint8_t data[];
 } file_data_t;
 
+typedef struct {
+	uint64_t physical_memory;
+	uint64_t virtual_memory;
+} process_info_t;
+
 
 void sys_init_log(char* filename);
 void sys_print(char* str);
@@ -194,6 +199,10 @@ int wait_for_directory_changes(directory_watcher_t* watcher, file_change_t* outp
 _Bool sys_get_bundle_path(char* buffer, int bufferSize, char* filename);
 _Bool sys_get_resource_dir(char* buffer, int bufferSize);
 _Bool sys_get_resource_path(char* buffer, int bufferSize, char* resourceFile);
+
+
+// Process
+CORE_MEMORY_FUNC process_info_t sys_get_process_info();
 
 
 #	ifdef CORE_IMPL

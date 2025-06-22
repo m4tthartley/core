@@ -27,6 +27,8 @@
 // 	return dlsym(lib.handle, proc);
 // }
 
+// BUNDLES
+
 _Bool sys_get_bundle_path(char* buffer, int bufferSize, char* filename) {
 	CFBundleRef bundle = CFBundleGetMainBundle();
 	if (!bundle) {
@@ -105,4 +107,23 @@ _Bool sys_open_resource_file(char* filename) {
 	} else {
 		return 0;
 	}
+}
+
+
+// PROCESS
+
+CORE_MEMORY_FUNC process_info_t sys_get_process_info() {
+	task_basic_info_data_t info;
+	mach_msg_type_number_t size = TASK_BASIC_INFO_COUNT;
+
+	kern_return_t infoResult = task_info(mach_task_self(), TASK_BASIC_INFO, (task_info_t)&info, &size);
+	if (infoResult != KERN_SUCCESS) {
+		sys_print_err("Failed to get process memory info \n");
+		return (process_info_t){};
+	}
+
+	process_info_t result;
+	result.physical_memory = info.resident_size;
+	result.virtual_memory = info.virtual_size;
+	return result;
 }

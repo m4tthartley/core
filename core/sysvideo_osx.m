@@ -26,6 +26,12 @@ void _sys_video_print(char* str) {
 }
 
 
+// #define _CONCAT(a, b) a##b
+// #define CONCAT(a, b) _CONCAT(a, b)
+// #define APP_DELEGATE_CLASS_NAME CONCAT(SysVideoAppDelegate, BUILD_ID)
+// #define METAL_VIEW_CLASS_NAME CONCAT(SysVideoMetalView, BUILD_ID)
+// #define APP_DELEGATE_CLASS_NAME SysVideoAppDelegate
+
 @interface SysVideoAppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate>
 @end
 @implementation SysVideoAppDelegate

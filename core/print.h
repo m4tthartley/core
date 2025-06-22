@@ -12,8 +12,12 @@
 #include <stdarg.h>
 
 
+void strbinsert(char* dest, int index, char* src, int buf_size);
+
+
 // SPRINTING
 int sprint_u64(char* buf, int len, uint64_t num);
+int sprint_u64_display(char* buf, int len, uint64_t num);
 int sprint_i64(char* buf, int len, int64_t num);
 int sprint_u32(char* buf, int len, uint32_t num);
 int sprint_int(char* buf, int len, int32_t num);
@@ -140,6 +144,16 @@ int sprint_u64(char* buf, int len, uint64_t num) {
 	_sprint_write(0);
 
 	return ci;
+}
+
+int sprint_u64_display(char* buf, int len, uint64_t num) {
+	int size = sprint_u64(buf, len, num);
+	int cursor = size-3;
+	while (cursor > 0) {
+		strbinsert(buf, cursor, ",", len);
+		cursor -= 3;
+	}
+	return size;
 }
 
 int sprint_i64(char* buf, int len, int64_t num) {
