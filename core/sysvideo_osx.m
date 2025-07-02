@@ -253,6 +253,32 @@ CORE_VIDEO_FUNC _Bool sys_message_box(char* title, char* msg, char* yesOption, c
 	return _False;
 }
 
+CORE_VIDEO_FUNC void sys_set_clipboard(char* str) {
+	NSPasteboard* pasteboard = [NSPasteboard generalPasteboard];
+	[pasteboard clearContents];
+	NSString* nstext = [NSString stringWithUTF8String:str];
+	[pasteboard setString:nstext forType:NSPasteboardTypeString];
+}
+
+CORE_VIDEO_FUNC void sys_get_clipboard(char* buffer, int len) {
+	NSPasteboard* pasteboard = [NSPasteboard generalPasteboard];
+	NSString* nstext = [pasteboard stringForType:NSPasteboardTypeString];
+	if (!nstext) {
+		buffer[0] = 0;
+	}
+
+	// sprint(buffer, len, )
+	const char* str = [nstext UTF8String];
+	int i = 0;
+	while (str && i < len-1) {
+		buffer[i] = *str;
+		++str;
+		++i;
+	}
+
+	buffer[i] = 0;
+}
+
 // METAL INITIALIZATION
 @interface SysVideoMetalView : NSView
 @end

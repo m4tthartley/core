@@ -185,6 +185,9 @@ CORE_VIDEO_FUNC _Bool sys_init_window(sys_window_t* win, char* title, int width,
 CORE_VIDEO_FUNC void sys_poll_events(sys_window_t* win);
 CORE_VIDEO_FUNC _Bool sys_message_box(char* title, char* msg, char* yesOption, char* noOption);
 
+CORE_VIDEO_FUNC void sys_set_clipboard(char* str);
+CORE_VIDEO_FUNC void sys_get_clipboard(char* buffer, int len);
+
 CORE_VIDEO_FUNC void sys_init_metal(sys_window_t* win);
 CORE_VIDEO_FUNC void sys_init_opengl(sys_window_t* win);
 CORE_VIDEO_FUNC void sys_present_opengl(sys_window_t* win);
@@ -236,6 +239,7 @@ typedef enum {
 	KEY_RETURN=kVK_Return, KEY_BACKSPACE=kVK_Delete, KEY_SPACE=kVK_Space, KEY_ESC=kVK_Escape, KEY_TAB=kVK_Tab,
 	KEY_SHIFT=kVK_Shift, KEY_RSHIFT=kVK_RightShift, KEY_CONTROL=kVK_Control, KEY_RCONTROL=kVK_RightControl,
 	KEY_MENU=kVK_Option, KEY_RMENU=kVK_RightOption, KEY_COMMAND=kVK_Command, KEY_RCOMMAND=kVK_RightCommand,
+	KEY_DELETE=kVK_Delete, KEY_HOME=kVK_Home, KEY_END=kVK_End,
 } sys_key_code_t;
 #endif
 
@@ -262,6 +266,7 @@ typedef enum {
 	KEY_RETURN=0x0D, KEY_BACKSPACE=0x08, KEY_SPACE=0x20, KEY_ESC=0x1B, KEY_TAB=0x09,
 	KEY_SHIFT=0x10, KEY_LSHIFT=0xA0, KEY_RSHIFT=0xA1, KEY_CONTROL=0x11, KEY_LCONTROL=0xA2, KEY_RCONTROL=0xA3,
 	KEY_MENU=0x12, KEY_LMENU=0xA4, KEY_RMENU=0xA5, KEY_COMMAND=0x5B, KEY_RCOMMAND=0x5C,
+	KEY_DELETE=VK_DELETE, KEY_HOME=VK_HOME, KEY_END=VK_END,
 } sys_key_code_t;
 #endif
 

@@ -306,7 +306,7 @@ void strupper(char* str);
 
 
 // Murmur hash definitions
-u32 murmur3(u8* key);
+u32 murmur3(char* key);
 
 
 #	ifdef CORE_IMPL
@@ -1083,15 +1083,33 @@ void strbinsert(char* dest, int index, char* src, int buf_size) {
 	int destlen = strsize(dest);
 	int srclen = strsize(src);
 	int end = destlen+srclen;
-	if (buf_size-1 < end) {
-		end = buf_size-1;
-	}
-	dest[end--] = NULL;
 
-	while (destlen >= index) {
-		dest[end--] = dest[destlen-- -1];
+	// move end of string
+	// sys_copy_memory(dest+index+srclen, dest+index, smin(buf_size-index, buf_size-index-srclen));
+	int iend = destlen-index-1;
+	while (iend >= 0 && index+srclen+iend < buf_size) {
+		dest[index + srclen + iend] = dest[index + iend];
+		--iend;
 	}
-	sys_copy_memory(dest+index, src, srclen);
+	// write insert
+	// sys_copy_memory(dest+index, src, smin(srclen, buf_size-index));
+	int i = 0;
+	while (i < srclen && index+i < buf_size) {
+		dest[index + i] = src[i];
+		++i;
+	}
+	// null terminator
+	dest[smin(end, buf_size-1)] = NULL;
+
+	// if (buf_size-1 < end) {
+	// 	end = buf_size-1;
+	// }
+	// dest[end--] = NULL;
+
+	// while (destlen >= index) {
+	// 	dest[end--] = dest[destlen-- -1];
+	// }
+	// sys_copy_memory(dest+index, src, srclen);
 }
 
 // void str_replace(core_string_t* str, core_string_t find, core_string_t replace) {
@@ -1321,7 +1339,7 @@ u32 murmur3_scramble(u32 k) {
 }
 
 // https://en.wikipedia.org/wiki/MurmurHash
-u32 murmur3(u8* key) {
+u32 murmur3(char* key) {
 	u32 len = strsize((char*)key);
 
 	u32 c1 = 0xcc9e2d51;
