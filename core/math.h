@@ -167,6 +167,31 @@ typedef union {
 	float f[16];
 } mat4_t;
 
+typedef union {
+	struct {
+		float m00;
+		float m01;
+		float m02;
+		float m10;
+		float m11;
+		float m12;
+		float m20;
+		float m21;
+		float m22;
+	};
+	float f[9];
+} mat3_t;
+
+typedef union {
+	struct {
+		float m00;
+		float m01;
+		float m10;
+		float m11;
+	};
+	float f[4];
+} mat2_t;
+
 
 CORE_MATH_FUNC int2_t int2(int x, int y);
 CORE_MATH_FUNC int2_t point(int x, int y);
@@ -214,6 +239,9 @@ CORE_MATH_FUNC vec4_t normalize4(vec4_t v);
 CORE_MATH_FUNC vec2_t floor2(vec2_t a);
 CORE_MATH_FUNC vec3_t floor3(vec3_t a);
 CORE_MATH_FUNC vec4_t floor4(vec4_t a);
+CORE_MATH_FUNC vec2_t ceil2(vec2_t a);
+CORE_MATH_FUNC vec3_t ceil3(vec3_t a);
+CORE_MATH_FUNC vec4_t ceil4(vec4_t a);
 CORE_MATH_FUNC vec2_t round2(vec2_t a);
 CORE_MATH_FUNC vec3_t round3(vec3_t a);
 CORE_MATH_FUNC vec4_t round4(vec4_t a);
@@ -265,10 +293,15 @@ CORE_MATH_FUNC float smoothstep(float x, float y, float a);
 CORE_MATH_FUNC float todeg(float rad);
 CORE_MATH_FUNC float torad(float deg);
 CORE_MATH_FUNC mat4_t mat4_identity();
+CORE_MATH_FUNC mat3_t mat3_identity();
 CORE_MATH_FUNC mat4_t mat4_ortho_matrix(float left, float right, float bottom, float top, float near, float far);
 CORE_MATH_FUNC mat4_t perspective_matrix(float fov, float aspect, float near, float far);
 CORE_MATH_FUNC mat4_t mat4_camera(vec3_t position, vec3_t direction, vec3_t up);
+CORE_MATH_FUNC mat4_t mat4_transpose(mat4_t m);
+CORE_MATH_FUNC mat3_t mat3_transpose(mat3_t m);
+CORE_MATH_FUNC float mat3_determinant(mat3_t mat);
 CORE_MATH_FUNC mat4_t mat4_inverse(mat4_t m);
+CORE_MATH_FUNC mat3_t mat3_inverse(mat3_t mat);
 CORE_MATH_FUNC mat4_t mat4_mul(mat4_t m1, mat4_t m2);
 CORE_MATH_FUNC mat4_t mat4_translate(vec3_t pos);
 CORE_MATH_FUNC void mat4_apply_translate(mat4_t *m, vec3_t pos);
@@ -284,6 +317,8 @@ CORE_MATH_FUNC vec4_t vec4_mul_mat4(vec4_t in, mat4_t mat);
 CORE_MATH_FUNC vec3_t vec3_mul_mat4(vec3_t in, mat4_t mat);
 CORE_MATH_FUNC vec2_t vec2_mul_mat4(vec2_t in, mat4_t mat);
 CORE_MATH_FUNC vec4_t mat4_mul_vec4(mat4_t mat, vec4_t in);
+CORE_MATH_FUNC mat3_t mat4_mat3(mat4_t mat);
+CORE_MATH_FUNC mat2_t mat4_mat2(mat4_t mat);
 CORE_MATH_FUNC quaternion_t qidentity();
 CORE_MATH_FUNC quaternion_t qmul(quaternion_t q1, quaternion_t q2);
 CORE_MATH_FUNC quaternion_t qdiv(quaternion_t q, float f);
@@ -485,6 +520,16 @@ CORE_MATH_FUNC vec3_t floor3(vec3_t a) {
 }
 CORE_MATH_FUNC vec4_t floor4(vec4_t a) {
 	return vec4(floorf(a.x), floorf(a.y), floorf(a.z), floorf(a.w));
+}
+
+CORE_MATH_FUNC vec2_t ceil2(vec2_t a) {
+	return vec2(ceilf(a.x), ceilf(a.y));
+}
+CORE_MATH_FUNC vec3_t ceil3(vec3_t a) {
+	return vec3(ceilf(a.x), ceilf(a.y), ceilf(a.z));
+}
+CORE_MATH_FUNC vec4_t ceil4(vec4_t a) {
+	return vec4(ceilf(a.x), ceilf(a.y), ceilf(a.z), ceilf(a.w));
 }
 
 CORE_MATH_FUNC vec2_t round2(vec2_t a) {
@@ -712,14 +757,29 @@ CORE_MATH_FUNC float torad(float deg) {
 	return deg/180.0f * PI;
 }
 
+// CORE_MATH_FUNC fswap(float* a, float* b)
+#define swap(a, b)\
+	b = b - a;\
+	a = b + a;\
+	b = a - b;\
+
 
 // MATRICES
+#ifndef MATH_HEADER_EXCLUDE_MATRICES
 CORE_MATH_FUNC mat4_t mat4_identity() {
 	mat4_t result = {
 		1, 0, 0, 0,
 		0, 1, 0, 0,
 		0, 0, 1, 0,
 		0, 0, 0, 1,
+	};
+	return result;
+}
+CORE_MATH_FUNC mat3_t mat3_identity() {
+	mat3_t result = {
+		1, 0, 0,
+		0, 1, 0,
+		0, 0, 1,
 	};
 	return result;
 }
@@ -778,6 +838,42 @@ CORE_MATH_FUNC mat4_t mat4_camera(vec3_t position, vec3_t direction, vec3_t up) 
 	return result;
 }
 
+CORE_MATH_FUNC mat4_t mat4_transpose(mat4_t m) {
+	mat4_t mat;
+	for (int i=0; i<4; ++i) {
+		for (int j=0; j<4; ++j) {
+			// swap(mat.f[y*4+x], mat.f[x*4+y]);
+			mat.f[j*4+i] = m.f[i*4+j];
+		}
+	}
+
+	return mat;
+}
+CORE_MATH_FUNC mat3_t mat3_transpose(mat3_t m) {
+	mat3_t mat = m;
+	for (int y=0; y<3; ++y) for (int x=0; x<3; ++x) {
+		swap(mat.f[y*3+x], mat.f[x*3+y]);
+	}
+
+	return mat;
+}
+
+CORE_MATH_FUNC float mat3_determinant(mat3_t mat) {
+	float a = mat.m00;
+	float b = mat.m01;
+	float c = mat.m02;
+	float d = mat.m10;
+	float e = mat.m11;
+	float f = mat.m12;
+	float g = mat.m20;
+	float h = mat.m21;
+	float i = mat.m22;
+
+	return a * (e*i - f*h)
+			- b * (d*i - f*g)
+			+ c * (d*h - e*g);
+}
+
 CORE_MATH_FUNC mat4_t mat4_inverse(mat4_t m) {
 	float augmented[4][8];
 	for (int i=0; i<4; ++i) {
@@ -819,14 +915,44 @@ CORE_MATH_FUNC mat4_t mat4_inverse(mat4_t m) {
 
 	return inverse;
 }
+CORE_MATH_FUNC mat3_t mat3_inverse(mat3_t mat) {
+	float a = mat.m00;
+	float b = mat.m01;
+	float c = mat.m02;
+	float d = mat.m10;
+	float e = mat.m11;
+	float f = mat.m12;
+	float g = mat.m20;
+	float h = mat.m21;
+	float i = mat.m22;
+
+	mat3_t adjugate = {
+		e*i - f*h, c*h - b*i, b*f - c*e,
+		f*g - d*i, a*i - c*g, c*d - a*f,
+		d*h - e*g, b*g - a*h, a*e - b*d,
+	};
+
+	float determinant = a*adjugate.m00 + b*adjugate.m10 + c*adjugate.m20;
+
+	if (fabs(determinant) < 1e-8f) {
+		return mat3_identity();
+	}
+
+	mat3_t inverse;
+	for (int i=0; i<3*3; ++i) {
+		inverse.f[i] = adjugate.f[i] / determinant;
+	}
+
+	return inverse;
+}
 
 CORE_MATH_FUNC mat4_t mat4_mul(mat4_t m1, mat4_t m2) {
 	mat4_t out = {0};
 	
-	for (int row = 0; row < 4; ++row) {
-		for (int col = 0; col < 4; ++col) {
-			for (int i = 0; i < 4; ++i) {
-				out.f[row*4 + col] += m1.f[row*4 + i] * m2.f[i*4 + col];
+	for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			for (int k = 0; k < 4; ++k) {
+				out.f[i*4 + j] += m1.f[k*4 + j] * m2.f[i*4 + k];
 			}
 		}
 	}
@@ -926,9 +1052,9 @@ CORE_MATH_FUNC void mat4_apply_scale(mat4_t *m, vec3_t s) {
 
 CORE_MATH_FUNC vec4_t vec4_mul_mat4(vec4_t in, mat4_t mat) {
 	vec4_t result = {0};
-	for (int col = 0; col < 4; ++col) {
-		for (int i = 0; i < 4; ++i) {
-			result.f[col] += in.f[i] * mat.f[i*4 + col];
+	for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			result.f[i] += in.f[j] * mat.f[i*4 + j];
 		}
 	}
 	return result;
@@ -955,16 +1081,47 @@ CORE_MATH_FUNC vec2_t vec2_mul_mat4(vec2_t in, mat4_t mat) {
 }
 
 CORE_MATH_FUNC vec4_t mat4_mul_vec4(mat4_t mat, vec4_t in) {
+	// NOTE: Switched to column major
 	vec4_t result = {0};
-	for (int row = 0; row < 4; ++row) {
-		for (int i = 0; i < 4; ++i) {
-			result.f[row] += mat.f[row * 4 + i] * in.f[i];
+	for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			result.f[i] += mat.f[j * 4 + i] * in.f[j];
+		}
+	}
+	return result;
+}
+CORE_MATH_FUNC vec3_t mat3_mul_vec3(mat3_t mat, vec3_t in) {
+	vec3_t result = {0};
+	for (int row = 0; row < 3; ++row) {
+		for (int i = 0; i < 3; ++i) {
+			result.f[row] += mat.f[row * 3 + i] * in.f[i];
 		}
 	}
 	return result;
 }
 
+CORE_MATH_FUNC mat3_t mat4_mat3(mat4_t mat) {
+	mat3_t result;
+	for (int y=0; y<3; ++y) for (int x=0; x<3; ++x) {
+		result.f[y*3+x] = mat.f[y*4+x];
+	}
+
+	return result;
+}
+
+CORE_MATH_FUNC mat2_t mat4_mat2(mat4_t mat) {
+	mat2_t result;
+	for (int y=0; y<2; ++y) for (int x=0; x<2; ++x) {
+		result.f[y*2+x] = mat.f[y*4+x];
+	}
+
+	return result;
+}
+#endif
+
+
 // QUATERNIONS
+#ifndef MATH_HEADER_EXCLUDE_QUATERNIONS
 CORE_MATH_FUNC quaternion_t qidentity() {
 	quaternion_t result = {0.0f, 0.0f, 0.0f, 1.0f};
 	return result;
@@ -1059,6 +1216,7 @@ CORE_MATH_FUNC mat4_t qmat4(quaternion_t q) {
 	
 	return result;
 }
+#endif
 
 
 // NOISE

@@ -192,9 +192,9 @@ typedef struct {
 			llist_t blocks;
 			llist_t free;
 		};
-		struct {
-			u64 stackptr;
-		};
+	};
+	struct {
+		u64 stackptr;
 	};
 } allocator_t;
 

@@ -244,13 +244,32 @@ int sprint_f64(char* buf, int len, double input, int precision) {
 	// } else {
 	// 	ci += len-1;
 	// }
-	for (int i=0; i<precision; ++i) {
+
+	// Using 50 as roughly the max string length of a float
+	// TODO: Maybe implement nice algorithm like Dragon4 or Ryu
+	int maxDigits = precision ? precision : 20;
+	// for (int i=0; i<maxDigits; ++i) {
+	// 	fractPart = fmodf(fractPart*10, 10);
+	// 	int fractInt = fractPart;
+	// 	if (fractInt) {
+	// 		lastNonZero = i;
+	// 	}
+	// }
+	int cistack = ci;
+	for (int i=0; i<maxDigits; ++i) {
 		fractPart = fmodf(fractPart*10, 10);
 		int fractInt = fractPart;
-		// buf[ci++] = '0' + fractInt;
+
 		_sprint_write('0' + fractInt);
 		++ci;
+
+		if (!i || fractInt) {
+			cistack = ci;
+		}
 	}
+
+	ci = cistack;
+	// ci -= zeroDigits;
 	// buf[ci] = 0;
 	_sprint_write(0);
 
@@ -334,6 +353,14 @@ int vsprint(char* buf, int len, char* fmt, va_list args) {
 			}
 			else if (fmt[1] == 's') {
 				ci += sprint_str(subBuf, subLen, va_arg(args, char*));
+				fmt += 2;
+				continue;
+			}
+			else if (fmt[1] == 'c') {
+				// ci += sprint_str(subBuf, subLen, va_arg(args, char*));
+				char c = (char)va_arg(args, int);
+				_sprint_write(c);
+				++ci;
 				fmt += 2;
 				continue;
 			}
@@ -477,11 +504,11 @@ void print(char* fmt, ...) {
 		return;
 	}
 
-	char buffer[1024];
+	char buffer[4096];
 	va_list va;
 	va_start(va, fmt);
 
-	vsprint(buffer, 1024, fmt, va);
+	vsprint(buffer, sizeof(buffer), fmt, va);
 	sys_print(buffer);
 	
 	va_end(va);
@@ -492,11 +519,11 @@ void print_err(char* fmt, ...) {
 		return;
 	}
 	
-	char buffer[1024];
+	char buffer[4096];
 	va_list va;
 	va_start(va, fmt);
 
-	vsprint(buffer, 1024, fmt, va);
+	vsprint(buffer, sizeof(buffer), fmt, va);
 	sys_print_err(buffer);
 	
 	va_end(va);
