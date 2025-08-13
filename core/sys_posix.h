@@ -145,7 +145,7 @@ void core_message_box(char* msg, char* caption, int type) {
 
 
 // Time and Dates
-CORE_TIME_FUNC time_t sys_time() {
+CORE_TIME_FUNC time_t sys_timeofday() {
 	// number of 100-nanosecond intervals
 	// FILETIME time;
 	// GetSystemTimeAsFileTime(&time);

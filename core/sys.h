@@ -135,7 +135,7 @@ int sync_read32(void *ptr);
 
 
 // TIME
-CORE_TIME_FUNC time_t sys_time();
+CORE_TIME_FUNC time_t sys_timeofday();
 CORE_TIME_FUNC char* sys_format_time(time_t timestamp);
 
 

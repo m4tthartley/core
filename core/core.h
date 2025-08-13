@@ -778,6 +778,10 @@ void* default_str_alloc_proc(void* userState, size_t size) {
 }
 
 uint32_t strsize(char* str) {
+	if (!str) {
+		return 0;
+	}
+
 	strheader_t* header = ((strheader_t*)str) -1;
 	if (header->id == STRING_HEADER_ID) {
 		return header->size;

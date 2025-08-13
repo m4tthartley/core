@@ -281,6 +281,10 @@ int sprint_float(char* buf, int len, float input, int precision) {
 }
 
 int sprint_str(char* buf, int len, char* str) {
+	if (!str) {
+		str = "(null)";
+	}
+
 	int ci = 0;
 	while (*str) {
 		// if (buf) {

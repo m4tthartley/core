@@ -89,8 +89,10 @@ u64 time_get_raw() {
 float64_t time_raw_to_milliseconds(uint64_t time) {
 	time_load_mach_timebase();
 
-	u64 freq = mach_timebase.denom * 1000000 / mach_timebase.numer;
-	float64_t result = (float64_t)time / (float64_t)freq;
+	// u64 freq = mach_timebase.denom * 1000000 / mach_timebase.numer;
+	uint64_t nano = time * mach_timebase.numer / mach_timebase.denom;
+	// float64_t result = (float64_t)time / (float64_t)freq;
+	float64_t result = (float64_t)nano / 1000000.0f;
 	return result;
 }
 
