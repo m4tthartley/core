@@ -15,7 +15,7 @@
 
 #define VERSION_MAJOR 2
 #define VERSION_MINOR 2
-#define VERSION_PATCH 0
+#define VERSION_PATCH 1
 #define VERSION_CREATEB(major, minor, patch) (#major "." #minor "." #patch)
 #define VERSION_CREATEA(major, minor, patch) VERSION_CREATEB(major, minor, patch)
 #define VERSION VERSION_CREATEA(VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH)
@@ -61,15 +61,15 @@ int build(char* filename) {
 	float time = (end-start);
 	if(!result) {
 		escape_color(ESCAPE_GREEN);
-		print("\nbuild successful (%.2fs) \n", time);
+		print("\nbuild successful (%fs) \n", time);
 		escape_mode(ESCAPE_RESET);
 	} else {
 		escape_color(ESCAPE_RED);
-		print("\nbuild failed (%.2fs) \n", time);
+		print("\nbuild failed (%fs) \n", time);
 		escape_mode(ESCAPE_RESET);
 	}
 
-	lastBuildTime = sys_time();
+	lastBuildTime = sys_timeofday();
 
 	return result;
 }
@@ -226,7 +226,7 @@ int main(int argc, char** argv) {
     //     CFStringCreateWithCString(NULL, "../watch", kCFStringEncodingUTF8),
     // };
 
-	lastBuildTime = sys_time();
+	lastBuildTime = sys_timeofday();
     
     CFArrayRef dir_array = CFArrayCreate(NULL, (const void**)directories, directory_count, NULL);
     FSEventStreamContext context = {0, NULL, NULL, NULL, NULL};

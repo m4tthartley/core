@@ -144,6 +144,7 @@ CORE_FILE_FUNC file_t	sys_open(char* path);
 CORE_FILE_FUNC file_t	sys_create(char* path);
 CORE_FILE_FUNC size_t	sys_read(file_t file, size_t offset, void* buffer, size_t size);
 CORE_FILE_FUNC size_t	sys_write(file_t file, size_t offset, void* buffer, size_t size);
+CORE_FILE_FUNC size_t 	sys_write_seq(file_t file, void* buffer, size_t size);
 CORE_FILE_FUNC _Bool	sys_truncate(file_t file, size_t size);
 CORE_FILE_FUNC stat_t	sys_stat(file_t file);
 CORE_FILE_FUNC void		sys_close(file_t file);

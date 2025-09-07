@@ -105,6 +105,11 @@ typedef double real64_t;
 typedef u32 b32;
 typedef u8 byte;
 
+typedef _Bool bool_t;
+typedef uint16_t bool16_t;
+typedef uint32_t bool32_t;
+typedef uint64_t bool64_t;
+
 
 // General constants and macros
 #undef NULL

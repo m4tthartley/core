@@ -508,9 +508,20 @@ void print(char* fmt, ...) {
 		return;
 	}
 
-	char buffer[4096];
+	// size_t size = strsize()
+
+	char buffer[4096*4];
 	va_list va;
 	va_start(va, fmt);
+
+	// NOTE: I'm dumb
+	// int size = vsprint(0, 0, fmt, va);
+
+	// while (size > 0) {
+	// 	vsprint(buffer, sizeof(buffer), fmt, va);
+	// 	sys_print(buffer);
+	// 	size -= 4096;
+	// }
 
 	vsprint(buffer, sizeof(buffer), fmt, va);
 	sys_print(buffer);

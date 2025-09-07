@@ -315,6 +315,20 @@ CORE_FILE_FUNC size_t sys_write(file_t file, size_t offset, void* buffer, size_t
 	return result;
 }
 
+CORE_FILE_FUNC size_t sys_write_seq(file_t file, void* buffer, size_t size) {
+	ssize_t result = write(file, buffer, size);
+	if (result == -1) {
+		sys_print_err(strerror(errno));
+		sys_print_err("\n");
+		return 0;
+	}
+	if (result != size) {
+		sys_print_err(strerror(errno));
+		sys_print_err("\n");
+	}
+	return result;
+}
+
 CORE_FILE_FUNC _Bool sys_truncate(file_t file, size_t size) {
     int result = ftruncate(file, size);
     if (result != 0) {
