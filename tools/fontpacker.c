@@ -138,7 +138,14 @@ int main(int argc, char** argv)
 	sys_truncate(outputFile, 0);
 
 	if (outputFile) {
-		char* str = strformat("#include <stdint.h>\nuint32_t %s[] = {\n", outputDataName);
+		char* str = strformat(
+			"#ifndef FONT_PACKER_%s_H\n"
+			"#define FONT_PACKER_%s_H\n"
+			"#include <stdint.h>\nuint32_t %s[] = {\n",
+			outputDataName,
+			outputDataName,
+			outputDataName
+		);
 		sys_write_seq(outputFile, str, strsize(str));
 		for (int pixel=0; pixel<bitmap->width*bitmap->height; ++pixel) {
 			char* value = strformat("%u,", bitmap->data[pixel]);
@@ -147,7 +154,7 @@ int main(int argc, char** argv)
 				sys_write_seq(outputFile, "\n", 1);
 			}
 		}
-		str = "\n};\n";
+		str = "\n};\n#endif\n";
 		sys_write_seq(outputFile, str, strsize(str));
 		sys_close(outputFile);
 	}

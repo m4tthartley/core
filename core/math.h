@@ -234,6 +234,7 @@ CORE_MATH_FUNC float len2(vec2_t a);
 CORE_MATH_FUNC float len3(vec3_t a);
 CORE_MATH_FUNC float len4(vec4_t a);
 CORE_MATH_FUNC vec2_t normalize2(vec2_t v);
+CORE_MATH_FUNC vec2_t normalize2_safe(vec2_t v);
 CORE_MATH_FUNC vec3_t normalize3(vec3_t v);
 CORE_MATH_FUNC vec4_t normalize4(vec4_t v);
 CORE_MATH_FUNC vec2_t floor2(vec2_t a);
@@ -253,6 +254,9 @@ CORE_MATH_FUNC float diff(float a, float b);
 CORE_MATH_FUNC vec2_t diff2(vec2_t a, vec2_t b);
 CORE_MATH_FUNC vec3_t diff3(vec3_t a, vec3_t b);
 CORE_MATH_FUNC vec4_t diff4(vec4_t a, vec4_t b);
+CORE_MATH_FUNC float dist2(vec2_t a, vec2_t b);
+CORE_MATH_FUNC float dist3(vec3_t a, vec3_t b);
+CORE_MATH_FUNC float dist4(vec4_t a, vec4_t b);
 CORE_MATH_FUNC int idiff(int a, int b);
 CORE_MATH_FUNC int2_t idiff2(int2_t a, int2_t b);
 CORE_MATH_FUNC int3_t idiff3(int3_t a, int3_t b);
@@ -270,6 +274,7 @@ CORE_MATH_FUNC float lerp(float a, float b, float t);
 CORE_MATH_FUNC vec2_t lerp2(vec2_t a, vec2_t b, float t);
 CORE_MATH_FUNC vec3_t lerp3(vec3_t a, vec3_t b, float t);
 CORE_MATH_FUNC vec4_t lerp4(vec4_t a, vec4_t b, float t);
+CORE_MATH_FUNC float doublelerp(float a, float b, float c, float t);
 CORE_MATH_FUNC float min(float a, float b);
 CORE_MATH_FUNC vec2_t min2(vec2_t a, vec2_t b);
 CORE_MATH_FUNC vec3_t min3(vec3_t a, vec3_t b);
@@ -502,6 +507,13 @@ CORE_MATH_FUNC vec2_t normalize2(vec2_t v) {
 	float l = len2(v);
 	return vec2(v.x/l, v.y/l);
 }
+CORE_MATH_FUNC vec2_t normalize2_safe(vec2_t v) {
+	float l = len2(v);
+	if (l < 1e-8f) {
+		return vec2(0, 0);
+	}
+	return vec2(v.x/l, v.y/l);
+}
 CORE_MATH_FUNC vec3_t normalize3(vec3_t v) {
 	float len = len3(v);
 	return vec3(v.x/len, v.y/len, v.z/len);
@@ -571,6 +583,16 @@ CORE_MATH_FUNC vec3_t diff3(vec3_t a, vec3_t b) {
 CORE_MATH_FUNC vec4_t diff4(vec4_t a, vec4_t b) {
 	vec4_t result = {b.x-a.x, b.y-a.y, b.z-a.z, b.w-a.w};
 	return result;
+}
+
+CORE_MATH_FUNC float dist2(vec2_t a, vec2_t b) {
+	return len2(diff2(a, b));
+}
+CORE_MATH_FUNC float dist3(vec3_t a, vec3_t b) {
+	return len3(diff3(a, b));
+}
+CORE_MATH_FUNC float dist4(vec4_t a, vec4_t b) {
+	return len4(diff4(a, b));
 }
 
 CORE_MATH_FUNC int idiff(int a, int b) {
@@ -653,6 +675,14 @@ CORE_MATH_FUNC vec4_t lerp4(vec4_t a, vec4_t b, float t) {
 				lerp(a.y, b.y, t),
 				lerp(a.z, b.z, t),
 				lerp(a.w, b.w, t));
+}
+
+CORE_MATH_FUNC float doublelerp(float a, float b, float c, float t) {
+	if (t > 0.5f) {
+		return b + (c-b)*(t*2.0f-1.0f);
+	} else {
+		return a + (b-a)*(t*2.0f);
+	}
 }
 
 CORE_MATH_FUNC float min(float a, float b) {

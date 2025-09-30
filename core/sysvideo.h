@@ -137,7 +137,7 @@ typedef struct {
 	int fbWidth;
 	int fbHeight;
 	_Bool quit;
-	_Bool flags;
+	uint8_t flags;
 	_Bool active;
 
 	sys_mouse_t mouse;
@@ -160,13 +160,14 @@ typedef struct {
 #ifdef __APPLE__
 	void* sysApp;
 	void* sysWindow;
+	double frameX, frameY, frameW, frameH;
+	// uint8_t windowFrame[32];
 
 	void* mtlDevice;
 	void* mtlLayer;
 	void* mtlCommandQueue;
 
 	void* glContext;
-
 #endif
 #ifdef __LINUX__
 #endif
@@ -182,6 +183,8 @@ typedef struct {
 // void opengl_swap_buffers(window_t* window);
 
 CORE_VIDEO_FUNC _Bool sys_init_window(sys_window_t* win, char* title, int width, int height, int flags);
+CORE_VIDEO_FUNC void sys_toggle_fullscreen(sys_window_t* win);
+CORE_VIDEO_FUNC void sys_set_fullscreen(sys_window_t* win, bool enabled);
 CORE_VIDEO_FUNC void sys_poll_events(sys_window_t* win);
 CORE_VIDEO_FUNC _Bool sys_message_box(char* title, char* msg, char* yesOption, char* noOption);
 

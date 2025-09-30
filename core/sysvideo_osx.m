@@ -92,6 +92,12 @@ CORE_VIDEO_FUNC _Bool sys_init_window(sys_window_t* win, char* title, int width,
 	result.fbWidth = viewBacking.size.width;
 	result.fbHeight = viewBacking.size.height;
 
+	NSRect windowRect = [window frame];
+	win->frameX = windowRect.origin.x;
+	win->frameY = windowRect.origin.y;
+	win->frameW = windowRect.size.width;
+	win->frameH = windowRect.size.height;
+
 	result.sysApp = app;
 	result.sysWindow = window;
 	result.active = TRUE;
@@ -102,6 +108,109 @@ CORE_VIDEO_FUNC _Bool sys_init_window(sys_window_t* win, char* title, int width,
 init_window_err:
 	*win = (sys_window_t){0};
 	return _False;
+}
+
+void _cocoa_update_window_style_mask(sys_window_t* win)
+{
+	NSWindow* window = win->sysWindow;
+	NSWindowStyleMask style = NSWindowStyleMaskClosable;
+
+	if (win->flags & WINDOW_RESIZEABLE && !(win->flags & WINDOW_FULLSCREEN)) {
+		style |= NSWindowStyleMaskResizable;
+		printf("resizable \n");
+	}
+
+	if (!(win->flags & WINDOW_BORDERLESS) && !(win->flags & WINDOW_FULLSCREEN)) {
+		style |= NSWindowStyleMaskTitled;
+		printf("titled \n");
+	}
+
+	if (win->flags & WINDOW_FULLSCREEN) {
+		style |= NSWindowStyleMaskBorderless;
+		printf("borderless \n");
+	}
+
+	[window setStyleMask: style];
+}
+
+CORE_VIDEO_FUNC void sys_set_fullscreen(sys_window_t* win, bool on)
+{
+	NSWindow* window = win->sysWindow;
+	BOOL isFullscreen = ([window styleMask] & NSWindowStyleMaskFullScreen);
+	// bool current = win->flags & WINDOW_FULLSCREEN;
+
+	if (on && !isFullscreen) {
+		win->flags |= WINDOW_FULLSCREEN;
+		[window setStyleMask: (NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable)];
+		[window toggleFullScreen: nil];
+	}
+
+	if (!on && isFullscreen) {
+		win->flags &= ~WINDOW_FULLSCREEN;
+		[window toggleFullScreen: nil];
+		_cocoa_update_window_style_mask(win);
+	}
+}
+
+CORE_VIDEO_FUNC void sys_toggle_fullscreen(sys_window_t* win)
+{
+	NSWindow* window = win->sysWindow;
+
+	// NOTE: Couldn't get this version to toggle correctly,
+	//		but enterFullScreenMode is better anyway
+	// if (win->flags & WINDOW_FULLSCREEN) {
+	// 	printf("windowed \n");
+	// 	win->flags &= ~WINDOW_FULLSCREEN;
+	// 	_cocoa_update_window_style_mask(win);
+
+	// 	NSScreen* screen = [NSScreen mainScreen];
+	// 	NSRect screenRect = [screen frame];
+	// 	NSRect windowRect;
+	// 	windowRect.origin.x = win->frameX;
+	// 	windowRect.origin.y = screenRect.size.height - win->frameY - win->frameH;
+	// 	windowRect.size.width = win->frameW;
+	// 	windowRect.size.height = win->frameH;
+	// 	[window setFrame:windowRect display:YES];
+	// 	[window setLevel:NSNormalWindowLevel];
+	// 	[window makeKeyAndOrderFront:nil];
+	// 	// sizeof(NSRect);
+	// } else {
+	// 	printf("fullscreen \n");
+	// 	win->flags |= WINDOW_FULLSCREEN | WINDOW_BORDERLESS;
+	// 	_cocoa_update_window_style_mask(win);
+
+	// 	NSScreen* screen = [NSScreen mainScreen];
+	// 	NSRect screenRect = [screen frame];
+	// 	[window setFrame:screenRect display:YES];
+	// 	[window setLevel:NSMainMenuWindowLevel + 1];
+	// 	[window makeKeyAndOrderFront:nil];
+	// }
+
+	// BORDERLESS FULLSCREEN NOTE: Actually good, use this for a borderless fullscreen mode
+	// [window setStyleMask: (NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable)];
+
+	// NSDictionary* options = @{
+	// 	NSFullScreenModeApplicationPresentationOptions:
+	// 		@(NSApplicationPresentationHideDock | NSApplicationPresentationHideMenuBar | NSApplicationPresentationAutoHideToolbar)
+	// };
+	// [window.contentView enterFullScreenMode:[NSScreen mainScreen] withOptions:options];
+
+	// if (win->flags & WINDOW_FULLSCREEN) {
+	// 	win->flags &= ~WINDOW_FULLSCREEN;
+	// 	[window toggleFullScreen:nil];
+	// 	_cocoa_update_window_style_mask(win);
+	// } else {
+	// 	win->flags |= WINDOW_FULLSCREEN;
+	// 	[window setStyleMask: (NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable)];
+	// 	[window toggleFullScreen:nil];
+	// }
+
+	BOOL isFullscreen = ([window styleMask] & NSWindowStyleMaskFullScreen);
+	if (isFullscreen) {
+		sys_set_fullscreen(win, FALSE);
+	} else {
+		sys_set_fullscreen(win, TRUE);
+	}
 }
 
 CORE_VIDEO_FUNC void sys_poll_events(sys_window_t* win) {
