@@ -8,6 +8,12 @@
 #define __CORE_SYSTEM_HEADER__
 
 
+// NOTE: Linux might need this to include important things
+#ifndef _DEFAULT_SOURCE
+#	define _DEFAULT_SOURCE
+#endif
+#define _XOPEN_SOURCE 700
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -159,7 +165,7 @@ CORE_FILE_FUNC void		sys_change_dir(char* path);
 typedef struct {
 #if defined(__WIN32__)
 	HMODULE handle;
-#elif defined(__MACOS__)
+#elif defined(__MACOS__) || defined(__LINUX__)
 	void* handle;
 #endif
 } dylib_t;

@@ -1257,7 +1257,7 @@ CORE_MATH_FUNC int randr(int min, int max) {
 	return min + result;
 }
 CORE_MATH_FUNC float randf() {
-	return (float)rand() / RAND_MAX;
+	return (float)rand() / (float)RAND_MAX;
 }
 CORE_MATH_FUNC float randfr(float min, float max) {
 	return min + randf()*(max-min);

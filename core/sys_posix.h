@@ -157,8 +157,8 @@ CORE_TIME_FUNC time_t sys_timeofday() {
 	// return result;
 
 	struct timeval systime;
-	struct timezone zone;
-	int gtod = gettimeofday(&systime, &zone);
+	// struct timezone zone;
+	int gtod = gettimeofday(&systime, NULL);
 
 	time_t result = systime.tv_sec*1000 + systime.tv_usec/1000;
 	// timestamp.sec = systime.tv_sec;

@@ -5,4 +5,17 @@
 
 set -e
 
-clang $(coreconfig) fontpacker.c -o bin/fontpacker
+mkdir -p ../bin
+
+# COPY SCRIPTS
+cp ./coreconfig.sh ../bin/coreconfig
+chmod +x ../bin/coreconfig
+cp ./commit.sh ../bin/commit
+chmod +x ../bin/commit
+
+# FONT PACKER
+clang $(coreconfig) fontpacker.c -o ../bin/fontpacker
+
+# BUILDER
+options="-std=c99 -g -Wno-deprecated-declarations"
+clang builder/builder.c -o ../bin/builder $options $(coreconfig)
