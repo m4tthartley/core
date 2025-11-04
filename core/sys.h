@@ -49,6 +49,11 @@ typedef struct {
 } stat_t;
 
 typedef struct {
+	void* dir;
+	stat_t file;
+} sys_listing_t;
+
+typedef struct {
 	stat_t stat;
 	uint8_t data[];
 } file_data_t;
@@ -146,19 +151,22 @@ CORE_TIME_FUNC char* sys_format_time(time_t timestamp);
 
 
 // FILES
-CORE_FILE_FUNC file_t	sys_open(char* path);
-CORE_FILE_FUNC file_t	sys_create(char* path);
-CORE_FILE_FUNC size_t	sys_read(file_t file, size_t offset, void* buffer, size_t size);
-CORE_FILE_FUNC size_t	sys_write(file_t file, size_t offset, void* buffer, size_t size);
-CORE_FILE_FUNC size_t 	sys_write_seq(file_t file, void* buffer, size_t size);
-CORE_FILE_FUNC _Bool	sys_truncate(file_t file, size_t size);
-CORE_FILE_FUNC stat_t	sys_stat(file_t file);
-CORE_FILE_FUNC void		sys_close(file_t file);
-CORE_FILE_FUNC file_t	sys_open_dir(char* path);
-CORE_FILE_FUNC file_t	sys_create_dir(char* path);
-CORE_FILE_FUNC int		sys_list_dir(char* path, _Bool recursive, stat_t* output, int length);
-CORE_FILE_FUNC void		sys_current_dir(char* output, size_t size);
-CORE_FILE_FUNC void		sys_change_dir(char* path);
+CORE_FILE_FUNC file_t			sys_open(char* path);
+CORE_FILE_FUNC file_t			sys_create(char* path);
+CORE_FILE_FUNC size_t			sys_read(file_t file, size_t offset, void* buffer, size_t size);
+CORE_FILE_FUNC size_t			sys_write(file_t file, size_t offset, void* buffer, size_t size);
+CORE_FILE_FUNC size_t 			sys_write_seq(file_t file, void* buffer, size_t size);
+CORE_FILE_FUNC _Bool			sys_truncate(file_t file, size_t size);
+CORE_FILE_FUNC stat_t 			sys_stat(char* path);
+CORE_FILE_FUNC stat_t 			sys_fstat(file_t file);
+CORE_FILE_FUNC void				sys_close(file_t file);
+CORE_FILE_FUNC file_t			sys_open_dir(char* path);
+CORE_FILE_FUNC file_t			sys_create_dir(char* path);
+CORE_FILE_FUNC int 				sys_list_files(char* path, _Bool recursive, stat_t* output, int length);
+CORE_FILE_FUNC sys_listing_t 	sys_listing(char* path);
+CORE_FILE_FUNC bool 			sys_next(sys_listing_t* listing);
+CORE_FILE_FUNC void				sys_current_dir(char* output, size_t size);
+CORE_FILE_FUNC void				sys_change_dir(char* path);
 
 
 // Dynamic libraries

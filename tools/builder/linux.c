@@ -3,7 +3,6 @@
 	Copyright 2025 GiantJelly. All rights reserved.
 */
 
-#include "core/sys.h"
 #include <linux/limits.h>
 #include <sys/inotify.h>
 #include <signal.h>
@@ -11,10 +10,34 @@
 #include <unistd.h>
 
 #include <stdlib.h>
+#include <core/sys.h>
+#include <core/core.h>
 #include <core/print.h>
 
 
 int fd;
+stat_t watchFds[64];
+
+void AddWatch(char* path)
+{
+	int addfd = inotify_add_watch(fd, path, IN_CREATE | IN_DELETE | IN_MODIFY | IN_MOVED_FROM | IN_MOVED_TO);
+	if (addfd == -1) {
+		print_err("Error adding directory to inotify: %i", errno);
+		return;
+	}
+	assert(addfd < array_size(watchFds));
+	stat_t info = sys_stat(path);
+	assert(info.is_directory);
+	watchFds[addfd] = info;
+	print("%s -> %i \n", path, addfd);
+
+	sys_listing_t listing = sys_listing(path);
+	while (sys_next(&listing)) {
+		if (listing.file.is_directory) {
+			AddWatch(strformat("%s/%s", path, listing.file.filename));
+		}
+	}
+}
 
 void Run(char** dirs, int count, void (*callback)(char* file))
 {
@@ -24,33 +47,36 @@ void Run(char** dirs, int count, void (*callback)(char* file))
 		exit(1);
 	}
 
-	int watchFds[64];
 	for (int i=0; i<count; ++i) {
-		int addfd = inotify_add_watch(fd, dirs[i], IN_CREATE | IN_DELETE | IN_MODIFY | IN_MOVED_FROM | IN_MOVED_TO);
-		if (addfd == -1) {
-			print_err("Error adding directory to inotify: %i", errno);
-		}
-		watchFds[i] = addfd;
+		AddWatch(dirs[i]);
 	}
 
 	uint8_t buffer[4096] __attribute__((aligned(8)));
-	struct inotify_event* event;
 	for (;;) {
 		ssize_t readSize = read(fd, buffer, sizeof(buffer));
 
-		event = (struct inotify_event*)buffer;
-		while ((uintptr_t)event < (uintptr_t)buffer+readSize) {
-			char path[MAX_PATH_LENGTH];
-			for (int w=0; w<count; ++w) {
-				if (event->wd == watchFds[w]) {
-					sprint(path, MAX_PATH_LENGTH, "%s/%s", dirs[w], event->name);
-					break;
-				}
-			}
-			
-			callback(path);
+		uint8_t* eventPtr = buffer;
+		while ((uintptr_t)eventPtr < (uintptr_t)buffer+readSize) {
+			struct inotify_event* event = (struct inotify_event*)eventPtr;
+			assert(event->wd < array_size(watchFds));
+			if (event->wd < array_size(watchFds)) {
+				char path[MAX_PATH_LENGTH];
+				sprint(path, MAX_PATH_LENGTH, "%s/%s", watchFds[event->wd].filename, event->name);
 
-			event += sizeof(struct inotify_event) + event->len;
+				if (event->mask & IN_CREATE) {
+					stat_t info = sys_stat(path);
+					if (info.is_directory) {
+						print("Directory created and added \n");
+						AddWatch(path);
+					}
+				}
+				
+				callback(path);
+			} else {
+				print_err("Invalid WD: %i \n", event->wd);
+			}
+
+			eventPtr += sizeof(struct inotify_event) + event->len;
 		}
 	}
 }

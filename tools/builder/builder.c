@@ -19,7 +19,7 @@
 
 
 #define VERSION_MAJOR 3
-#define VERSION_MINOR 0
+#define VERSION_MINOR 2
 #define VERSION_PATCH 0
 #define VERSION_CREATEB(major, minor, patch) (#major "." #minor "." #patch)
 #define VERSION_CREATEA(major, minor, patch) VERSION_CREATEB(major, minor, patch)
@@ -40,13 +40,9 @@ void* alloc(void* state, size_t size) {
 }
 
 int build(char* filename) {
-	// print_inline(TERM_CLEAR);
-
 	file_t file = sys_open(filename);
-	stat_t stat = sys_stat(file);
+	stat_t stat = sys_fstat(file);
 	uint64_t fileTime = stat.modified;
-	// print("file modified  : %lu \n", fileTime);
-	// print("last build time: %lu \n", lastBuildTime);
 	sys_close(file);
 
 	if (fileTime < lastBuildTime) {
@@ -61,7 +57,6 @@ int build(char* filename) {
 	f64 start = time_get_seconds();
 	int result = system(cmd);
 	f64 end = time_get_seconds();
-	// gfree_memory(cmd);
 
 	float time = (end-start);
 	if(!result) {
@@ -158,11 +153,6 @@ int main(int argc, char** argv) {
 	print("Builder %s \n\n", VERSION);
 	escape_mode(ESCAPE_RESET);
 
-	// u8 buffer[1024];
-	// allocator_t allocator = heap_allocator(buffer, sizeof(buffer));
-	// use_allocator(&allocator);
-	// str_set_allocator(&allocator);
-
 	for (int i=1; i<argc; ++i) {
 		char* arg = argv[i];
 
@@ -170,15 +160,6 @@ int main(int argc, char** argv) {
 			if (directory_count < array_size(directories)) {
 				char* path = arg + 2;
 				directories[directory_count++] = path;
-				// if (argv[i][2]) {
-				// 	GetFullPathNameA(argv[i] + 2, MAX_PATH_LENGTH, dir->path, NULL);
-				// } else {
-				// 	++i;
-				// 	GetFullPathNameA(argv[i], CORE_MAX_PATH_LENGTH, dir->path, NULL);
-				// }
-
-				
-
 				file_t handle = sys_open_dir(path);
 				if (!handle) {
 					print_err("Unable to find directory \"%s\" \n", path);
@@ -197,12 +178,7 @@ int main(int argc, char** argv) {
 		}
 
 		if (arg[0] == '-' && arg[1] == 'B') {
-			// if (arg[2]) {
-				build_command = arg + 2;
-			// } else {
-			// 	++i;
-			// 	build_command = arg;
-			// }
+			build_command = arg + 2;
 		}
 
 		if (arg[0] == '-' && arg[1] == 'E') {
@@ -216,26 +192,14 @@ int main(int argc, char** argv) {
 		exit(1);
 	}
 
-	// char* extSplit[64];
 	extCount = strsplit(exts, 64, ext_list, ",");
 	for (int i=0; i<extCount; ++i) {
 		exts[i] = strstore(exts[i]);
 	}
 
-	// print(TERM_BRIGHT_YELLOW_FG"watching: ");
-	// for(int i=0; i<directory_count; ++i) {
-	// 	print(TERM_BRIGHT_BLUE_FG"    %s", directories[i]);
-	// }
-	// print(TERM_BRIGHT_YELLOW_FG"build command:");
 	escape_basic_color(ESCAPE_BLUE, 1);
 	print("{%s} \n\n\n", build_command);
 	escape_mode(ESCAPE_RESET);
-
-	// Start File System Events loop
-	// CFStringRef dirs[] = {
-	//     CFStringCreateWithCString(NULL, "../core", kCFStringEncodingUTF8),
-	//     CFStringCreateWithCString(NULL, "../watch", kCFStringEncodingUTF8),
-	// };
 
 	signal(SIGINT, signal_handler);
 	lastBuildTime = sys_timeofday();

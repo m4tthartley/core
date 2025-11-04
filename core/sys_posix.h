@@ -339,7 +339,42 @@ CORE_FILE_FUNC _Bool sys_truncate(file_t file, size_t size) {
     return _True;
 }
 
-CORE_FILE_FUNC stat_t sys_stat(file_t file) {
+CORE_FILE_FUNC void sys_close(file_t file) {
+	if(file != -1) {
+		close(file);
+	}
+}
+
+CORE_FILE_FUNC stat_t sys_stat(char* path)
+{
+	stat_t result = {0};
+	struct stat stats;
+	int stat_result = stat(path, &stats);
+	if (stat_result == -1) {
+		sys_print_err(strerror(errno));
+		sys_print_err("\n");
+		return result;
+	}
+#ifdef __MACOS__
+	result.created = 0;
+	result.modified = stats.st_mtimespec.tv_sec*1000 + (stats.st_mtimespec.tv_nsec/1000000);
+#endif
+#ifdef __LINUX__
+	result.created = stats.st_ctim.tv_sec*1000 + (stats.st_ctim.tv_nsec/1000000);
+	result.modified = stats.st_mtim.tv_sec*1000 + (stats.st_mtim.tv_nsec/1000000);
+#endif
+	result.size = stats.st_size;
+	if ((stats.st_mode & S_IFMT) == S_IFDIR) {
+		result.is_directory = _True;
+	}
+
+	strncpy(result.filename, path, sizeof(result.filename));
+
+	return result;
+}
+
+CORE_FILE_FUNC stat_t sys_fstat(file_t file)
+{
 	stat_t result = {0};
 	struct stat stats;
 	int stat_result = fstat(file, &stats);
@@ -348,11 +383,12 @@ CORE_FILE_FUNC stat_t sys_stat(file_t file) {
 		sys_print_err("\n");
 		return result;
 	}
-	result.created = 0;
 #ifdef __MACOS__
+	result.created = 0;
 	result.modified = stats.st_mtimespec.tv_sec*1000 + (stats.st_mtimespec.tv_nsec/1000000);
 #endif
 #ifdef __LINUX__
+	result.created = stats.st_ctim.tv_sec*1000 + (stats.st_ctim.tv_nsec/1000000);
 	result.modified = stats.st_mtim.tv_sec*1000 + (stats.st_mtim.tv_nsec/1000000);
 #endif
 	result.size = stats.st_size;
@@ -361,12 +397,6 @@ CORE_FILE_FUNC stat_t sys_stat(file_t file) {
 	}
 
 	return result;
-}
-
-CORE_FILE_FUNC void sys_close(file_t file) {
-	if(file != -1) {
-		close(file);
-	}
 }
 
 CORE_FILE_FUNC file_t sys_open_dir(char* path) {
@@ -406,18 +436,25 @@ CORE_FILE_FUNC file_t sys_create_dir(char* path) {
 	return handle;
 }
 
-CORE_FILE_FUNC int sys_list_dir(char* path, _Bool recursive, stat_t* output, int length) {
+CORE_FILE_FUNC int sys_list_files(char* path, _Bool recursive, stat_t* output, int length) {
 	int output_index = 0;
 
+	// printf("sys_list_dir %s \n", path);
 	DIR* dir = opendir(path);
 	struct dirent* ent;
 	while ((ent = readdir(dir))) {
+		if ((ent->d_name[0]=='.' && ent->d_name[1]==0) ||
+			(ent->d_name[0]=='.' && ent->d_name[1]=='.' && ent->d_name[2]==0)) {
+			// skip
+			continue;
+		}
+
 		if (ent->d_type == DT_DIR) {
 			if (recursive) {
 				char dirpath[256];
 				char* name = ent->d_name;
 				snprintf(dirpath, 256, "%s/%s", path, name);
-				output_index += sys_list_dir(
+				output_index += sys_list_files(
 					dirpath,
 					_True,
 					output+output_index,
@@ -430,6 +467,8 @@ CORE_FILE_FUNC int sys_list_dir(char* path, _Bool recursive, stat_t* output, int
 			stat_t* file = output + output_index++;
 			// assert(s_len(ent->d_name) < sizeof(file->filename));
 			strncpy(file->filename, ent->d_name, sizeof(file->filename));
+			// printf("d_type %i \n", ent->d_type);
+			// file->is_directory = ent->d_type == DT_DIR;
 			// TODO: Is this right to be commented out?
 			// file->created = find_data.ftCreationTime.dwLowDateTime;
 			// file->created |= (u64)find_data.ftCreationTime.dwHighDateTime<<32;
@@ -440,6 +479,56 @@ CORE_FILE_FUNC int sys_list_dir(char* path, _Bool recursive, stat_t* output, int
 	}
 	closedir(dir);
 	return output_index;
+}
+
+CORE_FILE_FUNC sys_listing_t sys_listing(char* path)
+{
+	sys_listing_t listing;
+	listing.dir = opendir(path);
+	return listing;
+}
+
+CORE_FILE_FUNC bool sys_next(sys_listing_t* listing)
+{
+	listing->file = (stat_t){0};
+	struct dirent* ent = readdir(listing->dir);
+
+	if (!ent) {
+		return NULL;
+	}
+
+	if (ent->d_name[0] == '.') {
+		return sys_next(listing);
+	}
+
+	strncpy(listing->file.filename, ent->d_name, sizeof(listing->file.filename));
+	if (ent->d_type == DT_DIR) {
+		listing->file.is_directory = 1;
+	}
+
+	// return &listing->curr;
+	return 1;
+}
+
+CORE_FILE_FUNC int sys_read_dir(char* path, stat_t* output, int length) {
+	int count = 0;
+	DIR* dir = opendir(path);
+
+	struct dirent* ent;
+	while ((ent = readdir(dir))) {
+		if (count < length) {
+			stat_t* file = output + count;
+			strncpy(file->filename, ent->d_name, sizeof(file->filename));
+			if (ent->d_type == DT_DIR) {
+				file->is_directory = 1;
+			}
+		}
+
+		++count;
+	}
+
+	closedir(dir);
+	return count;
 }
 
 CORE_FILE_FUNC void sys_current_dir(char* output, size_t size) {

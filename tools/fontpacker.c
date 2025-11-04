@@ -41,7 +41,7 @@ bitmap_t* R_LoadBitmap(allocator_t* allocator, char* filename) {
 		print("Failed to load bitmap: %s", filename);
 		return NULL;
 	}
-	stat_t fileinfo = sys_stat(file);
+	stat_t fileinfo = sys_fstat(file);
 	int fileSize = fileinfo.size;
 	void* fileData = alloc_memory(allocator, fileSize);
 	sys_read(file, 0, fileData, fileSize);
