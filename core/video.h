@@ -18,7 +18,7 @@
 // #endif
 
 
-#define CORE_VIDEO_FUNC
+#define CORE
 
 
 // #ifdef __WIN32__
@@ -93,11 +93,11 @@ typedef struct {
 	_Bool pressed;
 	_Bool released;
 	uint8_t modifiers;
-} sys_button_t;
+} vid_button_t;
 
 typedef struct {
-	sys_button_t keys[256];
-} sys_keyboard_t;
+	vid_button_t keys[256];
+} vid_keyboard_t;
 
 typedef struct {
 	struct {
@@ -110,17 +110,17 @@ typedef struct {
 	} pos_dt;
 	union {
 		struct {
-			sys_button_t left;
-			sys_button_t right;
+			vid_button_t left;
+			vid_button_t right;
 		};
-		sys_button_t buttons[2];
+		vid_button_t buttons[2];
 	};
 	float wheel_dt;
 	struct {
 		float x;
 		float y;
 	} drag;
-} sys_mouse_t;
+} vid_mouse_t;
 
 typedef struct {
 #if defined(__SDL__)
@@ -140,21 +140,21 @@ typedef struct {
 	uint8_t flags;
 	_Bool active;
 
-	sys_mouse_t mouse;
-	sys_button_t keyboard[256];
+	vid_mouse_t mouse;
+	vid_button_t keyboard[256];
 	union {
 		struct {
-			sys_button_t capslock;
-			sys_button_t shift;
-			sys_button_t control;
-			sys_button_t option;
-			sys_button_t command;
-			sys_button_t numpad;
-			sys_button_t help;
-			sys_button_t function;
+			vid_button_t capslock;
+			vid_button_t shift;
+			vid_button_t control;
+			vid_button_t option;
+			vid_button_t command;
+			vid_button_t numpad;
+			vid_button_t help;
+			vid_button_t function;
 		};
 
-		sys_button_t keys[8];
+		vid_button_t keys[8];
 	} modifier_keys;
 
 #ifdef __APPLE__
@@ -170,11 +170,13 @@ typedef struct {
 	void* glContext;
 #endif
 #ifdef __LINUX__
+	void* sysDisplay;
+	unsigned long sysWindow;
 #endif
 #ifdef __WIN32__
 	HWND sysWindow;
 #endif
-} sys_window_t;
+} window_t;
 
 
 // _Bool start_window(window_t* window, char* title, int width, int height, int flags);
@@ -182,20 +184,20 @@ typedef struct {
 // void update_window(window_t* window);
 // void opengl_swap_buffers(window_t* window);
 
-CORE_VIDEO_FUNC _Bool sys_init_window(sys_window_t* win, char* title, int width, int height, int flags);
-CORE_VIDEO_FUNC void sys_toggle_fullscreen(sys_window_t* win);
-CORE_VIDEO_FUNC void sys_set_fullscreen(sys_window_t* win, bool enabled);
-CORE_VIDEO_FUNC void sys_poll_events(sys_window_t* win);
-CORE_VIDEO_FUNC _Bool sys_message_box(char* title, char* msg, char* yesOption, char* noOption);
+CORE window_t vid_init_window(char* title, int width, int height, int flags);
+CORE void vid_toggle_fullscreen(window_t* win);
+CORE void vid_set_fullscreen(window_t* win, bool enabled);
+CORE void vid_poll_events(window_t* win);
+CORE _Bool vid_message_box(char* title, char* msg, char* yesOption, char* noOption);
 
-CORE_VIDEO_FUNC void sys_set_clipboard(char* str);
-CORE_VIDEO_FUNC void sys_get_clipboard(char* buffer, int len);
+CORE void sys_set_clipboard(char* str);
+CORE void sys_get_clipboard(char* buffer, int len);
 
-CORE_VIDEO_FUNC void sys_init_metal(sys_window_t* win);
-CORE_VIDEO_FUNC void sys_init_opengl(sys_window_t* win);
-CORE_VIDEO_FUNC void sys_present_opengl(sys_window_t* win);
+CORE void vid_init_metal(window_t* win);
+CORE void vid_init_opengl(window_t* win);
+CORE void vid_present_opengl(window_t* win);
 
-static inline void _update_button(sys_button_t *button, _Bool new_state) {
+static inline void _update_button(vid_button_t *button, _Bool new_state) {
 	button->pressed = new_state && !button->down;
 	button->released = !new_state && button->down;
 	button->down = new_state;
@@ -247,7 +249,29 @@ typedef enum {
 #endif
 
 #ifdef __LINUX__
-#error "LINUX KEY CODES ARE NOT IMPLEMENTED"
+// #error "LINUX KEY CODES ARE NOT IMPLEMENTED"
+#include <X11/keysym.h>
+// #include <X11/keysymdef.h>
+typedef enum {
+	KEY_A=XK_A, KEY_B=XK_B, KEY_C=XK_C, KEY_D=XK_D, KEY_E=XK_E, KEY_F=XK_F,
+	KEY_G=XK_G, KEY_H=XK_H, KEY_I=XK_I, KEY_J=XK_J, KEY_K=XK_K, KEY_L=XK_L,
+	KEY_M=XK_M, KEY_N=XK_N, KEY_O=XK_O, KEY_P=XK_P, KEY_Q=XK_Q, KEY_R=XK_R,
+	KEY_S=XK_S, KEY_T=XK_T, KEY_U=XK_U, KEY_V=XK_V, KEY_W=XK_W, KEY_X=XK_X,
+	KEY_Y=XK_Y, KEY_Z=XK_Z,
+
+	KEY_1=XK_1, KEY_2=XK_2, KEY_3=XK_3, KEY_4=XK_4, KEY_5=XK_5,
+	KEY_6=XK_6, KEY_7=XK_7, KEY_8=XK_8, KEY_9=XK_9, KEY_0=XK_0,
+	
+	KEY_F1=XK_F1, KEY_F2=XK_F2, KEY_F3=XK_F3, KEY_F4=XK_F4, KEY_F5=XK_F5, KEY_F6=XK_F6,
+	KEY_F7=XK_F7, KEY_F8=XK_F8, KEY_F9=XK_F9, KEY_F10=XK_F10, KEY_F11=XK_F11, KEY_F12=XK_F12,
+	
+	KEY_LEFT=XK_Left, KEY_UP=XK_Up, KEY_RIGHT=XK_Right, KEY_DOWN=XK_Down,
+	
+	KEY_RETURN=XK_Return, KEY_BACKSPACE=XK_Delete, KEY_SPACE=XK_space, KEY_ESC=XK_Escape, KEY_TAB=XK_Tab,
+	KEY_SHIFT=XK_Shift_L, KEY_RSHIFT=XK_Shift_R, KEY_CONTROL=XK_Control_L, KEY_RCONTROL=XK_Control_R,
+	KEY_MENU=XK_Alt_L, KEY_RMENU=XK_Alt_R, KEY_COMMAND=XK_Super_L, KEY_RCOMMAND=XK_Super_R,
+	KEY_DELETE=XK_Delete, KEY_HOME=XK_Home, KEY_END=XK_End,
+} sys_key_code_t;
 #endif
 
 #ifdef __WIN32__
@@ -281,7 +305,7 @@ typedef enum {
 #	include "sysvideo_osx.m"
 #endif
 #ifdef __LINUX__
-#	include "sysvideo_linux.c"
+#	include "video_linux.c"
 #endif
 #ifdef __WIN32__
 #	include "sysvideo_win32.c"
