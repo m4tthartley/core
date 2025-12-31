@@ -172,6 +172,7 @@ typedef struct {
 #ifdef __LINUX__
 	void* sysDisplay;
 	unsigned long sysWindow;
+	void* sysGLContext;
 #endif
 #ifdef __WIN32__
 	HWND sysWindow;

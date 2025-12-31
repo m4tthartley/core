@@ -146,15 +146,16 @@ int sprint_u64(char* buf, int len, uint64_t num) {
 	return ci;
 }
 
-int sprint_u64_display(char* buf, int len, uint64_t num) {
-	int size = sprint_u64(buf, len, num);
-	int cursor = size-3;
-	while (cursor > 0) {
-		strbinsert(buf, cursor, ",", len);
-		cursor -= 3;
-	}
-	return size;
-}
+// TODO: strbinsert isn't found?
+// int sprint_u64_display(char* buf, int len, uint64_t num) {
+// 	int size = sprint_u64(buf, len, num);
+// 	int cursor = size-3;
+// 	while (cursor > 0) {
+// 		strbinsert(buf, cursor, ",", len);
+// 		cursor -= 3;
+// 	}
+// 	return size;
+// }
 
 int sprint_i64(char* buf, int len, int64_t num) {
 	int ci = 0;

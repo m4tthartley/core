@@ -15,8 +15,12 @@
 #include <GL/glx.h>
 
 
-#define TRUE 1
-#define FALSE 0
+#ifndef TRUE
+#	define TRUE 1
+#endif
+#ifndef FALSE
+#	define FALSE 0
+#endif
 
 
 void __vid_print(char* str) {
@@ -63,7 +67,7 @@ CORE window_t vid_init_window(char* title, int width, int height, int flags)
 
 	XStoreName(display, window, title);
 
-	XSelectInput(display, window, KeyPressMask | KeyReleaseMask | ClientMessage | StructureNotifyMask | ResizeRedirectMask);
+	XSelectInput(display, window, KeyPressMask | KeyReleaseMask | ClientMessage | StructureNotifyMask);
 
 	XMapWindow(display, window);
 	XFlush(display);
@@ -88,9 +92,17 @@ CORE void vid_poll_events(window_t* vid)
 				vid->quit = TRUE;
 				break;
 			case ResizeRequest:
-				// vid->width = event.xresizerequest.width;
-				// vid->height = event.xresizerequest.height;
+				vid->width = event.xresizerequest.width;
+				vid->height = event.xresizerequest.height;
+				printf("resize %i, %i \n", event.xresizerequest.width, event.xresizerequest.height);
 				break;
+
+			// case ConfigureNotify:
+			// 	vid->width = event.xconfigure.width;
+			// 	vid->height = event.xconfigure.height;
+			// 	printf("resize %i, %i \n", event.xconfigure.width, event.xconfigure.height);
+			// 	// XResizeWindow(display, vid->sysWindow, vid->width, vid->height);
+			// 	break;
 
 			case KeyPress:
 			case KeyRelease: {
@@ -114,4 +126,6 @@ CORE void vid_init_opengl(window_t* vid)
 
 	GLXContext context = glXCreateContext(display, visualInfo, 0, TRUE);
 	glXMakeCurrent(display, vid->sysWindow, context);
+
+	vid->sysGLContext = context;
 }

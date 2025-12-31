@@ -138,6 +138,7 @@ typedef uint64_t bool64_t;
 #define FORSTATIC(index, arr) for(int index=0; index<(sizeof(arr)/sizeof(arr[0])); ++index)
 #define FORDYNARR(index, arr) for(int index=0; index<arr.count; ++index)
 #define TOSTRING(a) __STRING(a)
+#define SWAP(a, b) { typeof(a) __tmp=a; a=b; b=__tmp; }
 
 #ifdef min
 #	undef min
