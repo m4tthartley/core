@@ -55,6 +55,11 @@ typedef struct {
 } bmp_info_t;
 
 
+bmp_info_t bmp_get_info(void* input);
+uint32_t bmp_get_size(void* input);
+void bmp_load_rgba32(void* input, void* output);
+
+
 #ifdef CORE_IMPL
 
 
