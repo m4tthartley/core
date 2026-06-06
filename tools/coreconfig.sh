@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 include="-I$HOME/code/core"
 

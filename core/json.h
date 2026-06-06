@@ -16,6 +16,24 @@
 #endif
 
 
+typedef struct json_obj_t json_obj_t;
+
+typedef struct {
+	uint8_t type;
+	union {
+		int32_t i;
+		float f;
+		char* s;
+		json_obj_t* obj;
+		json_obj_t* array;
+	};
+} json_value_t;
+
+
+json_value_t Json_Parse(void* data, uint32_t length);
+void Json_PrintValue(json_value_t value);
+
+
 #define CORE_IMPL 
 #ifdef CORE_IMPL
 
@@ -36,18 +54,6 @@ typedef enum {
 	JSON_ARRAY,
 } json_type_t;
 
-typedef struct json_obj_t json_obj_t;
-
-typedef struct {
-	uint8_t type;
-	union {
-		int32_t i;
-		float f;
-		char* s;
-		json_obj_t* obj;
-		json_obj_t* array;
-	};
-} json_value_t;
 
 // TODO: Try using linked list
 typedef struct json_obj_t {
@@ -72,7 +78,6 @@ typedef struct {
 
 json_value_t _Json_ParseValue(json_parser_t* parser);
 void _Json_PrintValueWithKey(char* key, json_value_t value);
-void _Json_PrintValue(json_value_t value);
 
 void* _json_alloc_memory(size_t size)
 {
@@ -346,6 +351,19 @@ json_value_t _Json_ParseValue(json_parser_t* parser)
 	}
 }
 
+json_value_t Json_Parse(void* data, uint32_t length)
+{
+	json_parser_t parser = {
+		.data = (char*)data,
+		.cursor = (char*)data,
+		.length = length,
+	};
+
+	json_value_t value = _Json_ParseValue(&parser);
+
+	return value;
+}
+
 int indent = 0;
 void _Json_PrintValueWithKey(char* key, json_value_t value)
 {
@@ -393,7 +411,7 @@ void _Json_PrintValueWithKey(char* key, json_value_t value)
 			++indent;
 			for (int i=0; i<obj.length; ++i) {
 				// print("\"%s\": ", obj.items[i].key);
-				_Json_PrintValue(obj.items[i].value);
+				Json_PrintValue(obj.items[i].value);
 				print(i+1==obj.length ? "\n" : ",\n");
 			}
 			--indent;
@@ -403,7 +421,7 @@ void _Json_PrintValueWithKey(char* key, json_value_t value)
 		} break;
 	}
 }
-void _Json_PrintValue(json_value_t value)
+void Json_PrintValue(json_value_t value)
 {
 	_Json_PrintValueWithKey(NULL, value);
 }
