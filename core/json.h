@@ -9,10 +9,18 @@
 #include "core.h"
 
 #ifndef JSON_ALLOC
-#define JSON_ALLOC _json_alloc_memory
+#	ifndef CORE_ALLOC
+#		define JSON_ALLOC _json_alloc_memory
+#	else
+#		define JSON_ALLOC CORE_ALLOC
+#	endif
 #endif
 #ifndef JSON_FREE
-#define JSON_FREE _json_free_memory
+#	ifndef CORE_FREE
+#		define JSON_FREE _json_free_memory
+#	else
+#		define JSON_FREE CORE_FREE
+#	endif
 #endif
 
 
