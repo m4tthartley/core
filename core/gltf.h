@@ -36,8 +36,16 @@ typedef struct {
 typedef struct {
 	uint32_t id;
 	int vertexCount;
-	gltf_vertex_t vertices[];
+	gltf_vertex_t* vertices;
+	uint32_t* textureData;
+	uint32_t textureWidth;
+	uint32_t textureHeight;
 } gltf_mesh_t;
+
+typedef struct {
+	gltf_mesh_t* meshes;
+	uint32_t meshCount;
+} gltf_model_t;
 
 
 #define CORE_IMPL 
@@ -529,40 +537,71 @@ uint32_t GLTF_GetIndex(gltf_accessor_t accessor, uint32_t index)
 	}
 }
 
-gltf_mesh_t* Gltf_Load(void* data)
+gltf_model_t gltf_load(void* data)
 {
 	gltf_header_t* header = (gltf_header_t*)data;
 	gltf_chunk_t* jsonChunk = (gltf_chunk_t*)(header + 1);
 	gltf_chunk_t* dataChunk = (gltf_chunk_t*)(data + sizeof(gltf_header_t) + sizeof(gltf_chunk_t) + jsonChunk->length);
 
-	json_value_t json = Json_Parse(jsonChunk->data, jsonChunk->length);
+	json_value_t* json = Json_Parse(jsonChunk->data, jsonChunk->length);
 	// Json_PrintValue(json);
+	_Json_OutputValueToFile("build/gltf_header.json", json);
 
-	gltf_mesh_t* finalMesh = GLTF_ALLOC(sizeof(gltf_mesh_t));
-	// sizeof(vertex_t)*indexCount
-	// finalMesh->id = ASSET_LOG;
-	// mesh->vertexCount = indexCount;
-	finalMesh->vertexCount = 0;
+	json_value_t* meshes = Json_ObjGetArray(json, "meshes");
+	json_value_t* accessors = Json_GetArray(json, "accessors");
+	json_value_t* bufferViews = Json_GetArray(json, "bufferViews");
+	json_value_t* nodes = Json_ObjGetArray(json, "nodes");
+	json_value_t* materials = Json_ObjGetArray(json, "materials");
+	json_value_t* textures = Json_ObjGetArray(json, "textures");
 
-	json_value_t meshes = Json_ObjGetArray(json, "meshes");
-	json_value_t accessors = Json_GetArray(json, "accessors");
-	json_value_t bufferViews = Json_GetArray(json, "bufferViews");
-	json_value_t nodes = Json_ObjGetArray(json, "nodes");
+	// uint32_t meshIndexCount = 0;
+	// gltf_mesh_t* finalMesh;
+	gltf_model_t model = {0};
+	int meshIndex = 0;
 
-	for (int meshIndex=0; meshIndex<meshes.array->length; ++meshIndex) {
+	// Get index count so we can do a big allocation
+	// for (int meshIndex=0; meshIndex<meshes.array->length; ++meshIndex) {
+	for (json_value_t* mesh0=meshes->first; mesh0; mesh0=mesh0->next) {
+		// json_value_t mesh0 = Json_ArrayGetObj(meshes, meshIndex);
+		json_value_t* primitives = Json_GetArray(mesh0, "primitives");
+		// for (int primitiveIndex=0; primitiveIndex<primitives.array->length; ++primitiveIndex) {
+		for (json_value_t* prim0=primitives->first; prim0; prim0=prim0->next) {
+			// json_value_t prim0 = Json_GetObj(primitives, primitiveIndex);
+			int indexAccIndex = Json_GetInt(prim0, "indices");
+			json_value_t* indexAccessorObj = Json_GetObj(accessors, indexAccIndex);
+			// meshIndexCount += Json_GetInt(indexAccessorObj, "count");
+
+			// finalMesh = GLTF_ALLOC(sizeof(gltf_mesh_t) + sizeof(gltf_vertex_t)*meshIndexCount);
+			// sizeof(vertex_t)*indexCount
+			// finalMesh->id = ASSET_LOG;
+			// mesh->vertexCount = indexCount;
+			// finalMesh->vertexCount = indexCount;
+
+			// gltf_vertex_t* vertices = GLTF_ALLOC(sizeof(gltf_vertex_t)*indexCount);
+			// finalMesh->vertexCount = 0;
+			++model.meshCount;
+		}
+	}
+
+	model.meshes = GLTF_ALLOC(model.meshCount * sizeof(gltf_mesh_t));
+
+	// for (int meshIndex=0; meshIndex<meshes.array->length; ++meshIndex) {
+	for (json_value_t* mesh0=meshes->first; mesh0; mesh0=mesh0->next) {
 		// TODO: start with nodes instead
 
-		json_value_t mesh0 = Json_ArrayGetObj(meshes, meshIndex);
-		json_value_t primitives = Json_GetArray(mesh0, "primitives");
-		json_value_t node0 = Json_GetObj(nodes, meshIndex);
-		char* mesh0Name = Json_GetStr(mesh0, "name");
-		char* node0Name = Json_GetStr(node0, "name");
+		// json_value_t mesh0 = Json_ArrayGetObj(meshes, meshIndex);
+		json_value_t* primitives = Json_GetArray(mesh0, "primitives");
+		json_value_t* node0 = Json_GetObj(nodes, meshIndex);
+		// Json_PrintValue(mesh0);
+		// char* mesh0Name = Json_GetStr(mesh0, "name");
+		// char* node0Name = Json_GetStr(node0, "name");
 
-		for (int primitiveIndex=0; primitiveIndex<primitives.array->length; ++primitiveIndex) {
-			json_value_t prim0 = Json_GetObj(primitives, primitiveIndex);
+		// for (int primitiveIndex=0; primitiveIndex<primitives.array->length; ++primitiveIndex) {
+		for (json_value_t* prim0=primitives->first; prim0; prim0=prim0->next) {
+			// json_value_t prim0 = Json_GetObj(primitives, primitiveIndex);
 			// char* mesh0Name = Json_ObjGetStr(mesh0, "name");
 			int indexAccIndex = Json_GetInt(prim0, "indices");
-			json_value_t attributes = Json_GetObj(prim0, "attributes");
+			json_value_t* attributes = Json_GetObj(prim0, "attributes");
 			int posAccIndex = Json_GetInt(attributes, "POSITION");
 			int normalAccIndex = Json_GetInt(attributes, "NORMAL");
 			int texcoordAccIndex = Json_GetInt(attributes, "TEXCOORD_0");
@@ -572,18 +611,19 @@ gltf_mesh_t* Gltf_Load(void* data)
 			quaternion_t rotationQuart = QuatIdentity();
 			vec3_t scale = vec3f(1);
 
-			json_value_t rotation = Json_GetArray(node0, "rotation");
-			json_value_t translationObj = Json_GetArray(node0, "translation");
-			json_value_t scaleObj = Json_GetArray(node0, "scale");
+			// Json_PrintValue(node0);
+			json_value_t* rotation = Json_GetArray(node0, "rotation");
+			json_value_t* translationObj = Json_GetArray(node0, "translation");
+			json_value_t* scaleObj = Json_GetArray(node0, "scale");
 
-			if (translationObj.type) {
+			if (translationObj) {
 				translation = vec3(
 					Json_GetFloat(translationObj, 0),
 					Json_GetFloat(translationObj, 1),
 					Json_GetFloat(translationObj, 2)
 				);
 			}
-			if (rotation.type) {
+			if (rotation) {
 				rotationQuart = vec4(
 					Json_GetFloat(rotation, 0),
 					Json_GetFloat(rotation, 1),
@@ -591,7 +631,7 @@ gltf_mesh_t* Gltf_Load(void* data)
 					Json_GetFloat(rotation, 3)
 				);
 			}
-			if (scaleObj.type) {
+			if (scaleObj) {
 				scale = vec3(
 					Json_GetFloat(scaleObj, 0),
 					Json_GetFloat(scaleObj, 1),
@@ -609,26 +649,26 @@ gltf_mesh_t* Gltf_Load(void* data)
 			mat4_t zupRotation = RotationX4x4(PI/2);
 			mat4_t yinRotation = RotationZ4x4(PI);
 			mat4_t engineAdjustRotation = Mul4x4(zupRotation, yinRotation);
-			mat4_t transform = Mul4x4(Mul4x4(Mul4x4(scaleMatrix, rotationMatrix), translationMatrix), engineAdjustRotation);
+			mat4_t transform = /*Mul4x4(*/Mul4x4(Mul4x4(scaleMatrix, rotationMatrix), translationMatrix)/*, engineAdjustRotation)*/;
 			// transform = mat4_mul(transform, extraRotMatrix);
 			// mat3_t inverseRotTransform = Transpose4x4(mat3_inverse(mat4_mat3(rotationMatrix)));
 
-			json_value_t posAccessor = Json_GetObj(accessors, posAccIndex);
-			json_value_t normalAccessorObj = Json_GetObj(accessors, normalAccIndex);
+			json_value_t* posAccessor = Json_GetObj(accessors, posAccIndex);
+			json_value_t* normalAccessorObj = Json_GetObj(accessors, normalAccIndex);
 			// int vertexCount = Json_GetInt(posAccessor, "count");
 
-			json_value_t indexAccessorObj = Json_GetObj(accessors, indexAccIndex);
-			int indexCount = Json_GetInt(indexAccessorObj, "count");
+			json_value_t* indexAccessorObj = Json_GetObj(accessors, indexAccIndex);
+			int primitiveIndexCount = Json_GetInt(indexAccessorObj, "count");
 
-			json_value_t indexBufferView = Json_GetObj(bufferViews, Json_GetInt(indexAccessorObj, "bufferView"));
+			json_value_t* indexBufferView = Json_GetObj(bufferViews, Json_GetInt(indexAccessorObj, "bufferView"));
 			int indexByteOffset = Json_GetInt(indexBufferView, "byteOffset");
 			// uint16_t* indices = (uint16_t*)(dataChunk->data + indexByteOffset);
 
-			json_value_t posBufferView = Json_GetObj(bufferViews, Json_GetInt(posAccessor, "bufferView"));
+			json_value_t* posBufferView = Json_GetObj(bufferViews, Json_GetInt(posAccessor, "bufferView"));
 			int posByteOffset = Json_GetInt(posBufferView, "byteOffset");
 			// vec3_t* positions = (vec3_t*)(dataChunk->data + posByteOffset);
 
-			json_value_t normalBufferView = Json_GetObj(bufferViews, Json_GetInt(normalAccessorObj, "bufferView"));
+			json_value_t* normalBufferView = Json_GetObj(bufferViews, Json_GetInt(normalAccessorObj, "bufferView"));
 			// vec3_t* normals = (vec3_t*)(dataChunk->data + Json_GetInt(normalBufferView, "byteOffset"));
 
 			gltf_accessor_t indexAccessor = GLTF_CreateAccessor(
@@ -654,10 +694,17 @@ gltf_mesh_t* Gltf_Load(void* data)
 			// float det = mat3_determinant(mat4_mat3(rMatrix));
 			// print("det %f \n", det);
 
-			gltf_vertex_t* vertices = GLTF_ALLOC(sizeof(gltf_vertex_t)*indexCount);
-			finalMesh->vertexCount += indexCount;
+			// gltf_vertex_t* vertices = finalMesh->vertices + finalMesh->vertexCount;
+			// finalMesh->vertexCount += primitiveIndexCount;
+			// assert(finalMesh->vertexCount <= meshIndexCount);
 
-			for (int i=0; i<indexCount; ++i) {
+			assert(meshIndex < model.meshCount);
+			gltf_mesh_t* mesh = model.meshes + meshIndex++;
+			mesh->vertices = GLTF_ALLOC(primitiveIndexCount * sizeof(gltf_vertex_t));
+			mesh->vertexCount = primitiveIndexCount;
+			gltf_vertex_t* vertices = mesh->vertices;
+
+			for (int i=0; i<primitiveIndexCount; ++i) {
 				// vec3_t pos = positions[indices[i]];
 				// mesh->vertices[i].pos = pos;
 				// mesh->vertices[i].normal = mul3(normals[indices[i]], vec3f(1));
@@ -673,16 +720,30 @@ gltf_mesh_t* Gltf_Load(void* data)
 				// vertices[i].normal = Mul4_4x4(vec4f3(mul3f(normal, -1), 0), Mul4x4(rotationMatrix, zupRotation)).xyz;
 				vertices[i].normal = Mul4_4x4(vec4f3(normal, 0), Mul4x4(rotationMatrix, engineAdjustRotation)).xyz;
 				vertices[i].color = vec3(0.8f, 0.5f, 0.2f); //mesh->vertices[i].normal;
+				vertices[i].uv = vec2(0, 0);
 				// mesh->vertices[i].normal = normalize3(mat3_mul_vec3(inverseRotTransform, normal));
 			}
 
 			// mesh_t* cubeMesh = R_BeginMesh();
 			// R_MeshPushCube(cubeMesh, vec3f(0.5f), vec3f(1));
 			// R_EndMesh(&cubeMesh);
+
+			int materialIndex = Json_GetInt(prim0, "material");
+			
+			json_value_t* materialObj = Json_GetObj(materials, materialIndex);
+			json_value_t* pbrMetallicRoughness = Json_GetObj(materialObj, "pbrMetallicRoughness");
+			json_value_t* baseColorTexture = Json_GetObj(pbrMetallicRoughness, "baseColorTexture");
+			int baseColorTextureIndex = Json_GetInt(baseColorTexture, "index");
+			json_value_t* textureObj = Json_GetObj(textures, baseColorTextureIndex);
+			// json_value_t nameObj = Json_GetObj(textureObj, "name");
+			char* textureFilename = Json_GetStr(textureObj, "name");
+			// strbreplace(textureFilename, ".png", ".bmp", strsize(textureFilename));
+			strreplace(textureFilename, ".png", ".bmp");
+			print("texture name: %s \n", textureFilename);
 		}
 	}
 
-	return finalMesh;
+	return model;
 }
 
 
