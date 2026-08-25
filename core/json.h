@@ -791,7 +791,8 @@ json_value_t* Json_ObjGetArray(json_value_t* value, char* key)
 	}
 
 	print_err("JSON array not found: %s \n", key);
-	exit(1);
+	// exit(1);
+	return NULL;
 }
 
 json_value_t* Json_ArrayGetObj(json_value_t* value, int index)
@@ -805,7 +806,8 @@ json_value_t* Json_ArrayGetObj(json_value_t* value, int index)
 	return v;
 
 	print_err("JSON obj not found: %i \n", index);
-	exit(1);
+	// exit(1);
+	return NULL;
 }
 
 char* Json_ObjGetStr(json_value_t* value, char* key)

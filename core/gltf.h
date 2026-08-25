@@ -37,9 +37,10 @@ typedef struct {
 	uint32_t id;
 	int vertexCount;
 	gltf_vertex_t* vertices;
-	uint32_t* textureData;
-	uint32_t textureWidth;
-	uint32_t textureHeight;
+	// uint32_t* textureData;
+	// uint32_t textureWidth;
+	// uint32_t textureHeight;
+	char textureFile[32];
 } gltf_mesh_t;
 
 typedef struct {
@@ -539,6 +540,10 @@ uint32_t GLTF_GetIndex(gltf_accessor_t accessor, uint32_t index)
 
 gltf_model_t gltf_load(void* data)
 {
+	if (!data) {
+		return (gltf_model_t){0};
+	}
+
 	gltf_header_t* header = (gltf_header_t*)data;
 	gltf_chunk_t* jsonChunk = (gltf_chunk_t*)(header + 1);
 	gltf_chunk_t* dataChunk = (gltf_chunk_t*)(data + sizeof(gltf_header_t) + sizeof(gltf_chunk_t) + jsonChunk->length);
@@ -653,23 +658,25 @@ gltf_model_t gltf_load(void* data)
 			// transform = mat4_mul(transform, extraRotMatrix);
 			// mat3_t inverseRotTransform = Transpose4x4(mat3_inverse(mat4_mat3(rotationMatrix)));
 
-			json_value_t* posAccessor = Json_GetObj(accessors, posAccIndex);
-			json_value_t* normalAccessorObj = Json_GetObj(accessors, normalAccIndex);
-			// int vertexCount = Json_GetInt(posAccessor, "count");
-
 			json_value_t* indexAccessorObj = Json_GetObj(accessors, indexAccIndex);
+			json_value_t* jPosAccessor = Json_GetObj(accessors, posAccIndex);
+			json_value_t* normalAccessorObj = Json_GetObj(accessors, normalAccIndex);
+			json_value_t* uvAccessorObj = Json_GetObj(accessors, texcoordAccIndex);
+
 			int primitiveIndexCount = Json_GetInt(indexAccessorObj, "count");
 
 			json_value_t* indexBufferView = Json_GetObj(bufferViews, Json_GetInt(indexAccessorObj, "bufferView"));
 			int indexByteOffset = Json_GetInt(indexBufferView, "byteOffset");
 			// uint16_t* indices = (uint16_t*)(dataChunk->data + indexByteOffset);
 
-			json_value_t* posBufferView = Json_GetObj(bufferViews, Json_GetInt(posAccessor, "bufferView"));
-			int posByteOffset = Json_GetInt(posBufferView, "byteOffset");
+			json_value_t* posBufferView = Json_GetObj(bufferViews, Json_GetInt(jPosAccessor, "bufferView"));
+			// int posByteOffset = Json_GetInt(posBufferView, "byteOffset");
 			// vec3_t* positions = (vec3_t*)(dataChunk->data + posByteOffset);
 
 			json_value_t* normalBufferView = Json_GetObj(bufferViews, Json_GetInt(normalAccessorObj, "bufferView"));
 			// vec3_t* normals = (vec3_t*)(dataChunk->data + Json_GetInt(normalBufferView, "byteOffset"));
+
+			json_value_t* uvBufferView = Json_GetObj(bufferViews, Json_GetInt(uvAccessorObj, "bufferView"));
 
 			gltf_accessor_t indexAccessor = GLTF_CreateAccessor(
 				dataChunk->data + indexByteOffset,
@@ -677,14 +684,19 @@ gltf_model_t gltf_load(void* data)
 				Json_GetInt(indexAccessorObj, "componentType")
 			);
 			gltf_accessor_t positionAccessor = GLTF_CreateAccessor(
-				dataChunk->data + posByteOffset,
-				Json_GetStr(posAccessor, "type"),
-				Json_GetInt(posAccessor, "componentType")
+				dataChunk->data + Json_GetInt(posBufferView, "byteOffset"),
+				Json_GetStr(jPosAccessor, "type"),
+				Json_GetInt(jPosAccessor, "componentType")
 			);
 			gltf_accessor_t normalAccessor = GLTF_CreateAccessor(
 				dataChunk->data + Json_GetInt(normalBufferView, "byteOffset"),
 				Json_GetStr(normalAccessorObj, "type"),
 				Json_GetInt(normalAccessorObj, "componentType")
+			);
+			gltf_accessor_t uvAccessor = GLTF_CreateAccessor(
+				dataChunk->data + Json_GetInt(uvBufferView, "byteOffset"),
+				Json_GetStr(uvAccessorObj, "type"),
+				Json_GetInt(uvAccessorObj, "componentType")
 			);
 
 			// vec3_t pos0 = ((vec3_t*)(dataChunk->data + byteOffset))[0];
@@ -712,6 +724,7 @@ gltf_model_t gltf_load(void* data)
 				uint32_t index = GLTF_GetIndex(indexAccessor, i);
 				vec3_t pos = GLTF_GetVertex(positionAccessor, index);
 				vec3_t normal = GLTF_GetVertex(normalAccessor, index);
+				vec3_t uv = GLTF_GetVertex(uvAccessor, index);
 
 				// pos = vec3(pos.x, pos.z, pos.y);
 				
@@ -719,8 +732,9 @@ gltf_model_t gltf_load(void* data)
 				// vertices[i].pos = add3(vertices[i].pos, translation);
 				// vertices[i].normal = Mul4_4x4(vec4f3(mul3f(normal, -1), 0), Mul4x4(rotationMatrix, zupRotation)).xyz;
 				vertices[i].normal = Mul4_4x4(vec4f3(normal, 0), Mul4x4(rotationMatrix, engineAdjustRotation)).xyz;
-				vertices[i].color = vec3(0.8f, 0.5f, 0.2f); //mesh->vertices[i].normal;
-				vertices[i].uv = vec2(0, 0);
+				// vertices[i].color = vec3(0.8f, 0.5f, 0.2f);
+				vertices[i].color = vec3f(1);
+				vertices[i].uv = uv.xy;
 				// mesh->vertices[i].normal = normalize3(mat3_mul_vec3(inverseRotTransform, normal));
 			}
 
@@ -728,18 +742,26 @@ gltf_model_t gltf_load(void* data)
 			// R_MeshPushCube(cubeMesh, vec3f(0.5f), vec3f(1));
 			// R_EndMesh(&cubeMesh);
 
-			int materialIndex = Json_GetInt(prim0, "material");
-			
-			json_value_t* materialObj = Json_GetObj(materials, materialIndex);
-			json_value_t* pbrMetallicRoughness = Json_GetObj(materialObj, "pbrMetallicRoughness");
-			json_value_t* baseColorTexture = Json_GetObj(pbrMetallicRoughness, "baseColorTexture");
-			int baseColorTextureIndex = Json_GetInt(baseColorTexture, "index");
-			json_value_t* textureObj = Json_GetObj(textures, baseColorTextureIndex);
-			// json_value_t nameObj = Json_GetObj(textureObj, "name");
-			char* textureFilename = Json_GetStr(textureObj, "name");
-			// strbreplace(textureFilename, ".png", ".bmp", strsize(textureFilename));
-			strreplace(textureFilename, ".png", ".bmp");
-			print("texture name: %s \n", textureFilename);
+			json_value_t* material = Json_GetValueByKey(prim0,"material");
+			if (material) {
+				int materialIndex = material->i;
+				
+				json_value_t* materialObj = Json_GetObj(materials, materialIndex);
+				json_value_t* pbrMetallicRoughness = Json_GetObj(materialObj, "pbrMetallicRoughness");
+				json_value_t* baseColorTexture = Json_GetObj(pbrMetallicRoughness, "baseColorTexture");
+				if (baseColorTexture) {
+					int baseColorTextureIndex = Json_GetInt(baseColorTexture, "index");
+					json_value_t* textureObj = Json_GetObj(textures, baseColorTextureIndex);
+					// json_value_t nameObj = Json_GetObj(textureObj, "name");
+					char* textureFilename = Json_GetStr(textureObj, "name");
+					// strbreplace(textureFilename, ".png", ".bmp", strsize(textureFilename));
+					char* filename = strreplace(textureFilename, ".png", ".bmp");
+					filename = strformat("assets/%s", filename);
+					print("texture name: %s \n", filename);
+
+					strbcopy(mesh->textureFile, filename, sizeof(mesh->textureFile));
+				}
+			}
 		}
 	}
 
