@@ -92,6 +92,7 @@ typedef enum {
 	JSON_TOKEN_STRING,
 	JSON_TOKEN_NUMBER,
 	JSON_TOKEN_BOOLEAN,
+	JSON_TOKEN_NULL,
 } json_token_type_t;
 
 typedef struct {
@@ -141,6 +142,9 @@ char* _Json_GetValueString(json_value_t value)
 			break;
 		case JSON_ARRAY:
 			return strformat("[array]");
+			break;
+		case JSON_NULL:
+			return strformat("NULL");
 			break;
 		default:
 			return "Unknown Value";
@@ -198,7 +202,9 @@ _Bool _Json_PeakToken(json_parser_t* parser, json_token_t* token)
 
 				char* c = parser->cursor + 1;
 				while ((*c >= '0' && *c <= '9')
-					|| *c=='.') {
+					|| *c=='.'
+					|| *c=='e'
+					|| *c=='-') {
 					++c;
 				}
 				int len = c - parser->cursor + 1;
@@ -219,6 +225,13 @@ _Bool _Json_PeakToken(json_parser_t* parser, json_token_t* token)
 				char* str = malloc(5+1);
 				sprint(str, 5+1, "false");
 				*token = (json_token_t){JSON_TOKEN_BOOLEAN, .str=str, .b=FALSE};
+				return _True;
+			}
+
+			if (strncompare(parser->cursor, "null", 4)) {
+				char* str = malloc(4+1);
+				sprint(str, 4+1, "null");
+				*token = (json_token_t){JSON_TOKEN_NULL, .str=str};
 				return _True;
 			}
 
@@ -246,22 +259,29 @@ _Bool _Json_ReadToken(json_parser_t* parser, json_token_t* token)
 	return result;
 }
 
+void _Json_PrintErrorStack(json_parser_t* parser)
+{
+	print_err("%s \n", strsubstr(parser->cursor, 0, 16));
+}
+
 json_token_t _Json_ExpectReadToken(json_parser_t* parser, uint8_t type)
 {
 	json_token_t token;
 	_Json_ReadToken(parser, &token);
 	if (token.type != type) {
 		print_err("ExpectReadToken: Unexpected token: %c %s \n", token.type, token.str ? token.str : "");
+		_Json_PrintErrorStack(parser);
 		exit(1);
 	}
 
 	return token;
 }
 
-_Bool _Json_ExpectToken(json_token_t token, uint8_t type)
+_Bool _Json_ExpectToken(json_parser_t* parser, json_token_t token, uint8_t type)
 {
 	if (token.type != type) {
 		print_err("ExpectToken: Unexpected token: %c %s \n", token.type, token.str ? token.str : "");
+		_Json_PrintErrorStack(parser);
 		exit(1);
 	}
 
@@ -307,7 +327,7 @@ json_value_t* _Json_ParseObject(json_parser_t* parser)
 
 		_Json_ReadToken(parser, &token);
 		if (token.type != ',') {
-			_Json_ExpectToken(token, '}');
+			_Json_ExpectToken(parser, token, '}');
 			break;
 		}
 	}
@@ -342,7 +362,7 @@ json_value_t* _Json_ParseArray(json_parser_t* parser)
 		json_token_t token;
 		_Json_ReadToken(parser, &token);
 		if (token.type != ',') {
-			_Json_ExpectToken(token, ']');
+			_Json_ExpectToken(parser, token, ']');
 			break;
 		}
 	}
@@ -408,6 +428,7 @@ json_value_t* _Json_ParseValue(json_parser_t* parser)
 		default:
 			// error 
 			print_err("ParseValue: Unexpected token: %i, %c, \"%s\" \n", (int)token.type, token.type, token.str);
+			_Json_PrintErrorStack(parser);
 			exit(1);
 	}
 
@@ -731,6 +752,9 @@ char* Json_GetStr(json_value_t* value, ...)
 	va_start(args, value);
 	json_value_t* result = Json_GetObjOrArrayValue(value, args);
 	va_end(args);
+	if (!result) {
+		return NULL;
+	}
 	// assert(result.type == JSON_STRING);
 	return result->s;
 }

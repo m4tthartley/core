@@ -460,6 +460,7 @@ gltf_accessor_t GLTF_CreateAccessor(uint8_t* data, char* type, int componentType
 
 	if (t == -1) {
 		print_err("Unknown type name: %s \n", type);
+		assert(FALSE);
 		exit(1);
 	}
 
@@ -548,6 +549,7 @@ gltf_model_t gltf_load(void* data)
 	gltf_chunk_t* jsonChunk = (gltf_chunk_t*)(header + 1);
 	gltf_chunk_t* dataChunk = (gltf_chunk_t*)(data + sizeof(gltf_header_t) + sizeof(gltf_chunk_t) + jsonChunk->length);
 
+	print(jsonChunk->data);
 	json_value_t* json = Json_Parse(jsonChunk->data, jsonChunk->length);
 	// Json_PrintValue(json);
 	_Json_OutputValueToFile("build/gltf_header.json", json);
@@ -678,6 +680,8 @@ gltf_model_t gltf_load(void* data)
 
 			json_value_t* uvBufferView = Json_GetObj(bufferViews, Json_GetInt(uvAccessorObj, "bufferView"));
 
+			Json_PrintValue(indexAccessorObj);
+			char* indexType = Json_GetStr(indexAccessorObj, "type");
 			gltf_accessor_t indexAccessor = GLTF_CreateAccessor(
 				dataChunk->data + indexByteOffset,
 				Json_GetStr(indexAccessorObj, "type"),
@@ -753,13 +757,16 @@ gltf_model_t gltf_load(void* data)
 					int baseColorTextureIndex = Json_GetInt(baseColorTexture, "index");
 					json_value_t* textureObj = Json_GetObj(textures, baseColorTextureIndex);
 					// json_value_t nameObj = Json_GetObj(textureObj, "name");
-					char* textureFilename = Json_GetStr(textureObj, "name");
-					// strbreplace(textureFilename, ".png", ".bmp", strsize(textureFilename));
-					char* filename = strreplace(textureFilename, ".png", ".bmp");
-					filename = strformat("assets/%s", filename);
-					print("texture name: %s \n", filename);
+					json_value_t* textureFilename = Json_GetValueByKey(textureObj, "name");
+					// char* textureFilename = Json_GetStr(textureObj, "name");
+					if (textureFilename) {
+						// strbreplace(textureFilename, ".png", ".bmp", strsize(textureFilename));
+						char* filename = strreplace(textureFilename->s, ".png", ".bmp");
+						filename = strformat("assets/%s", filename);
+						print("texture name: %s \n", filename);
 
-					strbcopy(mesh->textureFile, filename, sizeof(mesh->textureFile));
+						strbcopy(mesh->textureFile, filename, sizeof(mesh->textureFile));
+					}
 				}
 			}
 		}
