@@ -230,6 +230,9 @@ CORE_MATH_FUNC vec3_t div3(vec3_t a, vec3_t b);
 CORE_MATH_FUNC vec3_t div3f(vec3_t a, float b);
 CORE_MATH_FUNC vec4_t div4(vec4_t a, vec4_t b);
 CORE_MATH_FUNC vec4_t div4f(vec4_t a, float b);
+CORE_MATH_FUNC vec2_t neg2(vec2_t a);
+CORE_MATH_FUNC vec3_t neg3(vec3_t a);
+CORE_MATH_FUNC vec4_t neg4(vec4_t a);
 CORE_MATH_FUNC float len2(vec2_t a);
 CORE_MATH_FUNC float len3(vec3_t a);
 CORE_MATH_FUNC float len4(vec4_t a);
@@ -491,6 +494,16 @@ CORE_MATH_FUNC vec4_t div4(vec4_t a, vec4_t b) {
 CORE_MATH_FUNC vec4_t div4f(vec4_t a, float b) {
 	vec4_t result = vec4(a.x/b, a.y/b, a.z/b, a.w/b);
 	return result;
+}
+
+CORE_MATH_FUNC vec2_t neg2(vec2_t a) {
+	return vec2(-a.x, -a.y);
+}
+CORE_MATH_FUNC vec3_t neg3(vec3_t a) {
+	return vec3(-a.x, -a.y, -a.z);
+}
+CORE_MATH_FUNC vec4_t neg4(vec4_t a) {
+	return vec4(-a.x, -a.y, -a.z, -a.w);
 }
 
 CORE_MATH_FUNC float len2(vec2_t a) {
