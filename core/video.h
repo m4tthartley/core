@@ -105,9 +105,9 @@ typedef struct {
 		int y;
 	} pos;
 	struct {
-		int x;
-		int y;
-	} pos_dt;
+		float x;
+		float y;
+	} delta;
 	union {
 		struct {
 			vid_button_t left;
@@ -139,6 +139,7 @@ typedef struct {
 	_Bool quit;
 	uint8_t flags;
 	_Bool active;
+	_Bool pointerGrabbed;
 
 	vid_mouse_t mouse;
 	vid_button_t keyboard[256];
@@ -148,7 +149,7 @@ typedef struct {
 			vid_button_t shift;
 			vid_button_t control;
 			vid_button_t option;
-			vid_button_t command;
+			vid_button_t super;
 			vid_button_t numpad;
 			vid_button_t help;
 			vid_button_t function;
@@ -172,6 +173,7 @@ typedef struct {
 #ifdef __LINUX__
 	void* sysDisplay;
 	unsigned long sysWindow;
+	int sysXiOpcode;
 	void* sysGLContext;
 #endif
 #ifdef __WIN32__
@@ -188,6 +190,8 @@ typedef struct {
 CORE window_t vid_init_window(char* title, int width, int height, int flags);
 CORE void vid_toggle_fullscreen(window_t* win);
 CORE void vid_set_fullscreen(window_t* win, bool enabled);
+CORE void vid_grab_pointer(window_t* vid);
+CORE void vid_release_pointer(window_t* vid);
 CORE void vid_poll_events(window_t* win);
 CORE _Bool vid_message_box(char* title, char* msg, char* yesOption, char* noOption);
 
@@ -251,8 +255,8 @@ typedef enum {
 
 #ifdef __LINUX__
 // #error "LINUX KEY CODES ARE NOT IMPLEMENTED"
-#include <X11/keysym.h>
 // #include <X11/keysymdef.h>
+#include <X11/keysym.h>
 typedef enum {
 	KEY_A=XK_A, KEY_B=XK_B, KEY_C=XK_C, KEY_D=XK_D, KEY_E=XK_E, KEY_F=XK_F,
 	KEY_G=XK_G, KEY_H=XK_H, KEY_I=XK_I, KEY_J=XK_J, KEY_K=XK_K, KEY_L=XK_L,
@@ -270,7 +274,7 @@ typedef enum {
 	
 	KEY_RETURN=XK_Return, KEY_BACKSPACE=XK_Delete, KEY_SPACE=XK_space, KEY_ESC=XK_Escape, KEY_TAB=XK_Tab,
 	KEY_SHIFT=XK_Shift_L, KEY_RSHIFT=XK_Shift_R, KEY_CONTROL=XK_Control_L, KEY_RCONTROL=XK_Control_R,
-	KEY_MENU=XK_Alt_L, KEY_RMENU=XK_Alt_R, KEY_COMMAND=XK_Super_L, KEY_RCOMMAND=XK_Super_R,
+	KEY_MENU=XK_Alt_L, KEY_RMENU=XK_Alt_R, KEY_SUPER=XK_Super_L, KEY_RSUPER=XK_Super_R,
 	KEY_DELETE=XK_Delete, KEY_HOME=XK_Home, KEY_END=XK_End,
 } sys_key_code_t;
 #endif

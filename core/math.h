@@ -23,6 +23,7 @@
 
 #define PI 3.14159265359f
 #define PI2 (PI*2.0f)
+#define PIHALF (PI*0.5f)
 
 // #define CORE_INLINE
 #define CORE_MATH_FUNC
